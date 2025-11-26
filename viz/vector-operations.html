@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Vector Operations</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for rendering formulas -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111827; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-panel { z-index: 10; backdrop-filter: blur(8px); background-color: rgba(17, 24, 39, 0.85); }
+        
+        /* 3D Label Styles */
+        .vector-label {
+            font-family: monospace;
+            font-weight: bold;
+            text-shadow: 0px 0px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            cursor: pointer; background: #4B5563;
+            border-radius: 2px;
+        }
+        .slider-group:hover input[type=range]::-webkit-slider-runnable-track {
+            background: #6B7280;
+        }
+
+        /* MathJax overrides */
+        mjx-container { font-size: 1.1em !important; color: white !important; }
+    </style>
+
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body class="text-white">
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI: Header & Mode Selection -->
+    <div class="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-20">
+        <div class="ui-panel p-4 rounded-lg border border-gray-700 pointer-events-auto shadow-lg max-w-md">
+            <h1 class="text-xl font-bold text-blue-400 mb-1">Vector Visualizer</h1>
+            <p class="text-xs text-gray-400 mb-4">Select an operation to visualize geometric relationships.</p>
+            
+            <div class="flex space-x-2 bg-gray-800 p-1 rounded-md mb-4">
+                <button onclick="app.setMode('add')" id="btn-add" class="flex-1 py-1 text-sm rounded transition-colors bg-blue-600 text-white">Add</button>
+                <button onclick="app.setMode('sub')" id="btn-sub" class="flex-1 py-1 text-sm rounded transition-colors hover:bg-gray-700 text-gray-300">Sub</button>
+                <button onclick="app.setMode('scale')" id="btn-scale" class="flex-1 py-1 text-sm rounded transition-colors hover:bg-gray-700 text-gray-300">Scale</button>
+                <button onclick="app.setMode('dot')" id="btn-dot" class="flex-1 py-1 text-sm rounded transition-colors hover:bg-gray-700 text-gray-300">Dot</button>
+            </div>
+
+            <div id="math-display" class="bg-gray-900 p-3 rounded border border-gray-700 min-h-[60px] flex items-center justify-center text-center">
+                <!-- MathJax formulas will be injected here -->
+                $$ \vec{a} + \vec{b} = \vec{result} $$
+            </div>
+            <div id="math-explanation" class="text-xs text-gray-400 mt-2 text-center h-4">
+                <!-- Explanation text -->
+            </div>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="ui-panel p-2 rounded-lg border border-gray-700 pointer-events-auto">
+            <button onclick="app.toggleDimension()" id="btn-dim" class="px-4 py-2 font-bold text-sm bg-gray-800 hover:bg-gray-700 rounded text-purple-400 border border-purple-900/50">
+                Switch to 2D
+            </button>
+        </div>
+    </div>
+
+    <!-- UI: Controls (Bottom) -->
+    <div class="absolute bottom-6 left-4 right-4 flex justify-center pointer-events-none z-20">
+        <div class="ui-panel p-5 rounded-xl border border-gray-700 pointer-events-auto shadow-2xl w-full max-w-3xl flex flex-col md:flex-row gap-6">
+            
+            <!-- Vector A Controls -->
+            <div class="flex-1">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-bold text-blue-500">Vector A</span>
+                    <span id="val-a" class="font-mono text-xs text-gray-400">[2, 2, 0]</span>
+                </div>
+                <div class="space-y-2 slider-group">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs w-3 text-red-400">X</span>
+                        <input type="range" min="-5" max="5" step="0.1" value="2" id="slider-ax" oninput="app.updateFromUI()">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs w-3 text-green-400">Y</span>
+                        <input type="range" min="-5" max="5" step="0.1" value="2" id="slider-ay" oninput="app.updateFromUI()">
+                    </div>
+                    <div class="flex items-center gap-2 opacity-100 transition-opacity" id="container-az">
+                        <span class="text-xs w-3 text-blue-400">Z</span>
+                        <input type="range" min="-5" max="5" step="0.1" value="0" id="slider-az" oninput="app.updateFromUI()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vector B Controls (Hidden in Scale Mode) -->
+            <div class="flex-1" id="controls-b">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-bold text-red-500">Vector B</span>
+                    <span id="val-b" class="font-mono text-xs text-gray-400">[1, -3, 0]</span>
+                </div>
+                <div class="space-y-2 slider-group">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs w-3 text-red-400">X</span>
+                        <input type="range" min="-5" max="5" step="0.1" value="1" id="slider-bx" oninput="app.updateFromUI()">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs w-3 text-green-400">Y</span>
+                        <input type="range" min="-5" max="5" step="0.1" value="-3" id="slider-by" oninput="app.updateFromUI()">
+                    </div>
+                    <div class="flex items-center gap-2 opacity-100 transition-opacity" id="container-bz">
+                        <span class="text-xs w-3 text-blue-400">Z</span>
+                        <input type="range" min="-5" max="5" step="0.1" value="0" id="slider-bz" oninput="app.updateFromUI()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scalar Control (Only for Scale Mode) -->
+            <div class="flex-1 hidden" id="controls-scalar">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-bold text-yellow-500">Scalar (k)</span>
+                    <span id="val-k" class="font-mono text-xs text-gray-400">1.0</span>
+                </div>
+                <div class="mt-6 slider-group">
+                    <input type="range" min="-2" max="2" step="0.1" value="1" id="slider-k" oninput="app.updateFromUI()" class="w-full">
+                </div>
+                <p class="text-xs text-gray-500 mt-2 text-center">Drag negative to reverse direction</p>
+            </div>
+
+            <div class="flex flex-col justify-center border-l border-gray-700 pl-4 ml-2">
+                <button onclick="app.resetVectors()" class="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-2 rounded mb-2">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        class VectorApp {
+            constructor() {
+                this.mode = 'add'; // add, sub, scale, dot
+                this.is3D = true;
+                
+                // Scene Components
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.labelRenderer = null;
+                this.controls = null;
+                
+                // Mathematical State
+                this.vecA = new THREE.Vector3(2, 2, 0);
+                this.vecB = new THREE.Vector3(1, -3, 0); // Default B
+                this.scalar = 1.0;
+
+                // Visual Objects
+                this.arrowA = null;
+                this.arrowB = null;
+                this.arrowResult = null;
+                this.ghostArrow = null; // Used for visualization steps (tip-to-tail)
+                this.projectionLine = null; // For Dot product
+                this.angleArc = null; // For Dot product
+                
+                // Labels
+                this.labelA = null;
+                this.labelB = null;
+                this.labelResult = null;
+                
+                this.init();
+            }
+
+            init() {
+                // 1. Scene Setup
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x111827); // Tailwind gray-900
+                // Fog for depth
+                this.scene.fog = new THREE.FogExp2(0x111827, 0.02);
+
+                // 2. Camera
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+                this.camera.position.set(8, 6, 8);
+                this.camera.lookAt(0, 0, 0);
+
+                // 3. Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+
+                // 4. CSS2D Renderer (Labels)
+                this.labelRenderer = new CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0px';
+                this.labelRenderer.domElement.style.pointerEvents = 'none'; // Click through labels
+                document.getElementById('canvas-container').appendChild(this.labelRenderer.domElement);
+
+                // 5. Controls
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+
+                // 6. Lights
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+                dirLight.position.set(5, 10, 7);
+                this.scene.add(dirLight);
+
+                // 7. Helpers (Grid & Axes)
+                const gridHelper = new THREE.GridHelper(20, 20, 0x374151, 0x1f2937);
+                this.scene.add(gridHelper);
+                
+                // Custom Axes colors
+                const axesHelper = new THREE.AxesHelper(5);
+                axesHelper.setColors(new THREE.Color(0xff5555), new THREE.Color(0x55ff55), new THREE.Color(0x5555ff)); // R, G, B
+                this.scene.add(axesHelper);
+
+                // 8. Initialize Vector Objects
+                this.createVectorObjects();
+
+                // 9. Resize Handler
+                window.addEventListener('resize', () => this.onWindowResize(), false);
+
+                // 10. Start Loop
+                this.updateScene();
+                this.animate();
+            }
+
+            createVectorObjects() {
+                // Helper to make arrows
+                const createArrow = (color, name) => {
+                    const dir = new THREE.Vector3(1, 0, 0);
+                    const origin = new THREE.Vector3(0, 0, 0);
+                    const length = 1;
+                    const arrowHelper = new THREE.ArrowHelper(dir, origin, length, color, 0.3, 0.2);
+                    
+                    // Add glow effect mesh (cylinder)
+                    const lineGeo = new THREE.CylinderGeometry(0.02, 0.02, 1, 8);
+                    const lineMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.3 });
+                    const glowMesh = new THREE.Mesh(lineGeo, lineMat);
+                    glowMesh.rotation.z = -Math.PI / 2;
+                    glowMesh.position.x = 0.5;
+                    glowMesh.visible = false; // Turn on/off
+                    arrowHelper.add(glowMesh);
+                    arrowHelper.glow = glowMesh;
+
+                    this.scene.add(arrowHelper);
+                    
+                    // Create Label
+                    const div = document.createElement('div');
+                    div.className = 'vector-label';
+                    div.style.color = '#' + color.getHexString();
+                    div.textContent = name;
+                    const label = new CSS2DObject(div);
+                    label.position.set(0, 0, 0);
+                    this.scene.add(label);
+
+                    return { arrow: arrowHelper, label: label };
+                };
+
+                const aObj = createArrow(new THREE.Color(0x3b82f6), 'a'); // Blue-500
+                this.arrowA = aObj.arrow;
+                this.labelA = aObj.label;
+
+                const bObj = createArrow(new THREE.Color(0xef4444), 'b'); // Red-500
+                this.arrowB = bObj.arrow;
+                this.labelB = bObj.label;
+
+                const resObj = createArrow(new THREE.Color(0x10b981), 'result'); // Green-500
+                this.arrowResult = resObj.arrow;
+                this.labelResult = resObj.label;
+
+                // Ghost Arrow (for additions step visual)
+                const ghostDir = new THREE.Vector3(1, 0, 0);
+                const ghostArrow = new THREE.ArrowHelper(ghostDir, new THREE.Vector3(), 1, 0xef4444, 0.3, 0.2);
+                ghostArrow.line.material.transparent = true;
+                ghostArrow.line.material.opacity = 0.4;
+                ghostArrow.line.material.dashSize = 0.1;
+                ghostArrow.cone.material.transparent = true;
+                ghostArrow.cone.material.opacity = 0.4;
+                this.scene.add(ghostArrow);
+                this.ghostArrow = ghostArrow;
+
+                // Angle Arc (Dot Product)
+                const arcGeo = new THREE.TorusGeometry(1, 0.03, 16, 100, Math.PI / 4);
+                const arcMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                this.angleArc = new THREE.Mesh(arcGeo, arcMat);
+                this.angleArc.visible = false;
+                this.scene.add(this.angleArc);
+
+                // Projection Line (Dot Product)
+                const points = [new THREE.Vector3(0,0,0), new THREE.Vector3(0,1,0)];
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.1, gapSize: 0.05, opacity: 0.5, transparent: true });
+                this.projectionLine = new THREE.Line(lineGeo, lineMat);
+                this.projectionLine.computeLineDistances();
+                this.scene.add(this.projectionLine);
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+                
+                // UI Updates
+                document.querySelectorAll('button[id^="btn-"]').forEach(b => {
+                    if(b.id === `btn-${mode}`) {
+                        b.className = "flex-1 py-1 text-sm rounded transition-colors bg-blue-600 text-white font-bold shadow-md";
+                    } else {
+                        b.className = "flex-1 py-1 text-sm rounded transition-colors hover:bg-gray-700 text-gray-300";
+                    }
+                });
+
+                // Toggle Control Visibility
+                const scalarControls = document.getElementById('controls-scalar');
+                const bControls = document.getElementById('controls-b');
+
+                if (mode === 'scale') {
+                    scalarControls.classList.remove('hidden');
+                    bControls.classList.add('hidden');
+                } else {
+                    scalarControls.classList.add('hidden');
+                    bControls.classList.remove('hidden');
+                }
+
+                this.updateScene();
+            }
+
+            toggleDimension() {
+                this.is3D = !this.is3D;
+                const btn = document.getElementById('btn-dim');
+                
+                const zSliders = [document.getElementById('container-az'), document.getElementById('container-bz')];
+
+                if (this.is3D) {
+                    btn.textContent = "Switch to 2D";
+                    btn.classList.add('text-purple-400', 'border-purple-900/50');
+                    btn.classList.remove('text-green-400', 'border-green-900/50');
+                    
+                    // Transition Camera
+                    this.camera.position.set(8, 6, 8);
+                    this.camera.lookAt(0,0,0);
+                    this.controls.enableRotate = true;
+                    this.controls.maxPolarAngle = Math.PI; // Full rotation
+
+                    // Enable sliders
+                    zSliders.forEach(el => {
+                        el.style.opacity = '1';
+                        el.style.pointerEvents = 'auto';
+                    });
+                } else {
+                    btn.textContent = "Switch to 3D";
+                    btn.classList.remove('text-purple-400', 'border-purple-900/50');
+                    btn.classList.add('text-green-400', 'border-green-900/50');
+
+                    // Snap Camera Top-Down
+                    this.camera.position.set(0, 12, 0);
+                    this.camera.lookAt(0, 0, 0);
+                    this.controls.enableRotate = false; // Lock rotation
+                    this.controls.target.set(0,0,0);
+
+                    // Reset Z to 0 for 2D logic
+                    this.vecA.z = 0;
+                    this.vecB.z = 0;
+                    document.getElementById('slider-az').value = 0;
+                    document.getElementById('slider-bz').value = 0;
+                    
+                    // Disable sliders visually
+                    zSliders.forEach(el => {
+                        el.style.opacity = '0.3';
+                        el.style.pointerEvents = 'none';
+                    });
+                }
+                this.controls.update();
+                this.updateScene();
+            }
+
+            updateFromUI() {
+                // Read sliders
+                const sax = parseFloat(document.getElementById('slider-ax').value);
+                const say = parseFloat(document.getElementById('slider-ay').value);
+                const saz = parseFloat(document.getElementById('slider-az').value);
+                
+                const sbx = parseFloat(document.getElementById('slider-bx').value);
+                const sby = parseFloat(document.getElementById('slider-by').value);
+                const sbz = parseFloat(document.getElementById('slider-bz').value);
+                
+                const sk = parseFloat(document.getElementById('slider-k').value);
+
+                this.vecA.set(sax, say, saz);
+                this.vecB.set(sbx, sby, sbz);
+                this.scalar = sk;
+
+                // Update text displays
+                document.getElementById('val-a').textContent = `[${sax}, ${say}, ${saz}]`;
+                document.getElementById('val-b').textContent = `[${sbx}, ${sby}, ${sbz}]`;
+                document.getElementById('val-k').textContent = sk.toFixed(1);
+
+                this.updateScene();
+            }
+
+            resetVectors() {
+                document.getElementById('slider-ax').value = 2;
+                document.getElementById('slider-ay').value = 2;
+                document.getElementById('slider-az').value = 0;
+                document.getElementById('slider-bx').value = 1;
+                document.getElementById('slider-by').value = -3;
+                document.getElementById('slider-bz').value = 0;
+                document.getElementById('slider-k').value = 1;
+                
+                if(!this.is3D) {
+                    document.getElementById('slider-az').value = 0;
+                    document.getElementById('slider-bz').value = 0;
+                }
+
+                this.updateFromUI();
+            }
+
+            updateVectorVisual(arrow, label, vector, origin = new THREE.Vector3(0,0,0), visible = true, labelText = "") {
+                if (!visible) {
+                    arrow.visible = false;
+                    label.visible = false;
+                    return;
+                }
+                
+                arrow.visible = true;
+                label.visible = true;
+
+                const len = vector.length();
+                // Avoid zero-length warnings
+                if (len < 0.01) {
+                    arrow.visible = false;
+                    label.visible = false;
+                    return;
+                }
+
+                arrow.position.copy(origin);
+                arrow.setDirection(vector.clone().normalize());
+                arrow.setLength(len, 0.4, 0.2); // length, headLength, headWidth
+
+                // Update label pos to tip
+                const tipPos = origin.clone().add(vector);
+                label.position.copy(tipPos);
+                // Offset label slightly towards camera or up to avoid overlap
+                label.position.y += 0.2; 
+                
+                if (labelText) {
+                    label.element.textContent = labelText;
+                }
+            }
+
+            updateScene() {
+                // Reset Visibility
+                this.ghostArrow.visible = false;
+                this.angleArc.visible = false;
+                this.projectionLine.visible = false;
+                
+                const origin = new THREE.Vector3(0,0,0);
+                let latex = "";
+                let explanation = "";
+
+                // --- ADDITION ---
+                if (this.mode === 'add') {
+                    const result = this.vecA.clone().add(this.vecB);
+                    
+                    // A at Origin
+                    this.updateVectorVisual(this.arrowA, this.labelA, this.vecA, origin, true, "a");
+                    
+                    // B at Tip of A (Ghost logic)
+                    // Visual Hack: Use main B arrow for visualization, Ghost for origin reference?
+                    // Standard: Show A, Show B (at A), Show Result
+                    
+                    this.arrowB.visible = false; // Hide standard B origin
+                    this.labelB.visible = false;
+
+                    // Configure Ghost as B shifted
+                    this.ghostArrow.visible = true;
+                    const ghostLen = this.vecB.length();
+                    if(ghostLen > 0.01) {
+                        this.ghostArrow.position.copy(this.vecA);
+                        this.ghostArrow.setDirection(this.vecB.clone().normalize());
+                        this.ghostArrow.setLength(ghostLen, 0.4, 0.2);
+                        // Move B label to ghost tip
+                        this.labelB.visible = true;
+                        this.labelB.position.copy(this.vecA.clone().add(this.vecB));
+                        this.labelB.position.y += 0.2;
+                    }
+
+                    // Result
+                    this.updateVectorVisual(this.arrowResult, this.labelResult, result, origin, true, "a + b");
+
+                    latex = `\\vec{a} + \\vec{b} = [${result.x.toFixed(1)}, ${result.y.toFixed(1)}, ${result.z.toFixed(1)}]`;
+                    explanation = "Tip-to-Tail: Start at A, move by B.";
+                }
+
+                // --- SUBTRACTION ---
+                else if (this.mode === 'sub') {
+                    const result = this.vecA.clone().sub(this.vecB);
+                    
+                    this.updateVectorVisual(this.arrowA, this.labelA, this.vecA, origin, true, "a");
+                    this.updateVectorVisual(this.arrowB, this.labelB, this.vecB, origin, true, "b");
+                    this.updateVectorVisual(this.arrowResult, this.labelResult, result, origin, true, "a - b");
+
+                    // Visualizing the difference connecting tips?
+                    // Ideally: Subtraction is adding negative B.
+                    // For clarity in ML, usually we just show the result vector from origin.
+                    
+                    latex = `\\vec{a} - \\vec{b} = [${result.x.toFixed(1)}, ${result.y.toFixed(1)}, ${result.z.toFixed(1)}]`;
+                    explanation = "Difference: Describes the shift from B to A.";
+                }
+
+                // --- SCALING ---
+                else if (this.mode === 'scale') {
+                    const result = this.vecA.clone().multiplyScalar(this.scalar);
+                    
+                    // Show original A faintly? No, just transform A.
+                    // Let's keep A as reference (ghost) and Result as Scaled.
+                    
+                    // Ghost is original A
+                    this.ghostArrow.visible = true;
+                    this.ghostArrow.position.set(0,0,0);
+                    this.ghostArrow.setDirection(this.vecA.clone().normalize());
+                    this.ghostArrow.setLength(this.vecA.length(), 0.4, 0.2);
+                    
+                    // Hide Standard A/B
+                    this.arrowA.visible = false;
+                    this.labelA.visible = false;
+                    this.arrowB.visible = false;
+                    this.labelB.visible = false;
+
+                    this.updateVectorVisual(this.arrowResult, this.labelResult, result, origin, true, "k · a");
+                    // Color code result based on direction flip
+                    if(this.scalar < 0) this.arrowResult.setColor(new THREE.Color(0xffaa00));
+                    else this.arrowResult.setColor(new THREE.Color(0x10b981));
+
+                    latex = `${this.scalar} \\cdot \\vec{a} = [${result.x.toFixed(1)}, ${result.y.toFixed(1)}, ${result.z.toFixed(1)}]`;
+                    explanation = this.scalar < 0 ? "Negative scalar flips direction." : "Scalar changes magnitude.";
+                }
+
+                // --- DOT PRODUCT ---
+                else if (this.mode === 'dot') {
+                    this.updateVectorVisual(this.arrowA, this.labelA, this.vecA, origin, true, "a");
+                    this.updateVectorVisual(this.arrowB, this.labelB, this.vecB, origin, true, "b");
+                    this.arrowResult.visible = false;
+                    this.labelResult.visible = false;
+
+                    const dot = this.vecA.dot(this.vecB);
+                    const magA = this.vecA.length();
+                    const magB = this.vecB.length();
+                    
+                    let theta = 0;
+                    if(magA > 0 && magB > 0) {
+                        // Clamp for float errors
+                        const cosTheta = Math.min(Math.max(dot / (magA * magB), -1), 1);
+                        theta = Math.acos(cosTheta);
+                    }
+                    const deg = (theta * 180 / Math.PI).toFixed(0);
+
+                    // Visualize Angle (Arc)
+                    if (magA > 0.5 && magB > 0.5) {
+                        this.angleArc.visible = true;
+                        
+                        // Scale arc radius based on smallest vector
+                        const radius = Math.min(magA, magB) * 0.3;
+                        this.angleArc.geometry.dispose();
+                        this.angleArc.geometry = new THREE.TorusGeometry(radius, 0.05, 8, 30, theta);
+                        
+                        // Orientation Logic
+                        // 1. Align arc with vector A initially
+                        // 2. Rotate arc to align with plane of A and B
+                        
+                        // This is complex in 3D without LookAt tricks. 
+                        // Simplified approach: LookAt logic.
+                        // Axis of rotation = A cross B
+                        const normal = this.vecA.clone().cross(this.vecB).normalize();
+                        if (normal.length() < 0.001) {
+                            // Parallel vectors
+                            this.angleArc.visible = false; 
+                        } else {
+                            // Construct a matrix to rotate the arc (which lays flat on XY usually) to the plane
+                            // Actually, Torus is on XY.
+                            // We need it on the plane defined by A and B.
+                            
+                            // Align the torus such that it starts at A and goes towards B.
+                            // Trick: The arc starts at 0 angle on X axis.
+                            // We rotate the mesh to look in direction of normal.
+                            this.angleArc.lookAt(normal);
+                            
+                            // Now rotate around Z (local) to align start with A?
+                            // This is getting mathematically heavy for a single file.
+                            // Fallback: Place a simple sphere or just 2D text label near origin
+                            
+                            // Cleaner visual: Color the origin sphere
+                            // Let's disable the complex 3D arc mesh and use CSS label for angle
+                        }
+                    }
+
+                    // Projection Line (Shadow of A onto B)
+                    // Proj = (A . B / |B|^2) * B
+                    if (magB > 0) {
+                        this.projectionLine.visible = true;
+                        const scalarProj = dot / (magB * magB);
+                        const projVec = this.vecB.clone().multiplyScalar(scalarProj);
+                        
+                        // Line from Tip of A to Tip of Projection
+                        const geometry = this.projectionLine.geometry;
+                        const positions = geometry.attributes.position.array;
+                        
+                        // Point 1: Tip of A
+                        positions[0] = this.vecA.x;
+                        positions[1] = this.vecA.y;
+                        positions[2] = this.vecA.z;
+                        
+                        // Point 2: Tip of Projection
+                        positions[3] = projVec.x;
+                        positions[4] = projVec.y;
+                        positions[5] = projVec.z;
+                        
+                        geometry.attributes.position.needsUpdate = true;
+                        this.projectionLine.computeLineDistances();
+                    }
+
+                    // Color code math display
+                    const colorClass = dot > 0 ? "text-green-400" : (dot < 0 ? "text-red-400" : "text-white");
+
+                    latex = `\\vec{a} \\cdot \\vec{b} = \\color{${dot > 0 ? '#4ade80' : '#f87171'}}{${dot.toFixed(1)}}`;
+                    explanation = `Angle: ${deg}° | Similarity: ${dot > 0 ? 'Aligned' : (dot < 0 ? 'Opposite' : 'Orthogonal')}`;
+                }
+
+                // Render MathJax
+                const display = document.getElementById('math-display');
+                display.innerHTML = `$$ ${latex} $$`;
+                document.getElementById('math-explanation').textContent = explanation;
+                
+                // Trigger MathJax re-render
+                if (window.MathJax) {
+                    MathJax.typesetPromise([display]);
+                }
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+                this.labelRenderer.render(this.scene, this.camera);
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+
+        // Initialize App
+        const app = new VectorApp();
+        window.app = app; // Expose to window for HTML UI handlers
+
+    </script>
+</body>
+</html>
