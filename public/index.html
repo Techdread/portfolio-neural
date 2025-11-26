@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neural Pathways — Interactive ML/AI Visualizations</title>
+  <meta name="description" content="Learn neural network mathematics through interactive Three.js visualizations. From linear algebra to backpropagation, see the math come alive.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/style.css">
+  
+  <style>
+    /* Neural network background animation */
+    #neural-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      opacity: 0.12;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="neural-canvas"></canvas>
+  
+  <header class="header">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <!-- Neural network icon -->
+            <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="12" cy="36" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="24" cy="18" r="4" fill="currentColor"/>
+            <circle cx="24" cy="30" r="4" fill="currentColor"/>
+            <circle cx="36" cy="24" r="5" fill="currentColor"/>
+            <line x1="16" y1="12" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="16" y1="36" x2="20" y2="30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="18" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="30" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="12" y1="16" x2="12" y2="32" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+            <line x1="24" y1="22" x2="24" y2="26" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Neural Pathways</h1>
+          <span>Interactive ML Visualizations</span>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1>
+          See the Math Behind<br>
+          <span class="gradient-text">Neural Networks</span>
+        </h1>
+        <p>
+          Interactive Three.js visualizations that bring machine learning mathematics to life. 
+          Built for developers who learn by seeing and doing.
+        </p>
+        <div class="hero-stats">
+          <div class="stat">
+            <div class="stat-value">42</div>
+            <div class="stat-label">Topics</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">9</div>
+            <div class="stat-label">Categories</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Completed</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="categories">
+      <div class="container">
+        <div class="categories-grid">
+          
+          <!-- Category A: Linear Algebra -->
+          <article class="category-card" style="--category-color: var(--cat-a)">
+            <div class="category-header">
+              <div class="category-icon">📐</div>
+              <h2 class="category-title">Linear Algebra</h2>
+              <span class="category-id">CAT-A</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/a1-vector-operations.html" class="topic-link">
+                <span class="topic-id">A1</span> Vector Operations
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/a2-matrix-multiplication.html" class="topic-link">
+                <span class="topic-id">A2</span> Matrix Multiplication
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/a3-matrix-transformations.html" class="topic-link">
+                <span class="topic-id">A3</span> Matrix Transformations
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/a4-tensor-visualiser.html" class="topic-link">
+                <span class="topic-id">A4</span> Tensor Visualiser
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/a5-eigenvalues-eigenvectors.html" class="topic-link">
+                <span class="topic-id">A5</span> Eigenvalues & Eigenvectors
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/a6-basis-vectors.html" class="topic-link">
+                <span class="topic-id">A6</span> Basis & Change of Basis
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category B: Calculus -->
+          <article class="category-card" style="--category-color: var(--cat-b)">
+            <div class="category-header">
+              <div class="category-icon">∫</div>
+              <h2 class="category-title">Calculus Essentials</h2>
+              <span class="category-id">CAT-B</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/b1-derivative-slope.html" class="topic-link">
+                <span class="topic-id">B1</span> Derivative as Slope
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/b2-partial-derivatives.html" class="topic-link">
+                <span class="topic-id">B2</span> Partial Derivatives
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/b3-gradient-vector.html" class="topic-link">
+                <span class="topic-id">B3</span> The Gradient Vector
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/b4-chain-rule.html" class="topic-link">
+                <span class="topic-id">B4</span> Chain Rule Visualiser
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/b5-product-rule.html" class="topic-link">
+                <span class="topic-id">B5</span> Product Rule
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/b6-sum-rule.html" class="topic-link">
+                <span class="topic-id">B6</span> Sum Rule & Linearity
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category C: Neural Network Operations -->
+          <article class="category-card" style="--category-color: var(--cat-c)">
+            <div class="category-header">
+              <div class="category-icon">🧠</div>
+              <h2 class="category-title">Neural Network Ops</h2>
+              <span class="category-id">CAT-C</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/c1-forward-pass.html" class="topic-link">
+                <span class="topic-id">C1</span> Forward Pass Step-by-Step
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/c2-backpropagation.html" class="topic-link">
+                <span class="topic-id">C2</span> Backpropagation
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/c3-computational-graph.html" class="topic-link">
+                <span class="topic-id">C3</span> Computational Graph
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/c4-activation-functions.html" class="topic-link">
+                <span class="topic-id">C4</span> Activation Functions
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/c5-loss-functions.html" class="topic-link">
+                <span class="topic-id">C5</span> Loss Function Landscapes
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/c6-softmax-cross-entropy.html" class="topic-link">
+                <span class="topic-id">C6</span> Softmax & Cross-Entropy
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category D: Optimisation -->
+          <article class="category-card" style="--category-color: var(--cat-d)">
+            <div class="category-header">
+              <div class="category-icon">⚡</div>
+              <h2 class="category-title">Optimisation</h2>
+              <span class="category-id">CAT-D</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/d1-gradient-descent-variants.html" class="topic-link">
+                <span class="topic-id">D1</span> Gradient Descent Variants
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/d2-learning-rate.html" class="topic-link">
+                <span class="topic-id">D2</span> Learning Rate Effects
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/d3-batch-stochastic.html" class="topic-link">
+                <span class="topic-id">D3</span> Batch vs Stochastic
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/d4-regularisation.html" class="topic-link">
+                <span class="topic-id">D4</span> Regularisation Visualised
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category E: Architecture -->
+          <article class="category-card" style="--category-color: var(--cat-e)">
+            <div class="category-header">
+              <div class="category-icon">🏗️</div>
+              <h2 class="category-title">Architecture</h2>
+              <span class="category-id">CAT-E</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/e1-cnn-explorer.html" class="topic-link">
+                <span class="topic-id">E1</span> CNN Layer Explorer
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/e2-transformer-attention.html" class="topic-link">
+                <span class="topic-id">E2</span> Transformer Attention
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/e3-autoencoder-latent.html" class="topic-link">
+                <span class="topic-id">E3</span> Autoencoder Latent Space
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/e4-rnn-lstm.html" class="topic-link">
+                <span class="topic-id">E4</span> RNN/LSTM Unrolled
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category F: Training Dynamics -->
+          <article class="category-card" style="--category-color: var(--cat-f)">
+            <div class="category-header">
+              <div class="category-icon">📈</div>
+              <h2 class="category-title">Training Dynamics</h2>
+              <span class="category-id">CAT-F</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/f1-loss-landscape.html" class="topic-link">
+                <span class="topic-id">F1</span> Loss Landscape Terrain
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/f2-gradient-flow.html" class="topic-link">
+                <span class="topic-id">F2</span> Backprop Gradient Flow
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/f3-weight-init.html" class="topic-link">
+                <span class="topic-id">F3</span> Weight Initialisation
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/f4-overfitting.html" class="topic-link">
+                <span class="topic-id">F4</span> Overfitting Visualised
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category G: Interactive Playgrounds -->
+          <article class="category-card" style="--category-color: var(--cat-g)">
+            <div class="category-header">
+              <div class="category-icon">🎮</div>
+              <h2 class="category-title">Playgrounds</h2>
+              <span class="category-id">CAT-G</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/g1-perceptron.html" class="topic-link">
+                <span class="topic-id">G1</span> Perceptron Playground
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/g2-embedding-space.html" class="topic-link">
+                <span class="topic-id">G2</span> Embedding Space Explorer
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/g3-gan-training.html" class="topic-link">
+                <span class="topic-id">G3</span> GAN Training Dance
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/g4-decision-boundary.html" class="topic-link">
+                <span class="topic-id">G4</span> Decision Boundary Evolution
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category H: Advanced Concepts -->
+          <article class="category-card" style="--category-color: var(--cat-h)">
+            <div class="category-header">
+              <div class="category-icon">🔬</div>
+              <h2 class="category-title">Advanced Concepts</h2>
+              <span class="category-id">CAT-H</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/h1-style-transfer.html" class="topic-link">
+                <span class="topic-id">H1</span> Neural Style Transfer
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/h2-spiking-neural.html" class="topic-link">
+                <span class="topic-id">H2</span> Spiking Neural Network
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/h3-ensemble-voting.html" class="topic-link">
+                <span class="topic-id">H3</span> Ensemble Voting
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/h4-knowledge-distillation.html" class="topic-link">
+                <span class="topic-id">H4</span> Knowledge Distillation
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+          <!-- Category I: Probability & Statistics -->
+          <article class="category-card" style="--category-color: var(--cat-i)">
+            <div class="category-header">
+              <div class="category-icon">🎲</div>
+              <h2 class="category-title">Probability & Stats</h2>
+              <span class="category-id">CAT-I</span>
+            </div>
+            <ul class="category-topics">
+              <li><a href="topics/i1-probability-distributions.html" class="topic-link">
+                <span class="topic-id">I1</span> Probability Distributions
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/i2-bayes-theorem.html" class="topic-link">
+                <span class="topic-id">I2</span> Bayes' Theorem
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/i3-maximum-likelihood.html" class="topic-link">
+                <span class="topic-id">I3</span> Maximum Likelihood
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+              <li><a href="topics/i4-information-theory.html" class="topic-link">
+                <span class="topic-id">I4</span> Information Theory
+                <span class="topic-status status-pending">○</span>
+              </a></li>
+            </ul>
+          </article>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>Neural Pathways — Learning ML through visualization</p>
+    </div>
+  </footer>
+
+  <script>
+    // Animated neural network background
+    const canvas = document.getElementById('neural-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let nodes = [];
+    let connections = [];
+    let animationId;
+    
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      initNodes();
+    }
+    
+    function initNodes() {
+      nodes = [];
+      connections = [];
+      
+      const nodeCount = Math.floor((canvas.width * canvas.height) / 25000);
+      
+      for (let i = 0; i < nodeCount; i++) {
+        nodes.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          radius: Math.random() * 2 + 1,
+          pulsePhase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Update and draw connections
+      const maxDist = 150;
+      
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < maxDist) {
+            const opacity = (1 - dist / maxDist) * 0.5;
+            ctx.strokeStyle = `rgba(139, 92, 246, ${opacity})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      
+      // Update and draw nodes
+      const time = Date.now() * 0.001;
+      
+      for (const node of nodes) {
+        // Update position
+        node.x += node.vx;
+        node.y += node.vy;
+        
+        // Bounce off edges
+        if (node.x < 0 || node.x > canvas.width) node.vx *= -1;
+        if (node.y < 0 || node.y > canvas.height) node.vy *= -1;
+        
+        // Draw node with pulse
+        const pulse = Math.sin(time * 2 + node.pulsePhase) * 0.3 + 0.7;
+        const radius = node.radius * pulse;
+        
+        ctx.fillStyle = `rgba(139, 92, 246, ${0.6 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      animationId = requestAnimationFrame(draw);
+    }
+    
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+  </script>
+</body>
+</html>
