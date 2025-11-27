@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Transformations Gallery</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tween.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <!-- MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; color: white; }
+        
+        /* UI Panels */
+        .panel {
+            background-color: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid #334155;
+        }
+
+        /* Stack Items */
+        .stack-item {
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+        }
+        .stack-item:hover { background-color: rgba(30, 41, 59, 0.8); }
+        .stack-item.type-translate { border-left-color: #3b82f6; } /* Blue */
+        .stack-item.type-rotate { border-left-color: #a855f7; }    /* Purple */
+        .stack-item.type-scale { border-left-color: #22c55e; }     /* Green */
+        .stack-item.type-shear { border-left-color: #f97316; }     /* Orange */
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none; background: transparent; width: 100%;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 12px; width: 12px;
+            border-radius: 50%; background: #94a3b8; cursor: pointer; margin-top: -4px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px;
+        }
+        
+        /* Matrix Display */
+        .matrix-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+            font-family: monospace; font-size: 0.75rem; text-align: center;
+        }
+    </style>
+
+    <!-- Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- LEFT PANEL: Controls & Palette -->
+    <div class="absolute top-4 left-4 w-72 flex flex-col gap-4 z-10 pointer-events-none">
+        
+        <!-- Header -->
+        <div class="panel p-4 rounded-xl pointer-events-auto shadow-xl">
+            <h1 class="text-lg font-bold text-blue-400">Transform Gallery</h1>
+            <p class="text-xs text-slate-400">Compose matrices to warp space.</p>
+        </div>
+
+        <!-- Add Transform Palette -->
+        <div class="panel p-4 rounded-xl pointer-events-auto shadow-xl">
+            <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wide mb-3">Add Transformation</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="app.addTransform('translate')" class="flex items-center justify-center gap-2 px-3 py-2 bg-blue-900/40 hover:bg-blue-800/60 border border-blue-700/50 rounded transition text-xs text-blue-200">
+                    <span>move</span> Translate
+                </button>
+                <button onclick="app.addTransform('rotate')" class="flex items-center justify-center gap-2 px-3 py-2 bg-purple-900/40 hover:bg-purple-800/60 border border-purple-700/50 rounded transition text-xs text-purple-200">
+                    <span>cw</span> Rotate
+                </button>
+                <button onclick="app.addTransform('scale')" class="flex items-center justify-center gap-2 px-3 py-2 bg-green-900/40 hover:bg-green-800/60 border border-green-700/50 rounded transition text-xs text-green-200">
+                    <span>size</span> Scale
+                </button>
+                <button onclick="app.addTransform('shear')" class="flex items-center justify-center gap-2 px-3 py-2 bg-orange-900/40 hover:bg-orange-800/60 border border-orange-700/50 rounded transition text-xs text-orange-200">
+                    <span>skew</span> Shear
+                </button>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="panel p-4 rounded-xl pointer-events-auto shadow-xl">
+            <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wide mb-3">Shape & Mode</h2>
+            <div class="flex gap-2 mb-4">
+                <button onclick="app.setShape('F')" id="btn-shape-F" class="flex-1 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded">F-Shape</button>
+                <button onclick="app.setShape('Square')" id="btn-shape-Square" class="flex-1 py-1 text-xs bg-slate-800 hover:bg-slate-600 rounded text-slate-400">Square</button>
+                <button onclick="app.setShape('House')" id="btn-shape-House" class="flex-1 py-1 text-xs bg-slate-800 hover:bg-slate-600 rounded text-slate-400">House</button>
+            </div>
+            
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-400">Ghost Outline</span>
+                <button onclick="app.toggleGhost()" id="btn-ghost" class="text-xs text-green-400 font-bold">ON</button>
+            </div>
+            
+            <button onclick="app.resetStack()" class="w-full py-1.5 mt-2 bg-slate-800 hover:bg-red-900/50 text-red-300 text-xs rounded border border-slate-700 hover:border-red-800 transition">
+                Clear All
+            </button>
+        </div>
+
+        <!-- Matrix Result Display -->
+        <div class="panel p-4 rounded-xl pointer-events-auto shadow-xl">
+            <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wide mb-2">Total Matrix</h2>
+            <div class="flex items-center justify-center">
+                <div class="relative px-3 py-1 border-l-2 border-r-2 border-slate-500 rounded-sm">
+                    <div id="matrix-display" class="matrix-grid gap-x-4 gap-y-1 text-slate-200">
+                        <!-- Populated by JS -->
+                        <div>1.0</div> <div>0.0</div> <div>0.0</div>
+                        <div>0.0</div> <div>1.0</div> <div>0.0</div>
+                        <div>0.0</div> <div>0.0</div> <div>1.0</div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-[10px] text-center text-slate-500 mt-2 font-mono">Homogeneous 3x3 (2D)</p>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: Transformation Stack -->
+    <div class="absolute top-4 right-4 w-80 max-h-[90vh] flex flex-col z-10 pointer-events-none">
+        <div class="panel flex flex-col h-full rounded-xl shadow-xl overflow-hidden pointer-events-auto">
+            <div class="p-4 border-b border-slate-700 bg-slate-800/50">
+                <h2 class="text-sm font-bold text-slate-200">Transformation Stack</h2>
+                <p class="text-xs text-slate-400 mt-1">Order applied: <span class="text-yellow-400">Bottom</span> to <span class="text-yellow-400">Top</span></p>
+            </div>
+            
+            <!-- Stack Container -->
+            <div id="stack-container" class="flex-1 overflow-y-auto p-2 space-y-2 min-h-[200px]">
+                <!-- Stack Items injected here -->
+                <div class="text-center text-slate-500 text-xs mt-10 italic" id="empty-msg">Stack is empty.<br>Add a transform from the left.</div>
+            </div>
+
+            <!-- Action Footer -->
+            <div class="p-4 border-t border-slate-700 bg-slate-800/50 space-y-2">
+                <div class="flex gap-2">
+                    <button onclick="app.playAnimation('full')" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 rounded shadow-lg transition flex items-center justify-center gap-1">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/></svg>
+                        Play
+                    </button>
+                    <button onclick="app.playAnimation('step')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 rounded shadow-lg transition">
+                        Step-by-Step
+                    </button>
+                </div>
+                <button onclick="app.toggleOrderCompare()" id="btn-compare" class="w-full bg-slate-700 hover:bg-yellow-900/40 text-yellow-500 border border-yellow-700/30 text-xs font-bold py-2 rounded shadow-lg transition">
+                    Compare Order (AB vs BA)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN SCRIPT -->
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- Data Models ---
+        const TRANSFORMS = {
+            translate: { 
+                name: 'Translate', 
+                color: 'blue', 
+                params: { x: 0, y: 0 },
+                sliders: [
+                    { key: 'x', min: -5, max: 5, step: 0.1, label: 'X' },
+                    { key: 'y', min: -5, max: 5, step: 0.1, label: 'Y' }
+                ],
+                getMatrix: (p) => new THREE.Matrix4().makeTranslation(p.x, p.y, 0)
+            },
+            rotate: { 
+                name: 'Rotate', 
+                color: 'purple', 
+                params: { angle: 0 },
+                sliders: [
+                    { key: 'angle', min: -180, max: 180, step: 1, label: 'Deg' }
+                ],
+                getMatrix: (p) => new THREE.Matrix4().makeRotationZ(p.angle * Math.PI / 180)
+            },
+            scale: { 
+                name: 'Scale', 
+                color: 'green', 
+                params: { x: 1, y: 1 },
+                sliders: [
+                    { key: 'x', min: 0.1, max: 3, step: 0.1, label: 'X' },
+                    { key: 'y', min: 0.1, max: 3, step: 0.1, label: 'Y' }
+                ],
+                getMatrix: (p) => new THREE.Matrix4().makeScale(p.x, p.y, 1)
+            },
+            shear: { 
+                name: 'Shear', 
+                color: 'orange', 
+                params: { x: 0, y: 0 },
+                sliders: [
+                    { key: 'x', min: -2, max: 2, step: 0.1, label: 'X' },
+                    { key: 'y', min: -2, max: 2, step: 0.1, label: 'Y' }
+                ],
+                getMatrix: (p) => {
+                    const m = new THREE.Matrix4();
+                    m.set(
+                        1, p.x, 0, 0,
+                        p.y, 1, 0, 0,
+                        0, 0, 1, 0,
+                        0, 0, 0, 1
+                    );
+                    return m;
+                }
+            }
+        };
+
+        // --- Application State ---
+        class App {
+            constructor() {
+                this.stack = []; // Array of { id, type, params }
+                this.compareMode = false;
+                this.showGhost = true;
+                this.currentShape = 'F';
+                
+                this.sceneController = new SceneController();
+                this.uiController = new UIController(this);
+                
+                // Add initial example
+                this.addTransform('rotate');
+                this.stack[0].params.angle = 45;
+                this.uiController.renderStack();
+                this.updateScene();
+            }
+
+            addTransform(type) {
+                const def = TRANSFORMS[type];
+                const item = {
+                    id: Date.now() + Math.random(),
+                    type: type,
+                    params: { ...def.params }
+                };
+                this.stack.unshift(item);
+                this.uiController.renderStack();
+                this.updateScene();
+            }
+
+            removeTransform(id) {
+                this.stack = this.stack.filter(item => item.id !== id);
+                this.uiController.renderStack();
+                this.updateScene();
+            }
+
+            moveTransform(id, dir) { // dir: -1 (up), 1 (down)
+                const idx = this.stack.findIndex(i => i.id === id);
+                if (idx === -1) return;
+                const newIdx = idx + dir;
+                
+                if (newIdx >= 0 && newIdx < this.stack.length) {
+                    const temp = this.stack[idx];
+                    this.stack[idx] = this.stack[newIdx];
+                    this.stack[newIdx] = temp;
+                    this.uiController.renderStack();
+                    this.updateScene();
+                }
+            }
+
+            updateParam(id, key, value) {
+                const item = this.stack.find(i => i.id === id);
+                if (item) {
+                    item.params[key] = parseFloat(value);
+                    this.updateScene();
+                    this.uiController.updateMatrixDisplay();
+                }
+            }
+
+            setShape(shape) {
+                this.currentShape = shape;
+                this.sceneController.setShape(shape);
+                
+                ['F', 'Square', 'House'].forEach(s => {
+                    const btn = document.getElementById(`btn-shape-${s}`);
+                    if(s === shape) {
+                        btn.className = "flex-1 py-1 text-xs bg-slate-700 hover:bg-slate-600 rounded text-white font-bold ring-1 ring-blue-500";
+                    } else {
+                        btn.className = "flex-1 py-1 text-xs bg-slate-800 hover:bg-slate-600 rounded text-slate-400";
+                    }
+                });
+            }
+
+            toggleGhost() {
+                this.showGhost = !this.showGhost;
+                this.sceneController.ghostMesh.visible = this.showGhost;
+                document.getElementById('btn-ghost').innerText = this.showGhost ? "ON" : "OFF";
+                document.getElementById('btn-ghost').className = this.showGhost ? "text-xs text-green-400 font-bold" : "text-xs text-slate-500 font-bold";
+            }
+
+            toggleOrderCompare() {
+                this.compareMode = !this.compareMode;
+                const btn = document.getElementById('btn-compare');
+                if (this.compareMode) {
+                    btn.classList.add('bg-yellow-900/60', 'text-white', 'border-yellow-500');
+                    btn.classList.remove('bg-slate-700', 'text-yellow-500');
+                } else {
+                    btn.classList.remove('bg-yellow-900/60', 'text-white', 'border-yellow-500');
+                    btn.classList.add('bg-slate-700', 'text-yellow-500');
+                }
+                this.updateScene();
+            }
+
+            resetStack() {
+                this.stack = [];
+                this.uiController.renderStack();
+                this.updateScene();
+            }
+
+            // Play / Step animations
+            playAnimation(mode) {
+                this.sceneController.playAnimation(mode, this.stack);
+            }
+
+            updateScene() {
+                const standardMatrix = new THREE.Matrix4();
+                for (let item of this.stack) {
+                    const m = TRANSFORMS[item.type].getMatrix(item.params);
+                    standardMatrix.multiply(m);
+                }
+
+                const reversedMatrix = new THREE.Matrix4();
+                for (let i = this.stack.length - 1; i >= 0; i--) {
+                    const item = this.stack[i];
+                    const m = TRANSFORMS[item.type].getMatrix(item.params);
+                    reversedMatrix.multiply(m);
+                }
+
+                this.sceneController.updateTransforms(standardMatrix, reversedMatrix, this.compareMode);
+                this.uiController.updateMatrixDisplay(standardMatrix);
+            }
+        }
+
+        // --- Three.js Scene Controller ---
+        class SceneController {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0f172a);
+
+                const aspect = this.container.clientWidth / this.container.clientHeight;
+                const d = 10;
+                this.camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+                this.camera.position.set(0, 0, 20);
+                this.camera.lookAt(0, 0, 0);
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                this.container.appendChild(this.renderer.domElement);
+
+                const grid = new THREE.GridHelper(40, 40, 0x334155, 0x1e293b);
+                grid.rotation.x = Math.PI / 2;
+                this.scene.add(grid);
+
+                const axes = new THREE.AxesHelper(2);
+                this.scene.add(axes);
+
+                this.geometryMap = this.createGeometries();
+                
+                this.ghostMesh = new THREE.Mesh(
+                    this.geometryMap['F'], 
+                    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, wireframe: true })
+                );
+                this.scene.add(this.ghostMesh);
+
+                this.activeMesh = new THREE.Mesh(
+                    this.geometryMap['F'],
+                    new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+                );
+                const wire = new THREE.LineSegments(
+                    new THREE.WireframeGeometry(this.geometryMap['F']),
+                    new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.5 })
+                );
+                this.activeMesh.add(wire);
+                this.scene.add(this.activeMesh);
+
+                this.compareMesh = new THREE.Mesh(
+                    this.geometryMap['F'],
+                    new THREE.MeshBasicMaterial({ color: 0xeab308, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+                );
+                this.compareMesh.visible = false;
+                const wireComp = new THREE.LineSegments(
+                    new THREE.WireframeGeometry(this.geometryMap['F']),
+                    new THREE.LineBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.5 })
+                );
+                this.compareMesh.add(wireComp);
+                this.scene.add(this.compareMesh);
+
+                window.addEventListener('resize', () => {
+                    const aspect = this.container.clientWidth / this.container.clientHeight;
+                    this.camera.left = -d * aspect;
+                    this.camera.right = d * aspect;
+                    this.camera.top = d;
+                    this.camera.bottom = -d;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                });
+
+                const animate = (time) => {
+                    requestAnimationFrame(animate);
+                    if (typeof TWEEN !== 'undefined') {
+                        TWEEN.update(time);
+                    }
+                    this.renderer.render(this.scene, this.camera);
+                };
+                animate();
+            }
+
+            createGeometries() {
+                const map = {};
+                
+                map['Square'] = new THREE.PlaneGeometry(2, 2);
+
+                const fShape = new THREE.Shape();
+                fShape.moveTo(0, 0);
+                fShape.lineTo(0, 3);
+                fShape.lineTo(2, 3);
+                fShape.lineTo(2, 2.4);
+                fShape.lineTo(0.6, 2.4);
+                fShape.lineTo(0.6, 1.6);
+                fShape.lineTo(1.5, 1.6);
+                fShape.lineTo(1.5, 1.0);
+                fShape.lineTo(0.6, 1.0);
+                fShape.lineTo(0.6, 0);
+                fShape.lineTo(0, 0);
+                const fGeo = new THREE.ShapeGeometry(fShape);
+                fGeo.translate(-1, -1.5, 0);
+                map['F'] = fGeo;
+
+                const hShape = new THREE.Shape();
+                hShape.moveTo(-1, -1);
+                hShape.lineTo(1, -1);
+                hShape.lineTo(1, 1);
+                hShape.lineTo(0, 2);
+                hShape.lineTo(-1, 1);
+                hShape.lineTo(-1, -1);
+                map['House'] = new THREE.ShapeGeometry(hShape);
+
+                return map;
+            }
+
+            setShape(key) {
+                const geo = this.geometryMap[key];
+                this.ghostMesh.geometry = geo;
+                this.activeMesh.geometry = geo;
+                this.activeMesh.children[0].geometry = new THREE.WireframeGeometry(geo);
+                
+                this.compareMesh.geometry = geo;
+                this.compareMesh.children[0].geometry = new THREE.WireframeGeometry(geo);
+            }
+
+            updateTransforms(stdMatrix, revMatrix, compareMode) {
+                this.activeMesh.matrix.copy(stdMatrix);
+                this.activeMesh.matrixAutoUpdate = false;
+                
+                if (compareMode) {
+                    this.compareMesh.visible = true;
+                    this.compareMesh.matrix.copy(revMatrix);
+                    this.compareMesh.matrixAutoUpdate = false;
+                } else {
+                    this.compareMesh.visible = false;
+                }
+            }
+
+            // Animation logic (Play / Step-by-step)
+            playAnimation(mode, stack) {
+                if (!stack || !stack.length || typeof TWEEN === 'undefined') return;
+
+                const orderedStack = [...stack].reverse();
+                
+                if (mode === 'full') {
+                    const startMat = new THREE.Matrix4();
+                    const endMat = this.activeMesh.matrix.clone();
+                    
+                    const obj = { t: 0 };
+                    new TWEEN.Tween(obj)
+                        .to({ t: 1 }, 1000)
+                        .easing(TWEEN.Easing.Cubic.InOut)
+                        .onUpdate(() => {
+                            const mixed = new THREE.Matrix4();
+                            const ele = mixed.elements;
+                            const s = startMat.elements;
+                            const e = endMat.elements;
+                            for(let i=0; i<16; i++) {
+                                ele[i] = s[i] + (e[i] - s[i]) * obj.t;
+                            }
+                            this.activeMesh.matrix.copy(mixed);
+                        })
+                        .onComplete(() => {
+                            this.activeMesh.matrix.copy(endMat);
+                        })
+                        .start();
+                } 
+                else if (mode === 'step') {
+                    let currentMat = new THREE.Matrix4();
+                    this.activeMesh.matrix.copy(currentMat);
+
+                    let previousTween = null;
+                    let firstTween = null;
+
+                    orderedStack.forEach((item) => {
+                        const transformMat = TRANSFORMS[item.type].getMatrix(item.params);
+                        const nextMat = new THREE.Matrix4().multiplyMatrices(transformMat, currentMat);
+                        
+                        const startState = currentMat.clone();
+                        const endState = nextMat.clone();
+                        
+                        const tween = new TWEEN.Tween({ t: 0 })
+                            .to({ t: 1 }, 800)
+                            .easing(TWEEN.Easing.Quadratic.InOut)
+                            .onUpdate((obj) => {
+                                const mixed = new THREE.Matrix4();
+                                const ele = mixed.elements;
+                                const s = startState.elements;
+                                const e = endState.elements;
+                                for(let i=0; i<16; i++) {
+                                    ele[i] = s[i] + (e[i] - s[i]) * obj.t;
+                                }
+                                this.activeMesh.matrix.copy(mixed);
+                            })
+                            .delay(200);
+
+                        if (previousTween) {
+                            previousTween.chain(tween);
+                        } else {
+                            firstTween = tween;
+                        }
+                        previousTween = tween;
+                        
+                        currentMat = nextMat;
+                    });
+
+                    if (firstTween) firstTween.start();
+                }
+            }
+        }
+
+        // --- UI Controller ---
+        class UIController {
+            constructor(app) {
+                this.app = app;
+                this.stackContainer = document.getElementById('stack-container');
+            }
+
+            renderStack() {
+                this.stackContainer.innerHTML = '';
+                if (this.app.stack.length === 0) {
+                    this.stackContainer.innerHTML = `<div class="text-center text-slate-500 text-xs mt-10 italic">Stack is empty.<br>Add a transform from the left.</div>`;
+                    return;
+                }
+
+                this.app.stack.forEach((item) => {
+                    const def = TRANSFORMS[item.type];
+                    const el = document.createElement('div');
+                    el.className = `stack-item type-${item.type} bg-slate-800 rounded p-2 relative group`;
+                    
+                    let slidersHTML = '';
+                    def.sliders.forEach(s => {
+                        slidersHTML += `
+                            <div class="flex items-center gap-2 text-xs mt-1">
+                                <span class="w-4 text-slate-400 font-mono">${s.label}</span>
+                                <input type="range" 
+                                    min="${s.min}" max="${s.max}" step="${s.step}" 
+                                    value="${item.params[s.key]}"
+                                    oninput="window.app.updateParam(${item.id}, '${s.key}', this.value); this.nextElementSibling.innerText = this.value"
+                                >
+                                <span class="w-8 text-right font-mono text-slate-300">${item.params[s.key]}</span>
+                            </div>
+                        `;
+                    });
+
+                    el.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-xs text-slate-200 uppercase tracking-wide">${def.name}</span>
+                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="window.app.moveTransform(${item.id}, -1)" class="text-slate-400 hover:text-white px-1" title="Move Up">↑</button>
+                                <button onclick="window.app.moveTransform(${item.id}, 1)" class="text-slate-400 hover:text-white px-1" title="Move Down">↓</button>
+                                <button onclick="window.app.removeTransform(${item.id})" class="text-red-400 hover:text-red-300 px-1" title="Remove">×</button>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            ${slidersHTML}
+                        </div>
+                    `;
+                    this.stackContainer.appendChild(el);
+                });
+            }
+
+            updateMatrixDisplay(mat4) {
+                const el = document.getElementById('matrix-display');
+                if (!mat4) {
+                    el.innerHTML = `<div>1.0</div><div>0.0</div><div>0.0</div><div>0.0</div><div>1.0</div><div>0.0</div><div>0.0</div><div>0.0</div><div>1.0</div>`;
+                    return;
+                }
+                
+                const e = mat4.elements;
+                const m00 = e[0].toFixed(2);
+                const m01 = e[4].toFixed(2);
+                const tx  = e[12].toFixed(2);
+                const m10 = e[1].toFixed(2);
+                const m11 = e[5].toFixed(2);
+                const ty  = e[13].toFixed(2);
+                
+                el.innerHTML = `
+                    <div class="text-white">${m00}</div> <div class="text-white">${m01}</div> <div class="text-blue-300">${tx}</div>
+                    <div class="text-white">${m10}</div> <div class="text-white">${m11}</div> <div class="text-blue-300">${ty}</div>
+                    <div class="text-slate-500">0.0</div> <div class="text-slate-500">0.0</div> <div class="text-slate-500">1.0</div>
+                `;
+            }
+        }
+
+        // --- Init ---
+        window.app = new App();
+
+        // Simple runtime "tests" to help catch issues in the console
+        if (typeof console !== 'undefined') {
+            console.assert(typeof TWEEN !== 'undefined', 'TWEEN should be loaded globally');
+            if (typeof TWEEN !== 'undefined') {
+                console.assert(TWEEN.Easing && TWEEN.Easing.Quadratic && TWEEN.Easing.Quadratic.InOut, 'TWEEN Quadratic.InOut easing should exist');
+            }
+            console.assert(window.app && Array.isArray(window.app.stack), 'App should be initialised with a stack');
+        }
+
+    </script>
+</body>
+</html>

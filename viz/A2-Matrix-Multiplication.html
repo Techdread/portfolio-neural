@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Matrix Operations</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tween.js for smooth animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <!-- MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; color: white; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+        /* Matrix Grid Styles */
+        .matrix-bracket {
+            position: relative;
+            padding: 0 10px;
+        }
+        .matrix-bracket::before, .matrix-bracket::after {
+            content: ''; position: absolute; top: 0; bottom: 0; width: 10px; border: 2px solid #94a3b8;
+        }
+        .matrix-bracket::before { left: 0; border-right: 0; }
+        .matrix-bracket::after { right: 0; border-left: 0; }
+
+        .matrix-cell {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid #334155;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .matrix-cell input {
+            width: 100%; height: 100%;
+            background: transparent; border: none;
+            color: white; text-align: center; font-family: monospace;
+            outline: none;
+        }
+        /* Highlight Classes */
+        .highlight-row { background-color: rgba(59, 130, 246, 0.3) !important; border-color: #3b82f6 !important; }
+        .highlight-col { background-color: rgba(239, 68, 68, 0.3) !important; border-color: #ef4444 !important; }
+        .highlight-result { background-color: rgba(168, 85, 247, 0.5) !important; border-color: #a855f7 !important; transform: scale(1.1); }
+        
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .ui-layer { position: absolute; z-index: 10; width: 100%; height: 100%; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        .mode-btn.active { background-color: #2563eb; color: white; border-color: #2563eb; }
+    </style>
+
+    <!-- Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Three.js Canvas (Background for Transformation Mode) -->
+    <div id="canvas-container" class="hidden"></div>
+
+    <!-- UI Overlay -->
+    <div class="ui-layer flex flex-col">
+        
+        <!-- Top Bar -->
+        <div class="flex justify-between items-center p-4 bg-slate-900/90 backdrop-blur border-b border-slate-700 pointer-events-auto">
+            <div>
+                <h1 class="text-xl font-bold text-blue-400">Matrix Visualizer</h1>
+                <p class="text-xs text-slate-400">Master the Row-by-Column Rule & Spatial Transforms</p>
+            </div>
+            <div class="flex space-x-2 bg-slate-800 p-1 rounded-lg">
+                <button id="btn-mode-arithmetic" onclick="app.setMode('arithmetic')" class="mode-btn active px-4 py-1.5 text-sm rounded font-medium text-slate-300 transition-colors">Arithmetic</button>
+                <button id="btn-mode-transform" onclick="app.setMode('transform')" class="mode-btn px-4 py-1.5 text-sm rounded font-medium text-slate-300 transition-colors">Transformation</button>
+            </div>
+        </div>
+
+        <!-- ARITHMETIC MODE UI -->
+        <div id="view-arithmetic" class="flex-1 flex flex-col items-center justify-center pointer-events-auto overflow-y-auto p-4 relative">
+            
+            <!-- Controls -->
+            <div class="absolute top-4 flex gap-4 bg-slate-800 p-2 rounded-lg border border-slate-700 shadow-lg z-20 items-center">
+                <select id="matrix-size-select" onchange="arithmeticView.resizeMatrices()" class="bg-slate-700 text-sm rounded px-2 py-1 outline-none">
+                    <option value="2x2">2 × 2</option>
+                    <option value="2x3">2 × 3 (x 3×2)</option>
+                    <option value="3x3">3 × 3</option>
+                </select>
+                <div class="w-px bg-slate-600 h-8"></div>
+
+                <!-- Play / Pause with label -->
+                <div class="flex flex-col items-center">
+                    <button
+                        id="btn-play"
+                        onclick="arithmeticView.togglePlay()"
+                        class="text-green-400 hover:text-green-300"
+                        title="Play / Pause animation"
+                    >
+                        <!-- Play icon (idle state) -->
+                        <svg class="w-8 h-8" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M6 4l10 6-10 6V4z" />
+                        </svg>
+                    </button>
+                    <span class="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">Play / Pause</span>
+                </div>
+
+                <button onclick="arithmeticView.stepForward()" class="text-blue-400 hover:text-blue-300" title="Step forward one multiplication">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" />
+                    </svg>
+                </button>
+                <button onclick="arithmeticView.reset()" class="text-slate-400 hover:text-white text-xs px-2 py-1 border border-slate-600 rounded" title="Reset animation">
+                    Reset
+                </button>
+
+                <div class="flex items-center gap-2 text-xs text-slate-400 ml-2">
+                    <span>Speed:</span>
+                    <span class="text-[10px]">Slow</span>
+                    <input type="range" id="speed-slider" min="200" max="2000" step="100" value="1000" class="w-24">
+                    <span class="text-[10px]">Fast</span>
+                </div>
+            </div>
+
+            <!-- Matrix Container -->
+            <div class="flex flex-col md:flex-row items-center gap-8 md:gap-12 mt-16 scale-90 md:scale-100 transition-transform">
+                
+                <!-- Matrix A -->
+                <div class="flex flex-col items-center">
+                    <span class="text-blue-400 font-bold mb-2 text-xl">A</span>
+                    <div class="matrix-bracket">
+                        <div id="grid-a" class="grid gap-1"></div>
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2" id="dim-a">2 × 2</span>
+                </div>
+
+                <!-- Operator -->
+                <div class="text-2xl text-slate-500">×</div>
+
+                <!-- Matrix B -->
+                <div class="flex flex-col items-center">
+                    <span class="text-red-400 font-bold mb-2 text-xl">B</span>
+                    <div class="matrix-bracket">
+                        <div id="grid-b" class="grid gap-1"></div>
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2" id="dim-b">2 × 2</span>
+                </div>
+
+                <!-- Equals -->
+                <div class="text-2xl text-slate-500">=</div>
+
+                <!-- Matrix C (Result) -->
+                <div class="flex flex-col items-center">
+                    <span class="text-purple-400 font-bold mb-2 text-xl">C</span>
+                    <div class="matrix-bracket">
+                        <div id="grid-c" class="grid gap-1"></div>
+                    </div>
+                    <span class="text-xs text-slate-500 mt-2" id="dim-c">2 × 2</span>
+                </div>
+            </div>
+
+            <!-- Calculation Display Overlay -->
+            <div id="calc-display" class="mt-12 bg-slate-800/80 backdrop-blur p-4 rounded-lg border border-slate-700 max-w-2xl w-full text-center min-h-[100px] flex flex-col items-center justify-center shadow-2xl">
+                <p class="text-slate-400 text-sm mb-2 uppercase tracking-wider font-semibold" id="calc-step-title">Ready to Multiply</p>
+                <div id="calc-formula" class="text-lg md:text-xl font-mono">
+                    Click Play to start row-by-column multiplication
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TRANSFORMATION MODE UI -->
+        <div id="view-transform" class="hidden flex-1 pointer-events-none relative">
+            
+            <!-- Controls Panel (Top Left) -->
+            <div class="absolute top-4 left-4 pointer-events-auto bg-slate-900/90 p-4 rounded-lg border border-slate-700 w-64 shadow-xl backdrop-blur">
+                <h3 class="text-sm font-bold text-slate-300 mb-3 border-b border-slate-700 pb-2">Preset Transformations</h3>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button onclick="transformView.applyPreset('identity')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Identity</button>
+                    <button onclick="transformView.applyPreset('rotate')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Rotate 90°</button>
+                    <button onclick="transformView.applyPreset('scale')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Scale (2x)</button>
+                    <button onclick="transformView.applyPreset('shear')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Shear X</button>
+                    <button onclick="transformView.applyPreset('reflect')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs">Reflect X</button>
+                </div>
+
+                <h3 class="text-sm font-bold text-slate-300 mb-3 border-b border-slate-700 pb-2">Custom Matrix</h3>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <input type="number" id="t-m00" value="1" step="0.1" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-center">
+                    <input type="number" id="t-m01" value="0" step="0.1" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-center">
+                    <input type="number" id="t-m10" value="0" step="0.1" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-center">
+                    <input type="number" id="t-m11" value="1" step="0.1" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-center">
+                </div>
+                <button onclick="transformView.applyCustom()" class="w-full bg-blue-600 hover:bg-blue-500 text-white rounded py-1.5 text-sm font-medium mb-4">Apply Custom</button>
+                
+                <h3 class="text-sm font-bold text-slate-300 mb-2 border-b border-slate-700 pb-2">Composition Order</h3>
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+                    <span>A: Rotate</span>
+                    <span>B: Shear</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="transformView.playComposition('AB')" class="flex-1 bg-purple-900/50 border border-purple-500/50 hover:bg-purple-800/50 text-purple-200 rounded py-1 text-xs">A then B (BAx)</button>
+                    <button onclick="transformView.playComposition('BA')" class="flex-1 bg-orange-900/50 border border-orange-500/50 hover:bg-orange-800/50 text-orange-200 rounded py-1 text-xs">B then A (ABx)</button>
+                </div>
+            </div>
+
+            <!-- Legend (Bottom Right) -->
+            <div class="absolute bottom-4 right-4 bg-slate-900/80 p-3 rounded border border-slate-700 pointer-events-auto">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span class="text-xs text-slate-300">i-hat (1,0)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span class="text-xs text-slate-300">j-hat (0,1)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN SCRIPT -->
+    <script type="module">
+        import * as THREE from 'three';
+        
+        // --- Shared State & App Controller ---
+        class App {
+            constructor() {
+                this.mode = 'arithmetic'; // 'arithmetic' or 'transform'
+                this.arithmetic = new ArithmeticMode();
+                this.transform = new TransformMode();
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+                
+                // Toggle UI Buttons
+                document.getElementById('btn-mode-arithmetic').classList.toggle('active', mode === 'arithmetic');
+                document.getElementById('btn-mode-transform').classList.toggle('active', mode === 'transform');
+
+                // Toggle Views
+                const viewArith = document.getElementById('view-arithmetic');
+                const viewTrans = document.getElementById('view-transform');
+                const canvasContainer = document.getElementById('canvas-container');
+
+                if (mode === 'arithmetic') {
+                    viewArith.classList.remove('hidden');
+                    viewTrans.classList.add('hidden');
+                    canvasContainer.classList.add('hidden');
+                    this.arithmetic.onEnter();
+                } else {
+                    viewArith.classList.add('hidden');
+                    viewTrans.classList.remove('hidden');
+                    canvasContainer.classList.remove('hidden');
+                    this.transform.onEnter();
+                }
+            }
+        }
+
+        // --- ARITHMETIC MODE (DOM-Based) ---
+        class ArithmeticMode {
+            constructor() {
+                this.dims = {
+                    '2x2': { rA: 2, cA: 2, rB: 2, cB: 2 },
+                    '2x3': { rA: 2, cA: 3, rB: 3, cB: 2 },
+                    '3x3': { rA: 3, cA: 3, rB: 3, cB: 3 }
+                };
+                this.currentType = '2x2';
+                
+                this.matA = [[1, 2], [3, 4]];
+                this.matB = [[1, 0], [0, 1]];
+                this.matC = [[0, 0], [0, 0]]; // Result
+                
+                this.isPlaying = false;
+                this.stepIndex = -1;
+                this.steps = [];
+                this.timer = null;
+                
+                // Initial setup
+                this.resizeMatrices();
+            }
+
+            onEnter() {
+                // Ensure layout is correct
+                this.resizeMatrices();
+            }
+
+            resizeMatrices() {
+                const type = document.getElementById('matrix-size-select').value;
+                this.currentType = type;
+                const d = this.dims[type];
+                
+                // Generate Arrays
+                this.matA = Array(d.rA).fill().map(() => Array(d.cA).fill(0).map(() => Math.floor(Math.random()*5)));
+                this.matB = Array(d.rB).fill().map(() => Array(d.cB).fill(0).map(() => Math.floor(Math.random()*5)));
+                
+                // Identity for B if square
+                if(d.rB === d.cB) {
+                    this.matB = Array(d.rB).fill().map((_, i) => Array(d.cB).fill(0).map((_, j) => i===j ? 1 : 0));
+                }
+
+                // Render Grids
+                this.renderGrid('a', this.matA, d.rA, d.cA, false);
+                this.renderGrid('b', this.matB, d.rB, d.cB, false);
+                this.renderGrid('c', null, d.rA, d.cB, true); // Result is rA x cB
+
+                // Update Labels
+                document.getElementById('dim-a').innerText = `${d.rA} × ${d.cA}`;
+                document.getElementById('dim-b').innerText = `${d.rB} × ${d.cB}`;
+                document.getElementById('dim-c').innerText = `${d.rA} × ${d.cB}`;
+
+                this.reset();
+            }
+
+            renderGrid(id, data, rows, cols, isResult) {
+                const container = document.getElementById(`grid-${id}`);
+                container.innerHTML = '';
+                container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+                for(let r=0; r<rows; r++) {
+                    for(let c=0; c<cols; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'matrix-cell';
+                        cell.dataset.row = r;
+                        cell.dataset.col = c;
+                        
+                        const input = document.createElement('input');
+                        input.type = 'number';
+                        input.readOnly = isResult; // Result is read-only
+                        if (!isResult) {
+                            input.value = data[r][c];
+                            input.onchange = (e) => {
+                                data[r][c] = parseFloat(e.target.value) || 0;
+                                this.calculateAll(); // Pre-calc for fast updates
+                            };
+                        } else {
+                            input.value = '?';
+                            input.style.color = '#a855f7';
+                            input.style.fontWeight = 'bold';
+                        }
+                        
+                        cell.appendChild(input);
+                        container.appendChild(cell);
+                    }
+                }
+            }
+
+            reset() {
+                this.pause();
+                this.stepIndex = -1;
+                // Clear highlights
+                document.querySelectorAll('.highlight-row, .highlight-col, .highlight-result').forEach(el => {
+                    el.classList.remove('highlight-row', 'highlight-col', 'highlight-result');
+                });
+                // Reset Result Grid
+                const cCells = document.getElementById('grid-c').querySelectorAll('input');
+                cCells.forEach(inp => inp.value = '?');
+                
+                document.getElementById('calc-step-title').innerText = "Ready";
+                document.getElementById('calc-formula').innerHTML = "Click Play to start";
+                
+                this.calculateAll();
+            }
+
+            calculateAll() {
+                // Pre-generate steps for animation
+                this.steps = [];
+                const d = this.dims[this.currentType];
+                
+                for(let i=0; i<d.rA; i++) {
+                    for(let j=0; j<d.cB; j++) {
+                        // Dot Product Step
+                        let sum = 0;
+                        let formulaParts = [];
+                        for(let k=0; k<d.cA; k++) { // Shared dim
+                            const valA = this.matA[i][k];
+                            const valB = this.matB[k][j];
+                            sum += valA * valB;
+                            formulaParts.push(`(${valA} \\cdot ${valB})`);
+                        }
+                        this.steps.push({
+                            rowA: i,
+                            colB: j,
+                            formula: formulaParts.join(' + ') + ` = \\mathbf{${sum}}`,
+                            result: sum
+                        });
+                    }
+                }
+            }
+
+            togglePlay() {
+                if (this.isPlaying) this.pause();
+                else this.play();
+            }
+
+            play() {
+                this.isPlaying = true;
+                document.getElementById('btn-play').innerHTML = `
+                    <!-- Pause icon (playing state) -->
+                    <svg class="w-8 h-8" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M6 4h3v12H6V4zm5 0h3v12h-3V4z" />
+                    </svg>
+                `;
+                
+                if (this.stepIndex >= this.steps.length - 1) this.reset();
+                
+                const slider = document.getElementById('speed-slider');
+                const raw = parseInt(slider.value, 10);
+                const min = parseInt(slider.min, 10);
+                const max = parseInt(slider.max, 10);
+                // Flip so that moving right (larger raw) -> smaller delay -> faster
+                const baseDelay = min + max - raw;
+                
+                const loop = () => {
+                    if(!this.isPlaying) return;
+                    this.stepForward();
+                    if(this.stepIndex < this.steps.length - 1) {
+                        this.timer = setTimeout(loop, baseDelay);
+                    } else {
+                        this.pause();
+                    }
+                };
+                loop();
+            }
+
+            pause() {
+                this.isPlaying = false;
+                document.getElementById('btn-play').innerHTML = `
+                    <!-- Play icon (idle state) -->
+                    <svg class="w-8 h-8" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M6 4l10 6-10 6V4z" />
+                    </svg>
+                `;
+                clearTimeout(this.timer);
+            }
+
+            stepForward() {
+                if(this.stepIndex >= this.steps.length - 1) return;
+                this.stepIndex++;
+                const step = this.steps[this.stepIndex];
+                
+                // Clear Previous Highlights
+                document.querySelectorAll('.highlight-row, .highlight-col, .highlight-result').forEach(el => {
+                    el.classList.remove('highlight-row', 'highlight-col', 'highlight-result');
+                });
+
+                // Highlight Row A
+                const gridA = document.getElementById('grid-a');
+                Array.from(gridA.children).forEach(cell => {
+                    if(parseInt(cell.dataset.row) === step.rowA) cell.classList.add('highlight-row');
+                });
+
+                // Highlight Col B
+                const gridB = document.getElementById('grid-b');
+                Array.from(gridB.children).forEach(cell => {
+                    if(parseInt(cell.dataset.col) === step.colB) cell.classList.add('highlight-col');
+                });
+
+                // Highlight Result Cell
+                const gridC = document.getElementById('grid-c');
+                const targetCell = Array.from(gridC.children).find(c => 
+                    parseInt(c.dataset.row) === step.rowA && parseInt(c.dataset.col) === step.colB
+                );
+                if(targetCell) {
+                    targetCell.classList.add('highlight-result');
+                    targetCell.querySelector('input').value = step.result;
+                }
+
+                // Update Display
+                document.getElementById('calc-step-title').innerText = `Row ${step.rowA + 1} • Col ${step.colB + 1}`;
+                const formulaDiv = document.getElementById('calc-formula');
+                formulaDiv.innerHTML = `$$ C_{${step.rowA+1},${step.colB+1}} = \\vec{RowA} \\cdot \\vec{ColB} $$ $$ ${step.formula} $$`;
+                MathJax.typesetPromise([formulaDiv]);
+            }
+        }
+
+        // --- TRANSFORMATION MODE (Three.js) ---
+        class TransformMode {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.grid = null;
+                this.originalPositions = []; // Store base grid pos
+                this.basisX = null;
+                this.basisY = null;
+                this.unitSquare = null;
+                this.initialized = false;
+                
+                this.currentMatrix = new THREE.Matrix4();
+            }
+
+            onEnter() {
+                if(!this.initialized) this.init();
+                // Reset view when entering
+                this.applyMatrix(new THREE.Matrix4(), 0); 
+            }
+
+            init() {
+                const container = document.getElementById('canvas-container');
+                
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0f172a);
+
+                // Camera (Orthographic for 2D feel)
+                const aspect = container.clientWidth / container.clientHeight;
+                const frustumSize = 10;
+                this.camera = new THREE.OrthographicCamera(
+                    frustumSize * aspect / -2, frustumSize * aspect / 2,
+                    frustumSize / 2, frustumSize / -2,
+                    0.1, 100
+                );
+                this.camera.position.set(0, 0, 10);
+                this.camera.lookAt(0, 0, 0);
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(this.renderer.domElement);
+
+                // --- Geometry Construction ---
+                
+                // 1. Deformable Grid
+                const points = [];
+                // Vertical lines
+                for(let i=-10; i<=10; i++) {
+                    points.push(i, -10, 0,  i, 10, 0);
+                }
+                // Horizontal lines
+                for(let i=-10; i<=10; i++) {
+                    points.push(-10, i, 0,  10, i, 0);
+                }
+                
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+                // Store original for transforms
+                this.originalPositions = Float32Array.from(points); 
+
+                const material = new THREE.LineBasicMaterial({ color: 0x334155 });
+                this.grid = new THREE.LineSegments(geometry, material);
+                this.scene.add(this.grid);
+
+                // 2. Unit Square with F shape for orientation
+                const shapePoints = [
+                    0,0,0,  1,0,0,
+                    1,0,0,  1,1,0,
+                    1,1,0,  0,1,0,
+                    0,1,0,  0,0,0,
+                    // F-shape inside
+                    0.2,0.2,0, 0.2,0.8,0,
+                    0.2,0.8,0, 0.6,0.8,0,
+                    0.2,0.5,0, 0.5,0.5,0
+                ];
+                const squareGeo = new THREE.BufferGeometry();
+                squareGeo.setAttribute('position', new THREE.Float32BufferAttribute(shapePoints, 3));
+                this.unitSquare = new THREE.LineSegments(squareGeo, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
+                this.scene.add(this.unitSquare);
+
+                // 3. Basis Vectors
+                this.basisX = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xef4444); // Red i-hat
+                this.basisY = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 1, 0x22c55e); // Green j-hat
+                this.scene.add(this.basisX);
+                this.scene.add(this.basisY);
+
+                // Axes (Static reference)
+                const axesHelper = new THREE.AxesHelper(0.5); // Small reference at origin
+                this.scene.add(axesHelper);
+
+                // Animation Loop
+                const animate = (time) => {
+                    requestAnimationFrame(animate);
+                    TWEEN.update(time);
+                    this.renderer.render(this.scene, this.camera);
+                };
+                animate();
+
+                // Resize
+                window.addEventListener('resize', () => {
+                    const w = container.clientWidth;
+                    const h = container.clientHeight;
+                    const asp = w / h;
+                    this.camera.left = -5 * asp;
+                    this.camera.right = 5 * asp;
+                    this.camera.top = 5;
+                    this.camera.bottom = -5;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(w, h);
+                });
+
+                this.initialized = true;
+            }
+
+            // Updates the Three.js geometry by multiplying original points by matrix
+            updateGeometry(matrix) {
+                // matrix is a THREE.Matrix4
+                const pos = this.grid.geometry.attributes.position.array;
+                
+                for(let i=0; i<this.originalPositions.length; i+=3) {
+                    const vec = new THREE.Vector3(
+                        this.originalPositions[i],
+                        this.originalPositions[i+1],
+                        this.originalPositions[i+2]
+                    );
+                    vec.applyMatrix4(matrix);
+                    pos[i] = vec.x;
+                    pos[i+1] = vec.y;
+                    pos[i+2] = vec.z;
+                }
+                this.grid.geometry.attributes.position.needsUpdate = true;
+
+                // Update Unit Square
+                const sqPoints = [
+                    0,0,0,  1,0,0, 1,0,0,  1,1,0, 1,1,0,  0,1,0, 0,1,0,  0,0,0,
+                    0.2,0.2,0, 0.2,0.8,0, 0.2,0.8,0, 0.6,0.8,0, 0.2,0.5,0, 0.5,0.5,0
+                ];
+                const sqPos = this.unitSquare.geometry.attributes.position.array;
+                for(let i=0; i<sqPoints.length; i+=3) {
+                     const vec = new THREE.Vector3(sqPoints[i], sqPoints[i+1], sqPoints[i+2]);
+                     vec.applyMatrix4(matrix);
+                     sqPos[i] = vec.x;
+                     sqPos[i+1] = vec.y;
+                     sqPos[i+2] = vec.z;
+                }
+                this.unitSquare.geometry.attributes.position.needsUpdate = true;
+
+                // Update Basis Arrows
+                const iHat = new THREE.Vector3(1,0,0).applyMatrix4(matrix);
+                const jHat = new THREE.Vector3(0,1,0).applyMatrix4(matrix);
+                
+                this.basisX.setDirection(iHat.clone().normalize());
+                this.basisX.setLength(iHat.length());
+                this.basisY.setDirection(jHat.clone().normalize());
+                this.basisY.setLength(jHat.length());
+            }
+
+            applyMatrix(targetMatrix, duration=1000) {
+                const startElements = this.currentMatrix.elements.slice(); // 16 elements
+                const endElements = targetMatrix.elements;
+
+                const tweenObj = { t: 0 };
+                new TWEEN.Tween(tweenObj)
+                    .to({ t: 1 }, duration)
+                    .easing(TWEEN.Easing.Cubic.InOut)
+                    .onUpdate(() => {
+                        const tempMat = new THREE.Matrix4();
+                        const te = tempMat.elements;
+                        // Interpolate each element
+                        for(let i=0; i<16; i++) {
+                            te[i] = startElements[i] + (endElements[i] - startElements[i]) * tweenObj.t;
+                        }
+                        this.updateGeometry(tempMat);
+                    })
+                    .onComplete(() => {
+                        this.currentMatrix.copy(targetMatrix);
+                    })
+                    .start();
+                
+                // Update Inputs
+                document.getElementById('t-m00').value = targetMatrix.elements[0].toFixed(2);
+                document.getElementById('t-m01').value = targetMatrix.elements[4].toFixed(2);
+                document.getElementById('t-m10').value = targetMatrix.elements[1].toFixed(2);
+                document.getElementById('t-m11').value = targetMatrix.elements[5].toFixed(2);
+            }
+
+            applyCustom() {
+                const a = parseFloat(document.getElementById('t-m00').value); // Col 1 x
+                const b = parseFloat(document.getElementById('t-m01').value); // Col 2 x
+                const c = parseFloat(document.getElementById('t-m10').value); // Col 1 y
+                const d = parseFloat(document.getElementById('t-m11').value); // Col 2 y
+                
+                // Three.js Matrix4 is Column-Major
+                const m = new THREE.Matrix4();
+                m.set(
+                    a, b, 0, 0,
+                    c, d, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                );
+                this.applyMatrix(m);
+            }
+
+            applyPreset(type) {
+                const m = new THREE.Matrix4();
+                switch(type) {
+                    case 'identity': 
+                        break; // identity
+                    case 'rotate':
+                        m.makeRotationZ(Math.PI / 2);
+                        break;
+                    case 'scale':
+                        m.makeScale(2, 2, 1);
+                        break;
+                    case 'shear':
+                        // Shear X: x' = x + ky, y' = y
+                        m.set(1, 1, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1);
+                        break;
+                    case 'reflect':
+                         // Reflect across Y-axis (x -> -x)
+                         m.makeScale(-1, 1, 1);
+                         break;
+                }
+                this.applyMatrix(m);
+            }
+
+            playComposition(order) {
+                // A: Rotate 90, B: Shear X
+                const matA = new THREE.Matrix4().makeRotationZ(Math.PI / 2);
+                const matB = new THREE.Matrix4().set(1, 1, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1);
+
+                // Reset
+                this.applyMatrix(new THREE.Matrix4(), 500);
+
+                setTimeout(() => {
+                    if (order === 'AB') {
+                        // Apply A then B
+                        this.applyMatrix(matA, 1000);
+                        setTimeout(() => {
+                             const final = matB.clone().multiply(matA); // B * A
+                             this.applyMatrix(final, 1000);
+                        }, 1200);
+                    } else {
+                        // Apply B then A
+                        this.applyMatrix(matB, 1000);
+                        setTimeout(() => {
+                             const final = matA.clone().multiply(matB); // A * B
+                             this.applyMatrix(final, 1000);
+                        }, 1200);
+                    }
+                }, 600);
+            }
+        }
+
+        // Initialize Global App
+        window.app = new App();
+        window.arithmeticView = window.app.arithmetic;
+        window.transformView = window.app.transform;
+
+        // Start in Arithmetic mode
+        app.setMode('arithmetic');
+
+    </script>
+</body>
+</html>
+

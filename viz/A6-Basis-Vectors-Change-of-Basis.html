@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basis Vectors & Change of Basis</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tween.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <!-- MathJax -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; color: white; }
+        
+        .panel {
+            background-color: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid #334155;
+        }
+
+        /* Matrix Display */
+        .matrix-bracket {
+            position: relative; padding: 0 6px; display: inline-block;
+        }
+        .matrix-bracket::before, .matrix-bracket::after {
+            content: ''; position: absolute; top: 0; bottom: 0; width: 6px; border: 2px solid #94a3b8;
+        }
+        .matrix-bracket::before { left: 0; border-right: 0; }
+        .matrix-bracket::after { right: 0; border-left: 0; }
+        
+        .coord-pill {
+            font-family: monospace; font-weight: bold;
+            padding: 2px 6px; border-radius: 4px;
+        }
+
+        .canvas-label {
+            position: absolute; top: 10px; font-weight: bold; 
+            background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 999px;
+            pointer-events: none; user-select: none;
+        }
+    </style>
+
+    <!-- Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Canvas -->
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- View Labels -->
+    <div class="canvas-label left-4 text-slate-300 border border-slate-600">Standard Basis (Observer)</div>
+    <div class="canvas-label right-4 text-blue-300 border border-blue-600">Custom Basis (Alien Map)</div>
+
+    <!-- UI Overlay -->
+    <div class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-4">
+        
+        <!-- Top Controls -->
+        <div class="flex justify-center">
+            <div class="panel p-4 rounded-xl pointer-events-auto shadow-2xl flex flex-col items-center gap-4 max-w-2xl">
+                <div class="flex justify-between w-full items-start gap-8">
+                    <div>
+                        <h1 class="text-lg font-bold text-blue-400">Basis Explorer</h1>
+                        <p class="text-xs text-slate-400">Drag the ⚪ handles on the right. Drag Point $P$ anywhere.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="app.setPreset('standard')" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">Reset</button>
+                        <button onclick="app.setPreset('rotate')" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">Rotate 45°</button>
+                        <button onclick="app.setPreset('scale')" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">Scale 2x</button>
+                        <button onclick="app.setPreset('skew')" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">Skew</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Math Display -->
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80 hover:opacity-100 transition-opacity">
+            <div class="panel p-3 rounded-lg flex gap-4 items-center">
+                <!-- Change of Basis Matrix -->
+                <div class="text-center">
+                    <div class="text-[10px] text-slate-400 uppercase mb-1">Basis Matrix (B)</div>
+                    <div class="font-mono text-sm">
+                        <span class="matrix-bracket">
+                            <div class="grid grid-cols-2 gap-x-2 text-right">
+                                <span id="m00" class="text-purple-400">1.0</span> <span id="m01" class="text-orange-400">0.0</span>
+                                <span id="m10" class="text-purple-400">0.0</span> <span id="m11" class="text-orange-400">1.0</span>
+                            </div>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="text-slate-500 text-xl">→</div>
+
+                <!-- Point Coords -->
+                <div class="text-center">
+                    <div class="text-[10px] text-slate-400 uppercase mb-1">Coordinates</div>
+                    <div class="text-xs space-y-1 text-left">
+                        <div>Standard: <span id="coord-std" class="coord-pill bg-slate-700 text-white">[2.0, 2.0]</span></div>
+                        <div>Custom: &nbsp;<span id="coord-cust" class="coord-pill bg-blue-900 text-blue-200">[2.0, 2.0]</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Legend -->
+        <div class="flex justify-center pb-2">
+            <div class="panel px-4 py-2 rounded-full text-xs flex gap-6 font-mono">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-red-500 rounded-full"></div> <span><b>i</b> (1,0)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-green-500 rounded-full"></div> <span><b>j</b> (0,1)</span>
+                </div>
+                <div class="w-px h-4 bg-slate-600"></div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-purple-500 rounded-full"></div> <span><b>u</b> (Basis 1)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-orange-500 rounded-full"></div> <span><b>v</b> (Basis 2)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP SCRIPT -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        class App {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                
+                // --- State ---
+                this.basisU = new THREE.Vector3(1, 0, 0); // Custom Basis 1
+                this.basisV = new THREE.Vector3(0, 1, 0); // Custom Basis 2
+                this.pointPos = new THREE.Vector3(2, 2, 0); // World Position
+                
+                this.isDraggingPoint = false;
+                this.draggingBasis = null; // 'u' or 'v'
+
+                // --- Setup ---
+                this.initThree();
+                this.createScenes();
+                this.addObjects();
+                this.addInteraction();
+                
+                this.animate();
+                this.updateUI();
+            }
+
+            initThree() {
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setScissorTest(true); // Enable Split Screen
+                this.renderer.autoClear = false;
+                this.container.appendChild(this.renderer.domElement);
+
+                // CSS Renderer for Labels
+                this.labelRenderer = new CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0';
+                this.labelRenderer.domElement.style.pointerEvents = 'none';
+                this.container.appendChild(this.labelRenderer.domElement);
+            }
+
+            createScenes() {
+                const frustum = 8;
+                const aspect = (window.innerWidth / 2) / window.innerHeight; // Half screen aspect
+
+                // Shared Camera Config
+                this.camera = new THREE.OrthographicCamera(
+                    -frustum * aspect, frustum * aspect,
+                    frustum, -frustum,
+                    0.1, 100
+                );
+                this.camera.position.set(0, 0, 10);
+                this.camera.lookAt(0, 0, 0);
+
+                // --- Left Scene (Standard) ---
+                this.sceneLeft = new THREE.Scene();
+                this.sceneLeft.background = new THREE.Color(0x0f172a); // Slate 900
+                const gridL = new THREE.GridHelper(20, 20, 0x334155, 0x1e293b);
+                gridL.rotation.x = Math.PI / 2;
+                this.sceneLeft.add(gridL);
+
+                // --- Right Scene (Custom) ---
+                this.sceneRight = new THREE.Scene();
+                this.sceneRight.background = new THREE.Color(0x0f172a);
+                // Custom grid will be added in addObjects
+            }
+
+            addObjects() {
+                // --- Left Scene Objects (Standard Basis) ---
+                // i-hat
+                const iArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xef4444, 0.3, 0.2);
+                this.sceneLeft.add(iArrow);
+                // j-hat
+                const jArrow = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 1, 0x22c55e, 0.3, 0.2);
+                this.sceneLeft.add(jArrow);
+
+                // Point (Left)
+                this.pointL = this.createPointMesh(0xffffff);
+                this.sceneLeft.add(this.pointL);
+
+                // Point Coords Label (Left)
+                this.labelL = this.createLabel("");
+                this.pointL.add(this.labelL);
+
+
+                // --- Right Scene Objects (Custom Basis) ---
+                // Deformable Grid
+                // We create a standard grid, but put it in a Group that we will matrix-transform
+                this.gridGroup = new THREE.Group();
+                const gridR = new THREE.GridHelper(20, 20, 0x60a5fa, 0x1e3a8a); // Blue grid
+                gridR.rotation.x = Math.PI / 2;
+                gridR.material.opacity = 0.3;
+                gridR.material.transparent = true;
+                this.gridGroup.add(gridR);
+                this.sceneRight.add(this.gridGroup);
+
+                // U Vector (Purple)
+                this.arrowU = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xa855f7, 0.3, 0.2);
+                this.sceneRight.add(this.arrowU);
+                
+                // V Vector (Orange)
+                this.arrowV = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 1, 0xf97316, 0.3, 0.2);
+                this.sceneRight.add(this.arrowV);
+
+                // Interaction Handles (Visible spheres at tips)
+                // U Handle
+                this.handleU = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2), 
+                    new THREE.MeshBasicMaterial({ color: 0xffffff })
+                );
+                // Add ring for extra visibility
+                const ringGeo = new THREE.RingGeometry(0.25, 0.3, 32);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xa855f7, side: THREE.DoubleSide });
+                const ringU = new THREE.Mesh(ringGeo, ringMat);
+                this.handleU.add(ringU);
+                this.sceneRight.add(this.handleU);
+
+                // V Handle
+                this.handleV = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2), 
+                    new THREE.MeshBasicMaterial({ color: 0xffffff })
+                );
+                const ringMatV = new THREE.MeshBasicMaterial({ color: 0xf97316, side: THREE.DoubleSide });
+                const ringV = new THREE.Mesh(ringGeo, ringMatV);
+                this.handleV.add(ringV);
+                this.sceneRight.add(this.handleV);
+
+                // Point (Right)
+                this.pointR = this.createPointMesh(0xffffff);
+                this.sceneRight.add(this.pointR);
+
+                // Point Coords Label (Right)
+                this.labelR = this.createLabel("");
+                this.labelR.element.style.color = "#93c5fd"; // Blue text
+                this.pointR.add(this.labelR);
+                
+                this.updateSceneVisuals();
+            }
+
+            createPointMesh(color) {
+                const geo = new THREE.CircleGeometry(0.15, 32);
+                const mat = new THREE.MeshBasicMaterial({ color: color });
+                const mesh = new THREE.Mesh(geo, mat);
+                // Hit area
+                const hitGeo = new THREE.CircleGeometry(0.5, 8);
+                const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+                const hit = new THREE.Mesh(hitGeo, hitMat);
+                mesh.add(hit);
+                mesh.hitBox = hit; // Ref
+                return mesh;
+            }
+
+            createLabel(text) {
+                const div = document.createElement('div');
+                div.className = 'text-xs font-mono font-bold text-white bg-black/50 px-1 rounded pointer-events-none whitespace-nowrap';
+                div.textContent = text;
+                const label = new CSS2DObject(div);
+                label.position.set(0, 0.3, 0);
+                return label;
+            }
+
+            setPreset(type) {
+                let u = { x:1, y:0 };
+                let v = { x:0, y:1 };
+                let p = { x:2, y:2 }; // Default point
+
+                if(type === 'rotate') { u = {x:0.7, y:0.7}; v = {x:-0.7, y:0.7}; }
+                if(type === 'scale') { u = {x:2, y:0}; v = {x:0, y:2}; }
+                if(type === 'skew') { u = {x:1, y:0}; v = {x:0.5, y:1}; }
+
+                // Tween Basis
+                new TWEEN.Tween(this.basisU).to(u, 800).easing(TWEEN.Easing.Cubic.Out).start();
+                new TWEEN.Tween(this.basisV).to(v, 800).easing(TWEEN.Easing.Cubic.Out).onUpdate(()=>this.updateSceneVisuals()).start();
+                // Tween Point
+                new TWEEN.Tween(this.pointPos).to(p, 800).easing(TWEEN.Easing.Cubic.Out).start();
+            }
+
+            updateSceneVisuals() {
+                // 1. Update Basis Arrow Visuals
+                this.arrowU.setDirection(this.basisU.clone().normalize());
+                this.arrowU.setLength(this.basisU.length(), 0.3, 0.2);
+                // Offset handle slightly along direction of vector
+                this.handleU.position.copy(this.basisU).add(this.basisU.clone().normalize().multiplyScalar(0.4));
+
+                this.arrowV.setDirection(this.basisV.clone().normalize());
+                this.arrowV.setLength(this.basisV.length(), 0.3, 0.2);
+                // Offset handle
+                this.handleV.position.copy(this.basisV).add(this.basisV.clone().normalize().multiplyScalar(0.4));
+
+                // 2. Warp the Right Grid
+                // Matrix columns are U and V
+                const matrix = new THREE.Matrix4();
+                matrix.set(
+                    this.basisU.x, this.basisV.x, 0, 0,
+                    this.basisU.y, this.basisV.y, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                );
+                this.gridGroup.matrix.identity(); // Reset
+                this.gridGroup.applyMatrix4(matrix);
+                this.gridGroup.matrixAutoUpdate = false; // Keep it manual
+
+                // 3. Update Point Positions (Visual)
+                this.pointL.position.copy(this.pointPos);
+                this.pointR.position.copy(this.pointPos);
+
+                // 4. Calculations
+                // Local Coords = Inverse(Basis) * World
+                // Determinant for inverse 2x2: ad - bc
+                const det = this.basisU.x * this.basisV.y - this.basisU.y * this.basisV.x;
+                
+                let localX = 0, localY = 0;
+                if (Math.abs(det) > 0.0001) {
+                    // Inverse 2x2 Matrix:
+                    // 1/det * [ d  -b ]
+                    //         [ -c  a ]
+                    // So:
+                    // x' = (d*x - b*y) / det
+                    // y' = (-c*x + a*y) / det
+                    // where a=Ux, c=Uy, b=Vx, d=Vy
+                    
+                    const a = this.basisU.x, c = this.basisU.y;
+                    const b = this.basisV.x, d = this.basisV.y;
+                    
+                    localX = (d * this.pointPos.x - b * this.pointPos.y) / det;
+                    localY = (-c * this.pointPos.x + a * this.pointPos.y) / det;
+                }
+
+                // 5. Update Labels
+                this.labelL.element.textContent = `[${this.pointPos.x.toFixed(1)}, ${this.pointPos.y.toFixed(1)}]`;
+                this.labelR.element.textContent = `[${localX.toFixed(1)}, ${localY.toFixed(1)}]`;
+                
+                this.uiLocalX = localX;
+                this.uiLocalY = localY;
+                
+                this.updateUI();
+            }
+
+            updateUI() {
+                // Update Matrix Display
+                document.getElementById('m00').textContent = this.basisU.x.toFixed(1);
+                document.getElementById('m10').textContent = this.basisU.y.toFixed(1);
+                document.getElementById('m01').textContent = this.basisV.x.toFixed(1);
+                document.getElementById('m11').textContent = this.basisV.y.toFixed(1);
+
+                document.getElementById('coord-std').textContent = `[${this.pointPos.x.toFixed(1)}, ${this.pointPos.y.toFixed(1)}]`;
+                
+                // Safety check for UI vars
+                const lx = this.uiLocalX !== undefined ? this.uiLocalX.toFixed(1) : "0.0";
+                const ly = this.uiLocalY !== undefined ? this.uiLocalY.toFixed(1) : "0.0";
+                document.getElementById('coord-cust').textContent = `[${lx}, ${ly}]`;
+            }
+
+            addInteraction() {
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+
+                const getMouseNDSC = (e, view) => {
+                    // view: 'left' or 'right'
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+                    const split = w / 2;
+                    
+                    let x = e.clientX;
+                    
+                    if (view === 'left') {
+                        // Normalize 0 to split
+                        return { x: (x / split) * 2 - 1, y: -(e.clientY / h) * 2 + 1 };
+                    } else {
+                        // Normalize split to w
+                        return { x: ((x - split) / split) * 2 - 1, y: -(e.clientY / h) * 2 + 1 };
+                    }
+                };
+
+                const onDown = (e) => {
+                    const x = e.clientX;
+                    const isRight = x > window.innerWidth / 2;
+                    
+                    const ndc = getMouseNDSC(e, isRight ? 'right' : 'left');
+                    mouse.set(ndc.x, ndc.y);
+                    raycaster.setFromCamera(mouse, this.camera);
+
+                    // Check Point (Both scenes)
+                    const scene = isRight ? this.sceneRight : this.sceneLeft;
+                    const pt = isRight ? this.pointR : this.pointL;
+                    
+                    const intersectsPt = raycaster.intersectObject(pt.hitBox);
+                    if (intersectsPt.length > 0) {
+                        this.isDraggingPoint = true;
+                        return;
+                    }
+
+                    // Check Basis Handles (Only Right Scene)
+                    if (isRight) {
+                        const intersectsU = raycaster.intersectObject(this.handleU);
+                        if (intersectsU.length > 0) {
+                            this.draggingBasis = 'u';
+                            return;
+                        }
+                        const intersectsV = raycaster.intersectObject(this.handleV);
+                        if (intersectsV.length > 0) {
+                            this.draggingBasis = 'v';
+                            return;
+                        }
+                    }
+                };
+
+                const onMove = (e) => {
+                    if (!this.isDraggingPoint && !this.draggingBasis) return;
+
+                    const x = e.clientX;
+                    // Logic: Even if we drag left point into right screen, math holds, but mouse mapping shifts
+                    // Let's assume user drags within the active viewport roughly
+                    // Or map properly global space.
+                    
+                    // Simple World Projection logic:
+                    // Ortho camera: NDSC to World is linear map
+                    // WorldX = NDSC.x * (width/2) + camX
+                    
+                    const aspect = (window.innerWidth / 2) / window.innerHeight;
+                    const frustum = 8;
+                    const worldW = frustum * aspect;
+                    const worldH = frustum;
+                    
+                    // We need to know which viewport the mouse is currently over to decode NDSC
+                    const isRightMouse = x > window.innerWidth / 2;
+                    const ndc = getMouseNDSC(e, isRightMouse ? 'right' : 'left');
+                    
+                    const worldX = ndc.x * worldW;
+                    const worldY = ndc.y * worldH;
+
+                    if (this.isDraggingPoint) {
+                        this.pointPos.set(worldX, worldY, 0);
+                    } else if (this.draggingBasis === 'u') {
+                        // Snap to grid for nice values? optional.
+                        this.basisU.set(worldX, worldY, 0);
+                    } else if (this.draggingBasis === 'v') {
+                        this.basisV.set(worldX, worldY, 0);
+                    }
+                    
+                    this.updateSceneVisuals();
+                };
+
+                const onUp = () => {
+                    this.isDraggingPoint = false;
+                    this.draggingBasis = null;
+                };
+
+                window.addEventListener('mousedown', onDown);
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                TWEEN.update();
+
+                // Split Screen Rendering
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                const halfW = w / 2;
+
+                // 1. Left Viewport
+                this.renderer.setViewport(0, 0, halfW, h);
+                this.renderer.setScissor(0, 0, halfW, h);
+                this.renderer.render(this.sceneLeft, this.camera);
+
+                // 2. Right Viewport
+                this.renderer.setViewport(halfW, 0, halfW, h);
+                this.renderer.setScissor(halfW, 0, halfW, h);
+                this.renderer.render(this.sceneRight, this.camera);
+            }
+        }
+
+        // Patch: Second CSS Renderer for Right side
+        class SplitApp extends App {
+            initThree() {
+                super.initThree();
+                
+                // Renderer Right
+                this.labelRendererR = new CSS2DRenderer();
+                this.labelRendererR.setSize(window.innerWidth / 2, window.innerHeight);
+                this.labelRendererR.domElement.style.position = 'absolute';
+                this.labelRendererR.domElement.style.top = '0';
+                this.labelRendererR.domElement.style.left = '50%'; // Right half
+                this.labelRendererR.domElement.style.pointerEvents = 'none';
+                this.container.appendChild(this.labelRendererR.domElement);
+                
+                // Resize handling update
+                window.addEventListener('resize', () => {
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+                    const aspect = (w/2) / h;
+                    const frustum = 8;
+                    
+                    this.camera.left = -frustum * aspect;
+                    this.camera.right = frustum * aspect;
+                    this.camera.top = frustum;
+                    this.camera.bottom = -frustum;
+                    this.camera.updateProjectionMatrix();
+
+                    this.renderer.setSize(w, h);
+                    this.labelRenderer.setSize(w/2, h); // Left gets half
+                    this.labelRendererR.setSize(w/2, h); // Right gets half
+                });
+
+                // Init size
+                this.labelRenderer.setSize(window.innerWidth / 2, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                TWEEN.update();
+
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                const halfW = w / 2;
+
+                // Left GL
+                this.renderer.setViewport(0, 0, halfW, h);
+                this.renderer.setScissor(0, 0, halfW, h);
+                this.renderer.render(this.sceneLeft, this.camera);
+                // Left CSS
+                this.labelRenderer.render(this.sceneLeft, this.camera);
+
+                // Right GL
+                this.renderer.setViewport(halfW, 0, halfW, h);
+                this.renderer.setScissor(halfW, 0, halfW, h);
+                this.renderer.render(this.sceneRight, this.camera);
+                // Right CSS
+                this.labelRendererR.render(this.sceneRight, this.camera);
+            }
+        }
+
+        // Init
+        window.app = new SplitApp();
+
+    </script>
+</body>
+</html>

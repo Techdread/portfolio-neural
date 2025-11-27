@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tensor Visualiser</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tween.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; color: white; }
+        
+        /* UI Panels */
+        .panel {
+            background-color: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid #334155;
+        }
+
+        /* Tabs */
+        .tab-btn {
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            opacity: 0.6;
+        }
+        .tab-btn:hover { opacity: 1; }
+        .tab-btn.active {
+            opacity: 1;
+            border-bottom-color: #3b82f6;
+            color: #60a5fa;
+        }
+
+        /* Tensor Label */
+        .tensor-val {
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0px 0px 3px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+        
+        /* Axis Labels */
+        .axis-label {
+            font-size: 12px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        /* Custom inputs */
+        input.dark-input {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+
+    <!-- Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0 z-0 bg-slate-900"></div>
+
+    <!-- MAIN UI OVERLAY -->
+    <div class="absolute inset-0 pointer-events-none flex flex-col z-10">
+        
+        <!-- TOP NAV -->
+        <div class="pointer-events-auto bg-slate-900/90 border-b border-slate-700 px-6 py-3 flex justify-between items-center shadow-lg">
+            <div>
+                <h1 class="text-xl font-bold text-blue-400">Tensor Visualiser</h1>
+                <p class="text-xs text-slate-400">Rank, Shape, Reshape & Broadcast</p>
+            </div>
+            
+            <div class="flex gap-6">
+                <button onclick="app.setTab('explorer')" id="tab-explorer" class="tab-btn active text-sm font-bold pb-1">Dimensions</button>
+                <button onclick="app.setTab('reshape')" id="tab-reshape" class="tab-btn text-sm font-bold pb-1">Reshape</button>
+                <button onclick="app.setTab('broadcast')" id="tab-broadcast" class="tab-btn text-sm font-bold pb-1">Broadcasting</button>
+                <button onclick="app.setTab('slice')" id="tab-slice" class="tab-btn text-sm font-bold pb-1">Slicing</button>
+            </div>
+        </div>
+
+        <!-- CONTENT AREA (Specific controls per tab) -->
+        <div class="flex-1 relative p-4">
+            
+            <!-- TAB: EXPLORER -->
+            <div id="ui-explorer" class="ui-panel absolute top-4 left-4 w-72 panel p-4 rounded-xl pointer-events-auto shadow-2xl space-y-4">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wide">Dimension Explorer</h2>
+                
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Rank (Dimensionality)</label>
+                    <input type="range" min="0" max="4" step="1" value="2" id="rank-slider" class="w-full accent-blue-500" oninput="app.explorer.updateRank(this.value)">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+                        <span>0 (Scalar)</span><span>1 (Vec)</span><span>2 (Mat)</span><span>3 (3D)</span><span>4 (Batch)</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Custom Shape</label>
+                    <input type="text" id="shape-input" value="3, 3" class="dark-input w-full" onchange="app.explorer.updateShapeStr(this.value)">
+                    <p class="text-[10px] text-slate-500 mt-1">Comma separated (e.g., "4, 4" or "2, 3, 2")</p>
+                </div>
+                
+                <div class="bg-slate-800/50 p-2 rounded border border-slate-700">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Elements:</span>
+                        <span id="elem-count" class="text-white font-mono">9</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-400">Current Rank:</span>
+                        <span id="curr-rank" class="text-blue-400 font-bold">2</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: RESHAPE -->
+            <div id="ui-reshape" class="ui-panel hidden absolute top-4 left-4 w-72 panel p-4 rounded-xl pointer-events-auto shadow-2xl space-y-4">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wide">Reshape Operations</h2>
+                <p class="text-xs text-slate-400">Rearrange elements without changing data.</p>
+                
+                <div class="bg-slate-800 p-2 rounded border border-slate-700">
+                    <div class="text-xs text-slate-500 mb-1">Current Tensor (12 elements)</div>
+                    <div class="font-mono text-blue-400 text-sm" id="reshape-current-shape">[4, 3]</div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Target Shape</label>
+                    <input type="text" id="target-shape" value="2, 6" class="dark-input w-full">
+                    <button onclick="app.reshape.animateReshape()" class="mt-2 w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 rounded">
+                        Animate Reshape
+                    </button>
+                    <p id="reshape-error" class="text-xs text-red-400 mt-2 hidden">Error: Element count mismatch</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="app.reshape.setPreset([12])" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">Flatten (12,)</button>
+                    <button onclick="app.reshape.setPreset([3, 2, 2])" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">3D (3,2,2)</button>
+                    <button onclick="app.reshape.setPreset([1, 4, 3])" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">Add Dim (1,4,3)</button>
+                    <button onclick="app.reshape.setPreset([6, 2])" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">Tall (6,2)</button>
+                </div>
+            </div>
+
+            <!-- TAB: BROADCASTING -->
+            <div id="ui-broadcast" class="ui-panel hidden absolute top-4 left-4 w-80 panel p-4 rounded-xl pointer-events-auto shadow-2xl space-y-4">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wide">Broadcasting Rules</h2>
+                <p class="text-xs text-slate-400">Dimensions stretch if they are 1 or missing.</p>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-blue-400 block font-bold">Tensor A Shape</label>
+                        <input type="text" id="bc-shape-a" value="3, 1, 3" class="dark-input w-full text-xs">
+                    </div>
+                    <div>
+                        <label class="text-xs text-green-400 block font-bold">Tensor B Shape</label>
+                        <input type="text" id="bc-shape-b" value="3, 1" class="dark-input w-full text-xs">
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-2 rounded border border-slate-700 text-center">
+                    <div class="text-xs text-slate-500">Result Shape</div>
+                    <div id="bc-result" class="font-mono text-purple-400 font-bold">3, 3, 3</div>
+                </div>
+
+                <button onclick="app.broadcast.visualize()" class="w-full bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 rounded shadow-lg">
+                    Visualize Broadcast
+                </button>
+                
+                <div class="text-[10px] text-slate-400 border-t border-slate-700 pt-2 mt-2">
+                    <p>Rule: Compare dimensions from right to left.</p>
+                    <ul class="list-disc list-inside mt-1">
+                        <li>Dimensions equal? OK.</li>
+                        <li>One is 1? Stretch it.</li>
+                        <li>One missing? Treat as 1.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- TAB: SLICING -->
+            <div id="ui-slice" class="ui-panel hidden absolute top-4 left-4 w-72 panel p-4 rounded-xl pointer-events-auto shadow-2xl space-y-4">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wide">Slicing & Indexing</h2>
+                <p class="text-xs text-slate-400">Select subsets of data.</p>
+                
+                <div class="bg-slate-800 p-2 rounded border border-slate-700">
+                    <div class="text-xs text-slate-500 mb-1">Source Tensor (4, 4, 4)</div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-slate-400 block mb-1">Slice Syntax (Python)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="slice-input" value=":, 1, 1:3" class="dark-input flex-1">
+                        <button onclick="app.slice.applySlice()" class="bg-blue-600 hover:bg-blue-500 px-3 rounded text-white font-bold text-xs">Go</button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-1">Supports: <code>:</code> (all), <code>0</code> (index), <code>1:3</code> (range)</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="app.slice.setPreset(':, :, 0')" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">Front Face (:, :, 0)</button>
+                    <button onclick="app.slice.setPreset('2, :, :')" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">3rd Matrix (2, :, :)</button>
+                    <button onclick="app.slice.setPreset('1:3, 1:3, 1:3')" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">Center Core</button>
+                    <button onclick="app.slice.setPreset('0, 0, 0')" class="bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded text-slate-300">Single Element</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MAIN SCRIPT -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- Utils ---
+        const colors = {
+            scalar: 0xffaa00,
+            vector: 0x3b82f6,
+            matrix: 0x10b981,
+            tensor3: 0xa855f7,
+            tensor4: 0xf43f5e,
+            ghost: 0x475569
+        };
+
+        function getTensorSize(shape) {
+            return shape.reduce((a, b) => a * b, 1);
+        }
+
+        // --- Tensor Visualization Engine ---
+        class TensorMesh {
+            constructor(scene, labelRenderer) {
+                this.scene = scene;
+                this.labelRenderer = labelRenderer;
+                this.elements = []; // Array of { mesh, label, dataIndex }
+                this.group = new THREE.Group();
+                this.scene.add(this.group);
+                
+                // Geometry reuse
+                this.geo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                // rounded edges shader or texture could be nice, but standard box is performant for many elements
+            }
+
+            clear() {
+                this.elements.forEach(el => {
+                    this.group.remove(el.mesh);
+                    el.mesh.remove(el.label); // CSS object is child of mesh
+                    // Clean memory
+                    if (el.mesh.material.length) el.mesh.material.forEach(m=>m.dispose());
+                    else el.mesh.material.dispose();
+                });
+                this.elements = [];
+            }
+
+            // Create cubes for a given total count
+            ensureCapacity(count, colorHex = 0x3b82f6) {
+                // If we have more than needed, hide/remove extras
+                if (this.elements.length > count) {
+                    for (let i = count; i < this.elements.length; i++) {
+                        this.elements[i].mesh.visible = false;
+                        this.elements[i].label.visible = false;
+                    }
+                }
+
+                // If we need more
+                for (let i = this.elements.length; i < count; i++) {
+                    const mat = new THREE.MeshLambertMaterial({ 
+                        color: colorHex, 
+                        transparent: true, 
+                        opacity: 0.9 
+                    });
+                    const mesh = new THREE.Mesh(this.geo, mat);
+                    
+                    // Value Label
+                    const div = document.createElement('div');
+                    div.className = 'tensor-val';
+                    div.textContent = i;
+                    const label = new CSS2DObject(div);
+                    label.position.set(0, 0, 0);
+                    mesh.add(label);
+                    
+                    this.group.add(mesh);
+                    this.elements.push({ mesh, label, dataIndex: i });
+                }
+                
+                // Make sure used ones are visible and color updated
+                for(let i=0; i<count; i++) {
+                    this.elements[i].mesh.visible = true;
+                    this.elements[i].label.visible = true;
+                    this.elements[i].mesh.material.color.setHex(colorHex);
+                    this.elements[i].mesh.material.opacity = 0.9;
+                }
+            }
+
+            // Calculate 3D position for an index based on shape
+            getPosition(index, shape, spacing = 1.0) {
+                // shape is [d0, d1, d2, d3...]
+                // We map dims to X, Y, Z.
+                // Standard mapping: Last dim is X (width), 2nd last is Y (height, inverted), 3rd last is Z (depth)
+                // 4th dim (Time/Batch) will separate blocks in space.
+                
+                const rank = shape.length;
+                let x=0, y=0, z=0;
+
+                // Stride calculation
+                const strides = [];
+                let stride = 1;
+                for (let i = rank - 1; i >= 0; i--) {
+                    strides[i] = stride;
+                    stride *= shape[i];
+                }
+
+                // Get coordinates per dimension
+                let rem = index;
+                const coords = [];
+                for (let i = 0; i < rank; i++) {
+                    coords[i] = Math.floor(rem / strides[i]);
+                    rem %= strides[i];
+                }
+
+                // Map to 3D Space
+                // Dim mapping: 
+                // Rank 1 (N): X
+                // Rank 2 (H, W): Y, X
+                // Rank 3 (D, H, W): Z, Y, X
+                // Rank 4 (B, D, H, W): OffsetX, Z, Y, X
+                
+                if (rank === 0) {
+                    return new THREE.Vector3(0,0,0);
+                } else if (rank === 1) {
+                    x = coords[0];
+                } else if (rank === 2) {
+                    y = -coords[0]; // Rows go down
+                    x = coords[1];
+                } else if (rank === 3) {
+                    z = -coords[0];
+                    y = -coords[1];
+                    x = coords[2];
+                } else if (rank >= 4) {
+                    // 4D: Batch spread out along X with gap
+                    const batch = coords[0];
+                    const gap = shape[rank-1] + 2; // Gap based on width
+                    
+                    z = -coords[1];
+                    y = -coords[2];
+                    x = coords[3] + (batch * gap);
+                }
+
+                // Centering Logic
+                // To keep camera focused, we center the volume around 0,0,0
+                // Simple centering: subtract half size
+                // (Omitted for strict indices clarity, but maybe helpful for large tensors)
+                // Let's create an offset based on shape[last] etc
+                
+                return new THREE.Vector3(x * spacing, y * spacing, z * spacing);
+            }
+
+            updateLayout(shape, spacing = 1.1, animate = true) {
+                const count = getTensorSize(shape);
+                
+                // Center offset calculation (rough)
+                const center = new THREE.Vector3();
+                if(shape.length > 0) {
+                     const last = shape[shape.length-1] || 1;
+                     const second = shape.length > 1 ? shape[shape.length-2] : 1;
+                     center.x = (last * spacing) / 2;
+                     center.y = -(second * spacing) / 2;
+                }
+
+                for (let i = 0; i < count; i++) {
+                    const targetPos = this.getPosition(i, shape, spacing);
+                    // Apply offset to center roughly
+                    targetPos.x -= (shape[shape.length-1] || 1) * spacing * 0.5 - 0.5;
+                    if(shape.length > 1) targetPos.y += (shape[shape.length-2] || 1) * spacing * 0.5 - 0.5;
+                    
+                    if (animate) {
+                        new TWEEN.Tween(this.elements[i].mesh.position)
+                            .to(targetPos, 1000)
+                            .easing(TWEEN.Easing.Cubic.InOut)
+                            .start();
+                    } else {
+                        this.elements[i].mesh.position.copy(targetPos);
+                    }
+                    
+                    // Reset styling
+                    this.elements[i].mesh.scale.set(1,1,1);
+                    this.elements[i].mesh.material.opacity = 0.9;
+                }
+            }
+        }
+
+
+        // --- App Controller ---
+        class App {
+            constructor() {
+                this.initThree();
+                this.tensorMesh = new TensorMesh(this.scene, this.labelRenderer);
+                this.ghostMesh = new TensorMesh(this.scene, this.labelRenderer); // For broadcast B
+                
+                // Modules
+                this.explorer = new ExplorerTab(this);
+                this.reshape = new ReshapeTab(this);
+                this.broadcast = new BroadcastTab(this);
+                this.slice = new SliceTab(this);
+
+                this.currentTab = 'explorer';
+                this.setTab('explorer');
+                
+                this.animate();
+            }
+
+            initThree() {
+                this.scene = new THREE.Scene();
+                // Lights
+                const amb = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(amb);
+                const dir = new THREE.DirectionalLight(0xffffff, 1);
+                dir.position.set(10, 20, 15);
+                this.scene.add(dir);
+
+                // Camera
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+                this.camera.position.set(8, 5, 12);
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+
+                // Labels
+                this.labelRenderer = new CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0px';
+                this.labelRenderer.domElement.style.pointerEvents = 'none';
+                document.getElementById('canvas-container').appendChild(this.labelRenderer.domElement);
+
+                // Controls
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                
+                // Resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                TWEEN.update();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+                this.labelRenderer.render(this.scene, this.camera);
+            }
+
+            setTab(tabId) {
+                // UI Toggle
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById(`tab-${tabId}`).classList.add('active');
+                
+                document.querySelectorAll('.ui-panel').forEach(p => p.classList.add('hidden'));
+                document.getElementById(`ui-${tabId}`).classList.remove('hidden');
+
+                this.currentTab = tabId;
+
+                // Reset Scenes
+                this.tensorMesh.group.visible = true;
+                this.ghostMesh.group.visible = false;
+                this.tensorMesh.elements.forEach(el => {
+                    el.mesh.material.color.setHex(0x3b82f6);
+                    el.mesh.material.opacity = 0.9;
+                });
+
+                // Trigger Init Logic for Tab
+                if (tabId === 'explorer') this.explorer.init();
+                if (tabId === 'reshape') this.reshape.init();
+                if (tabId === 'broadcast') this.broadcast.init();
+                if (tabId === 'slice') this.slice.init();
+            }
+        }
+
+        // --- Tab Modules ---
+
+        class ExplorerTab {
+            constructor(app) { this.app = app; }
+            
+            init() {
+                this.updateRank(2); // Default Matrix
+            }
+
+            updateRank(rank) {
+                rank = parseInt(rank);
+                document.getElementById('rank-slider').value = rank;
+                
+                let shape = [];
+                let color = colors.scalar;
+
+                switch(rank) {
+                    case 0: shape = []; color = colors.scalar; break;
+                    case 1: shape = [5]; color = colors.vector; break;
+                    case 2: shape = [3, 3]; color = colors.matrix; break;
+                    case 3: shape = [3, 3, 3]; color = colors.tensor3; break;
+                    case 4: shape = [3, 2, 2, 2]; color = colors.tensor4; break;
+                }
+
+                document.getElementById('shape-input').value = shape.join(', ');
+                this.render(shape, color);
+            }
+
+            updateShapeStr(str) {
+                const shape = str.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                const rank = shape.length;
+                
+                let color = colors.tensor3;
+                if(rank === 0) color = colors.scalar;
+                if(rank === 1) color = colors.vector;
+                if(rank === 2) color = colors.matrix;
+                if(rank >= 4) color = colors.tensor4;
+
+                document.getElementById('rank-slider').value = Math.min(rank, 4);
+                this.render(shape, color);
+            }
+
+            render(shape, color) {
+                document.getElementById('elem-count').innerText = getTensorSize(shape);
+                document.getElementById('curr-rank').innerText = shape.length;
+                
+                const size = getTensorSize(shape);
+                // Limit size for perf
+                if (size > 500) {
+                    alert("Tensor too large to visualize! Try smaller dimensions.");
+                    return;
+                }
+
+                this.app.tensorMesh.ensureCapacity(size, color);
+                this.app.tensorMesh.updateLayout(shape);
+            }
+        }
+
+        class ReshapeTab {
+            constructor(app) { 
+                this.app = app; 
+                this.currentShape = [4, 3];
+            }
+            
+            init() {
+                this.setPreset([4, 3]);
+            }
+
+            setPreset(shape) {
+                this.currentShape = shape;
+                this.app.tensorMesh.ensureCapacity(getTensorSize(shape), colors.matrix);
+                this.app.tensorMesh.updateLayout(shape);
+                this.updateUI();
+            }
+
+            updateUI() {
+                document.getElementById('reshape-current-shape').innerText = `[${this.currentShape.join(', ')}]`;
+                document.getElementById('target-shape').value = this.currentShape.reverse().join(', '); // Suggest flip as default
+                this.currentShape.reverse(); // Flip back for logic correctness if needed, actually just ui hint
+            }
+
+            animateReshape() {
+                const targetStr = document.getElementById('target-shape').value;
+                const targetShape = targetStr.split(',').map(s => parseInt(s.trim()));
+                
+                const currentSize = getTensorSize(this.currentShape);
+                const targetSize = getTensorSize(targetShape);
+
+                if (currentSize !== targetSize) {
+                    document.getElementById('reshape-error').classList.remove('hidden');
+                    document.getElementById('reshape-error').innerText = `Error: Size mismatch (${currentSize} vs ${targetSize})`;
+                    return;
+                }
+                document.getElementById('reshape-error').classList.add('hidden');
+
+                // Perform Reshape
+                this.currentShape = targetShape;
+                this.app.tensorMesh.updateLayout(targetShape, 1.1, true);
+                document.getElementById('reshape-current-shape').innerText = `[${targetShape.join(', ')}]`;
+            }
+        }
+
+        class BroadcastTab {
+            constructor(app) { this.app = app; }
+            
+            init() {
+                this.visualize();
+            }
+
+            visualize() {
+                const strA = document.getElementById('bc-shape-a').value;
+                const strB = document.getElementById('bc-shape-b').value;
+                const shapeA = strA.split(',').map(s => parseInt(s));
+                const shapeB = strB.split(',').map(s => parseInt(s));
+
+                // Calculate Result Shape
+                const rankA = shapeA.length;
+                const rankB = shapeB.length;
+                const maxRank = Math.max(rankA, rankB);
+                const resultShape = [];
+                
+                // Right align
+                const revA = [...shapeA].reverse();
+                const revB = [...shapeB].reverse();
+                
+                let compatible = true;
+
+                for(let i=0; i<maxRank; i++) {
+                    const dimA = revA[i] || 1;
+                    const dimB = revB[i] || 1;
+                    if(dimA !== dimB && dimA !== 1 && dimB !== 1) {
+                        compatible = false;
+                        break;
+                    }
+                    resultShape.unshift(Math.max(dimA, dimB));
+                }
+
+                if(!compatible) {
+                    document.getElementById('bc-result').innerText = "Incompatible!";
+                    document.getElementById('bc-result').className = "font-mono text-red-500 font-bold";
+                    return;
+                }
+
+                document.getElementById('bc-result').innerText = resultShape.join(', ');
+                document.getElementById('bc-result').className = "font-mono text-purple-400 font-bold";
+
+                // Visuals
+                // Show A (Solid)
+                const sizeA = getTensorSize(shapeA);
+                this.app.tensorMesh.ensureCapacity(sizeA, colors.vector);
+                this.app.tensorMesh.updateLayout(shapeA, 1.5); // Spread out more
+
+                // Show B (Ghost) - This is tricky.
+                // We want to show how B stretches to Result.
+                // Let's visualize the RESULT shape using Ghost Mesh, but highlight indices that correspond to B's original data?
+                // Simpler: Show A and B side by side, then animate B expanding?
+                // Or: Show Result composed of A-blocks and B-blocks?
+                
+                // Strategy: 
+                // 1. Display A centered.
+                // 2. Display B offset.
+                // 3. Animate B "ghosts" filling the Result shape overlaying A.
+                
+                // For clarity in this limited 3D view:
+                // Show Result Tensor using Ghost Mesh (Purple transparent)
+                // Inside it, highlight the "Real" data from A (Blue) and B (Green)?
+                // Let's just visualize the Result Tensor for now to show the output dimensions.
+                
+                const sizeRes = getTensorSize(resultShape);
+                this.app.ghostMesh.group.visible = true;
+                this.app.ghostMesh.ensureCapacity(sizeRes, colors.tensor3);
+                
+                // Offset Ghost slightly or scale it up to enclose?
+                // Let's just make it the main view
+                this.app.ghostMesh.updateLayout(resultShape, 1.1, true);
+                
+                // Hide TensorMesh (A) for a moment or put it inside?
+                // Let's put TensorMesh A inside (if it fits) or just hide it to show result
+                this.app.tensorMesh.group.visible = false;
+                
+                // Make Ghost mesh wireframe or transparent
+                this.app.ghostMesh.elements.forEach((el, idx) => {
+                    el.mesh.material.opacity = 0.3;
+                    el.mesh.material.transparent = true;
+                    el.mesh.scale.set(0.9, 0.9, 0.9);
+                    el.label.element.textContent = ""; // Hide numbers for cleanliness
+                });
+            }
+        }
+
+        class SliceTab {
+            constructor(app) { 
+                this.app = app;
+                this.shape = [4, 4, 4];
+            }
+            
+            init() {
+                this.app.tensorMesh.ensureCapacity(64, colors.matrix);
+                this.app.tensorMesh.updateLayout(this.shape);
+            }
+
+            setPreset(sliceStr) {
+                document.getElementById('slice-input').value = sliceStr;
+                this.applySlice();
+            }
+
+            applySlice() {
+                // Reset Visuals
+                this.app.tensorMesh.updateLayout(this.shape, 1.1, false);
+                this.app.tensorMesh.elements.forEach(el => {
+                    el.mesh.material.color.setHex(colors.matrix);
+                    el.mesh.material.opacity = 0.3; // Dim everything first
+                });
+
+                const sliceStr = document.getElementById('slice-input').value;
+                const parts = sliceStr.split(',').map(s => s.trim());
+                
+                // Parse Logic (Simplified)
+                // Supports: ":", "N", "start:stop"
+                const ranges = [];
+                for(let i=0; i<this.shape.length; i++) {
+                    const part = parts[i];
+                    if (!part || part === ':') {
+                        ranges.push({ start: 0, end: this.shape[i] });
+                    } else if (part.includes(':')) {
+                        const [s, e] = part.split(':').map(n => parseInt(n));
+                        ranges.push({ start: s || 0, end: e || this.shape[i] });
+                    } else {
+                        const idx = parseInt(part);
+                        ranges.push({ start: idx, end: idx + 1 });
+                    }
+                }
+
+                // Check every element if it matches range
+                // We need to map linear index back to coords (expensive loop but okay for 64 items)
+                
+                const selectedMeshes = [];
+
+                for(let i=0; i<64; i++) {
+                    // Linear -> Coords
+                    // Shape [4, 4, 4]. Strides: [16, 4, 1]
+                    let rem = i;
+                    const coords = [];
+                    const strides = [16, 4, 1];
+                    for(let d=0; d<3; d++) {
+                        coords[d] = Math.floor(rem / strides[d]);
+                        rem %= strides[d];
+                    }
+
+                    // Check match
+                    let match = true;
+                    for(let d=0; d<3; d++) {
+                        if (coords[d] < ranges[d].start || coords[d] >= ranges[d].end) {
+                            match = false;
+                            break;
+                        }
+                    }
+
+                    if(match) {
+                        const el = this.app.tensorMesh.elements[i];
+                        el.mesh.material.color.setHex(0xf43f5e); // Red highlight
+                        el.mesh.material.opacity = 1.0;
+                        selectedMeshes.push(el.mesh);
+                    }
+                }
+
+                // Animate Extraction (Move selected slightly forward/out)
+                selectedMeshes.forEach(mesh => {
+                    new TWEEN.Tween(mesh.position)
+                        .to({ x: mesh.position.x + 2, y: mesh.position.y + 2, z: mesh.position.z + 2 }, 500)
+                        .easing(TWEEN.Easing.Back.Out)
+                        .start();
+                });
+            }
+        }
+
+        // Init
+        window.app = new App();
+
+    </script>
+</body>
+</html>
