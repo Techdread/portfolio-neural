@@ -56,36 +56,294 @@
         <p class="topic-description">Vectors that only scale under transformation. Link to PCA for dimensionality reduction.</p>
       </header>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed. Check back soon for:</p>
-            <ul>
-              <li>The key intuition: direction-preserving vectors</li>
-              <li>Definition made visual: Av = λv</li>
-              <li>Visual examples with different matrices</li>
-              <li>Eigenvalue meaning (stretching, compression, flip)</li>
-              <li>Connection to PCA</li>
-            </ul>
-          </div>
-        </article>
+      <!-- Full-width Interactive Visualization -->
+      <section class="viz-fullwidth">
+        <iframe src="../../viz/A5-Eigenvalues-Eigenvectors.html" title="Interactive Eigenvalues & Eigenvectors Visualizer" loading="lazy"></iframe>
+      </section>
 
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="7.5 4.21 12 6.81 16.5 4.21"/>
-                <polyline points="7.5 19.79 7.5 14.6 3 12"/>
-                <polyline points="21 12 16.5 14.6 16.5 19.79"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+      <div class="content-layout content-layout--single">
+        <article class="educational-content">
+          
+          <p>When a matrix transforms space, most vectors get twisted around in complicated ways. They rotate, stretch, and end up pointing in completely different directions. But hidden in every matrix are special vectors that refuse to rotate. They might stretch or shrink, they might even flip backwards, but they stubbornly stay on the same line.</p>
+          
+          <p>These special vectors are <strong>eigenvectors</strong>, and the amount they stretch is their <strong>eigenvalue</strong>. Understanding them unlocks deep insights into what matrices actually <em>do</em>, and they're fundamental to techniques like PCA that you'll use constantly in machine learning.</p>
+
+          <h2>1. The Key Intuition</h2>
+          
+          <p>Imagine applying a matrix transformation to every vector in 2D space. Picture the whole grid warping, stretching, rotating. Most arrows get completely reoriented.</p>
+          
+          <p>But look carefully. There are usually one or two directions where arrows stay pointing the same way. They might get longer or shorter, but they don't spin to a new angle. These are the eigenvector directions.</p>
+          
+          <p>Think of it this way: if you apply a transformation to an eigenvector, you get the same vector back, just scaled up or down. The transformation can't knock it off its line.</p>
+          
+<pre><code>Regular vector:    A × v = w   (w points somewhere different from v)
+Eigenvector:       A × v = λv  (result is just v scaled by λ)</code></pre>
+          
+          <p>The transformation looks at an eigenvector and says, "I can only make you bigger or smaller, I can't turn you."</p>
+
+          <hr>
+          
+          <h2>2. Definition Made Visual</h2>
+          
+          <p>The formal definition is elegantly simple:</p>
+          
+<pre><code>Av = λv</code></pre>
+          
+          <p>In words: when matrix A transforms vector v, the result is v scaled by factor λ.</p>
+          
+          <p>Here, <strong>v</strong> is an eigenvector and <strong>λ</strong> (lambda) is its corresponding eigenvalue.</p>
+          
+          <p>Let's unpack what this means geometrically. Take a transformation matrix and a candidate vector. Apply the matrix to the vector. If the output is pointing in the same direction (or exactly opposite), you've found an eigenvector. The ratio of the output length to input length is the eigenvalue.</p>
+          
+<pre><code class="language-typescript">// Pseudo-check: is v an eigenvector of A?
+function isEigenvector(A: Matrix, v: Vector): boolean {
+  const result = matmul(A, v);
+  // Check if result is parallel to v (same direction or opposite)
+  return isParallel(result, v);
+}</code></pre>
+          
+          <p>Most vectors fail this test. They get rotated. Only the special eigenvector directions pass.</p>
+
+          <hr>
+          
+          <h2>3. Finding Eigenvectors (The High-Level Process)</h2>
+          
+          <p>You don't need to compute eigenvalues by hand in practice (libraries do it), but understanding the process clarifies what's happening.</p>
+          
+          <p><strong>Step 1: Find the eigenvalues</strong></p>
+          
+          <p>We want Av = λv, which rearranges to:</p>
+          
+<pre><code>Av - λv = 0
+(A - λI)v = 0</code></pre>
+          
+          <p>This equation says: the matrix (A - λI) transforms v to the zero vector. For this to happen with a non-zero v, the matrix (A - λI) must be "singular" (it collapses space). That happens when its determinant is zero:</p>
+          
+<pre><code>det(A - λI) = 0</code></pre>
+          
+          <p>This gives us a polynomial equation in λ. For a 2×2 matrix, it's a quadratic with (usually) two solutions. For an n×n matrix, it's a degree-n polynomial with n solutions (counting complex numbers and multiplicities).</p>
+          
+          <p><strong>Step 2: Find the eigenvectors</strong></p>
+          
+          <p>For each eigenvalue λ, solve:</p>
+          
+<pre><code>(A - λI)v = 0</code></pre>
+          
+          <p>This is a system of linear equations. The solutions are the eigenvectors corresponding to that eigenvalue.</p>
+          
+<pre><code class="language-python"># In practice, use numpy
+import numpy as np
+
+A = np.array([[4, 2], [1, 3]])
+eigenvalues, eigenvectors = np.linalg.eig(A)
+
+print("Eigenvalues:", eigenvalues)      # [5. 2.]
+print("Eigenvectors:\n", eigenvectors)  # columns are eigenvectors</code></pre>
+
+          <hr>
+          
+          <h2>4. Visual Examples</h2>
+          
+          <p>Let's build intuition by examining specific matrices. Your Three.js visualization will make these transformations tangible.</p>
+          
+          <h3>Scaling Matrix: The Easy Case</h3>
+          
+<pre><code class="language-typescript">const scaleMatrix = [
+  [3, 0],
+  [0, 2]
+];</code></pre>
+          
+          <p>This scales x by 3 and y by 2. The eigenvectors are obvious: the x-axis direction [1, 0] and y-axis direction [0, 1]. Why? Because scaling along an axis doesn't rotate vectors on that axis.</p>
+          
+          <p>Eigenvalues: λ₁ = 3, λ₂ = 2<br>
+          Eigenvectors: v₁ = [1, 0], v₂ = [0, 1]</p>
+          
+          <p>The eigenvectors are the axes, and eigenvalues are the scale factors. Diagonal matrices are the simplest case.</p>
+          
+          <h3>Rotation Matrix: No Real Eigenvectors</h3>
+          
+<pre><code class="language-typescript">const rotate90 = [
+  [0, -1],
+  [1,  0]
+];</code></pre>
+          
+          <p>This rotates everything 90°. No vector keeps pointing the same direction after a 90° rotation. Every vector gets turned.</p>
+          
+          <p>For pure rotation, there are no real eigenvectors. (Technically, there are complex eigenvectors, but let's stay in the real world for intuition.)</p>
+          
+          <p>This is important: not every matrix has real eigenvectors. Matrices with significant rotation components may only have complex eigenvalues.</p>
+          
+          <h3>Shear Matrix: One Eigenvector</h3>
+          
+<pre><code class="language-typescript">const shearX = [
+  [1, 1],
+  [0, 1]
+];</code></pre>
+          
+          <p>This shears space horizontally. Think of a rectangle becoming a parallelogram.</p>
+          
+          <p>Points on the x-axis don't move vertically and don't get stretched. The shear only affects their relationship to other points. The x-axis direction [1, 0] is an eigenvector with eigenvalue 1.</p>
+          
+          <p>But what about the y direction? Vectors pointing up get pushed sideways, so [0, 1] is not an eigenvector.</p>
+          
+          <p>For shear matrices, there's only one linearly independent eigenvector direction, and its eigenvalue is 1 (no scaling).</p>
+          
+          <h3>Symmetric Matrix: Orthogonal Eigenvectors</h3>
+          
+<pre><code class="language-typescript">const symmetric = [
+  [2, 1],
+  [1, 2]
+];</code></pre>
+          
+          <p>Symmetric matrices (where A = Aᵀ) are special. Their eigenvectors are always perpendicular (orthogonal) to each other, and eigenvalues are always real.</p>
+          
+          <p>For this matrix:</p>
+          <ul>
+            <li>λ₁ = 3 with eigenvector [1, 1] (normalized: [0.707, 0.707])</li>
+            <li>λ₂ = 1 with eigenvector [1, -1] (normalized: [0.707, -0.707])</li>
+          </ul>
+          
+          <p>These eigenvectors are at 90° to each other. Symmetric matrices are incredibly important in ML because covariance matrices are symmetric, and this orthogonality property is why PCA works so elegantly.</p>
+
+          <hr>
+          
+          <h2>5. Eigenvalue Meaning</h2>
+          
+          <p>The eigenvalue tells you what happens to vectors along the eigenvector direction:</p>
+          
+          <p><strong>λ &gt; 1: Stretching</strong></p>
+          <p>Vectors get longer. An eigenvalue of 3 means vectors triple in length. In PCA terms, this direction has high variance.</p>
+          
+          <p><strong>0 &lt; λ &lt; 1: Compression</strong></p>
+          <p>Vectors get shorter. An eigenvalue of 0.5 halves vector lengths. This direction is being squeezed.</p>
+          
+          <p><strong>λ = 1: Unchanged</strong></p>
+          <p>Vectors keep their length. The transformation preserves this direction completely.</p>
+          
+          <p><strong>λ &lt; 0: Flip and Scale</strong></p>
+          <p>Vectors reverse direction and scale. An eigenvalue of -2 means flip and double length. Watch the visualization carefully to see this flip.</p>
+          
+          <p><strong>λ = 0: Collapse</strong></p>
+          <p>This is critical. An eigenvalue of 0 means vectors in that direction get crushed to zero. The matrix loses a dimension. It's not invertible (you can't undo a collapse). In ML, this indicates redundancy or degeneracy in your data.</p>
+          
+<pre><code class="language-python"># Quick eigenvalue interpretation
+eigenvalues = [3.2, 1.0, 0.5, 0.001]
+
+for i, ev in enumerate(eigenvalues):
+    if ev > 1:
+        print(f"Direction {i}: expands by {ev}x")
+    elif ev == 1:
+        print(f"Direction {i}: unchanged")
+    elif ev > 0:
+        print(f"Direction {i}: compresses to {ev}x")
+    elif ev == 0:
+        print(f"Direction {i}: collapses (matrix is singular)")</code></pre>
+
+          <hr>
+          
+          <h2>6. Why This Matters for ML/AI</h2>
+          
+          <p>Eigenvalues and eigenvectors aren't just mathematical curiosities. They're workhorses in machine learning.</p>
+          
+          <h3>PCA: Principal Component Analysis</h3>
+          
+          <p>PCA is the most direct application. You have high-dimensional data and want to reduce dimensions while preserving the most important information.</p>
+          
+          <p>The algorithm:</p>
+          <ol>
+            <li>Compute the covariance matrix of your data</li>
+            <li>Find its eigenvectors and eigenvalues</li>
+            <li>Sort by eigenvalue (largest first)</li>
+            <li>The top eigenvectors are your principal components</li>
+          </ol>
+          
+          <p>Why does this work? The covariance matrix captures how features vary together. Its eigenvectors point in the directions of maximum variance. The eigenvalues tell you how much variance each direction captures.</p>
+          
+<pre><code class="language-python">from sklearn.decomposition import PCA
+
+# Under the hood, this computes eigenvectors of the covariance matrix
+pca = PCA(n_components=2)
+reduced_data = pca.fit_transform(high_dim_data)
+
+# pca.components_ are eigenvectors (principal directions)
+# pca.explained_variance_ relates to eigenvalues</code></pre>
+          
+          <p>The eigenvalue tells you the importance of each principal component. If the first two eigenvalues are much larger than the rest, your data is effectively 2D even if you started with 100 features.</p>
+          
+          <h3>Gradient Descent Stability</h3>
+          
+          <p>When analyzing neural network optimization, the eigenvalues of the Hessian matrix (second derivatives of the loss) tell you about the loss surface.</p>
+          
+          <ul>
+            <li>Large eigenvalues: steep directions, need small learning rate</li>
+            <li>Small eigenvalues: flat directions, training is slow</li>
+            <li>Negative eigenvalues: you're at a saddle point, not a minimum</li>
+            <li>All positive eigenvalues: you're at a local minimum</li>
+          </ul>
+          
+          <p>The condition number (ratio of largest to smallest eigenvalue) indicates how "elongated" the loss surface is. A high condition number means optimization is difficult because different directions need different step sizes.</p>
+          
+          <h3>SVD: Singular Value Decomposition</h3>
+          
+          <p>SVD is closely related to eigen-decomposition and arguably more important in practice. For any matrix M (not just square ones):</p>
+          
+<pre><code>M = UΣVᵀ</code></pre>
+          
+          <p>The singular values (diagonal of Σ) are the square roots of the eigenvalues of MᵀM. SVD powers:</p>
+          <ul>
+            <li>Recommender systems (Netflix prize winning solution)</li>
+            <li>Latent semantic analysis (topic modeling)</li>
+            <li>Image compression</li>
+            <li>Pseudoinverse computation (solving overdetermined systems)</li>
+          </ul>
+
+          <hr>
+          
+          <h2>7. Connection to PCA: Directions of Maximum Variance</h2>
+          
+          <p>Let's make the PCA connection crystal clear.</p>
+          
+          <p>Your data points form a cloud in high-dimensional space. That cloud has a shape. Maybe it's elongated like a cigar, stretched more in some directions than others.</p>
+          
+          <p>The eigenvectors of the covariance matrix point in the directions where the cloud stretches most. The eigenvalues tell you how much it stretches.</p>
+          
+          <p>Visualize a 2D cloud of points shaped like an ellipse. The covariance matrix has two eigenvectors: one along the long axis of the ellipse, one along the short axis. The eigenvalue for the long axis is larger because there's more variance (spread) in that direction.</p>
+          
+          <p>When you do PCA and keep only the top principal component, you're projecting your data onto the long axis of the ellipse, capturing the direction of maximum spread.</p>
+          
+<pre><code class="language-python"># Visual intuition
+import numpy as np
+
+# Generate elliptical data
+np.random.seed(42)
+data = np.random.randn(100, 2) @ [[3, 1], [1, 2]]  # stretched ellipse
+
+# Compute covariance matrix
+cov = np.cov(data.T)
+
+# Get eigenvectors
+eigenvalues, eigenvectors = np.linalg.eig(cov)
+
+# eigenvectors[:, 0] points along major axis (larger eigenvalue)
+# eigenvectors[:, 1] points along minor axis (smaller eigenvalue)</code></pre>
+          
+          <p>This is why PCA is so effective for dimensionality reduction. It finds the directions that matter most (highest variance) and lets you discard the rest with minimal information loss.</p>
+
+          <hr>
+          
+          <h2>Wrapping Up</h2>
+          
+          <p>Eigenvectors are the "natural directions" of a transformation. They reveal the structure hidden inside a matrix, showing you which directions matter and by how much.</p>
+          
+          <p>For your Three.js visualization, show arrows before and after transformation. Most arrows rotate and stretch. But the eigenvector arrows? They only stretch (or flip), stubbornly staying on their line. That visual will cement the intuition better than any formula.</p>
+          
+          <p>The eigenvalue is the stretch factor. Large eigenvalues mean important directions; small eigenvalues mean directions you might safely ignore. Zero eigenvalues mean the matrix is collapsing space.</p>
+          
+          <p>In machine learning, this translates directly to variance in your data, stability of your optimization, and the spectral properties of graphs. Master eigenvectors and you've mastered a tool that appears across all of quantitative computing.</p>
+          
+          <p><em>Next, we'll apply these ideas to build and train our first neural network, where matrix transformations (learned as weights) chain together to create powerful function approximators.</em></p>
+
+        </article>
       </div>
 
       <nav class="topic-nav">

@@ -56,36 +56,315 @@
         <p class="topic-description">Compose transformation matrices interactively. Demonstrate multiplication order effects on transformations.</p>
       </header>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed. Check back soon for:</p>
-            <ul>
-              <li>The transformation zoo (identity, scale, rotate, shear, reflect)</li>
-              <li>Composing transformations</li>
-              <li>Why order matters visually</li>
-              <li>Homogeneous coordinates for translations</li>
-              <li>Connection to neural network layers</li>
-            </ul>
-          </div>
-        </article>
+      <!-- Full-width Interactive Visualization -->
+      <section class="viz-fullwidth">
+        <iframe src="../../viz/A3-Matrix-Transformations-Gallery.html" title="Interactive Matrix Transformations Gallery" loading="lazy"></iframe>
+      </section>
 
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="7.5 4.21 12 6.81 16.5 4.21"/>
-                <polyline points="7.5 19.79 7.5 14.6 3 12"/>
-                <polyline points="21 12 16.5 14.6 16.5 19.79"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+      <div class="content-layout content-layout--single">
+        <article class="educational-content">
+          
+          <p>You've learned that matrices transform space and that multiplying matrices combines their effects. Now let's build a proper toolkit. This section is your reference guide to the standard transformation matrices, and more importantly, how to chain them together to build complex transformations from simple parts.</p>
+          
+          <p>The interactive visualization will let you stack transformations and watch what happens when you swap the order. Spoiler: the results are often dramatically different.</p>
+
+          <h2>1. The Transformation Zoo</h2>
+          
+          <p>Here's your field guide to the transformation matrices you'll encounter repeatedly in graphics, games, robotics, and yes, neural networks. Keep this section bookmarked.</p>
+          
+          <h3>Identity Matrix — The "do nothing" transform</h3>
+          
+<pre><code class="language-typescript">// 2D Identity
+const I_2D = [
+  [1, 0],
+  [0, 1]
+];
+
+// 3D Identity
+const I_3D = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1]
+];</code></pre>
+          
+          <p>Multiplying by identity returns the input unchanged. It's the matrix equivalent of multiplying by 1.</p>
+          
+          <h3>Scaling — Stretch or squash along axes</h3>
+          
+<pre><code class="language-typescript">// 2D Scaling by factors sx, sy
+const scale2D = (sx: number, sy: number) => [
+  [sx, 0],
+  [0, sy]
+];
+
+// Uniform scaling (same factor everywhere)
+const uniformScale = (s: number) => scale2D(s, s);
+
+// 3D Scaling
+const scale3D = (sx: number, sy: number, sz: number) => [
+  [sx, 0,  0],
+  [0,  sy, 0],
+  [0,  0,  sz]
+];</code></pre>
+          
+          <p>When sx = sy, objects scale uniformly (like zooming). When they differ, you get stretching or squashing along specific axes.</p>
+          
+          <h3>Rotation — Spin around the origin</h3>
+          
+<pre><code class="language-typescript">// 2D Rotation by angle θ (counterclockwise)
+const rotate2D = (theta: number) => [
+  [Math.cos(theta), -Math.sin(theta)],
+  [Math.sin(theta),  Math.cos(theta)]
+];
+
+// 3D Rotation around X axis
+const rotateX = (theta: number) => [
+  [1, 0,              0],
+  [0, Math.cos(theta), -Math.sin(theta)],
+  [0, Math.sin(theta),  Math.cos(theta)]
+];
+
+// 3D Rotation around Y axis
+const rotateY = (theta: number) => [
+  [Math.cos(theta),  0, Math.sin(theta)],
+  [0,               1, 0],
+  [-Math.sin(theta), 0, Math.cos(theta)]
+];
+
+// 3D Rotation around Z axis
+const rotateZ = (theta: number) => [
+  [Math.cos(theta), -Math.sin(theta), 0],
+  [Math.sin(theta),  Math.cos(theta), 0],
+  [0,               0,              1]
+];</code></pre>
+          
+          <p>Notice each 3D rotation matrix leaves one axis unchanged (the axis you're rotating around) while applying the 2D rotation formula to the other two.</p>
+          
+          <h3>Shearing — Skew space</h3>
+          
+<pre><code class="language-typescript">// 2D Shear along X (points slide horizontally based on their y)
+const shearX = (k: number) => [
+  [1, k],
+  [0, 1]
+];
+
+// 2D Shear along Y (points slide vertically based on their x)
+const shearY = (k: number) => [
+  [1, 0],
+  [k, 1]
+];</code></pre>
+          
+          <p>Shearing turns rectangles into parallelograms. It's less common in ML but appears in data augmentation and some geometric deep learning applications.</p>
+          
+          <h3>Reflection — Mirror across an axis</h3>
+          
+<pre><code class="language-typescript">// Reflect across Y axis (flip horizontally)
+const reflectY = [
+  [-1, 0],
+  [0,  1]
+];
+
+// Reflect across X axis (flip vertically)
+const reflectX = [
+  [1,  0],
+  [0, -1]
+];
+
+// Reflect across origin (flip both)
+const reflectOrigin = [
+  [-1, 0],
+  [0, -1]
+];</code></pre>
+          
+          <p>Reflections have a determinant of -1, which means they flip the "handedness" of space. A clockwise loop becomes counterclockwise.</p>
+          
+          <h3>Translation — Move without rotating <em>(Requires homogeneous coordinates)</em></h3>
+          
+<pre><code class="language-typescript">// 2D Translation (using 3×3 homogeneous matrix)
+const translate2D = (tx: number, ty: number) => [
+  [1, 0, tx],
+  [0, 1, ty],
+  [0, 0, 1]
+];
+
+// 3D Translation (using 4×4 homogeneous matrix)
+const translate3D = (tx: number, ty: number, tz: number) => [
+  [1, 0, 0, tx],
+  [0, 1, 0, ty],
+  [0, 0, 1, tz],
+  [0, 0, 0, 1]
+];</code></pre>
+
+          <hr>
+          
+          <h2>2. Composition: Combining Transformations</h2>
+          
+          <p>Here's the magic: to apply multiple transformations in sequence, you multiply their matrices together. The result is a single matrix that does everything at once.</p>
+          
+<pre><code class="language-typescript">// Scale by 2, then rotate 45°
+const scaleMatrix = scale2D(2, 2);
+const rotateMatrix = rotate2D(Math.PI / 4);
+
+// Combined transformation
+const combined = matmul(rotateMatrix, scaleMatrix);
+
+// Now 'combined' does both operations in one multiplication
+const result = matmul(combined, point);</code></pre>
+          
+          <p>Why is this powerful? Because no matter how many transformations you chain, the result is always just one matrix. A hundred transformations? Still just one matrix multiplication at runtime. This is exactly how graphics pipelines work, and it's analogous to how neural networks collapse many learned transformations into efficient forward passes.</p>
+
+          <hr>
+          
+          <h2>3. Order Matters: A Visual Proof</h2>
+          
+          <p>This is the most important intuition in this entire section.</p>
+          
+          <p>Consider two simple operations: rotate 90° and translate right by 5 units.</p>
+          
+          <p><strong>Scenario A: Rotate first, then translate</strong></p>
+          
+          <p>Start with a point at (1, 0). Rotate 90° counterclockwise: it moves to (0, 1). Now translate right by 5: it ends at (5, 1).</p>
+          
+          <p><strong>Scenario B: Translate first, then rotate</strong></p>
+          
+          <p>Start with the same point at (1, 0). Translate right by 5: it moves to (6, 0). Now rotate 90° around the origin: it swings up to (0, 6).</p>
+          
+          <p>Final positions: (5, 1) versus (0, 6). Completely different results from the same two operations in different order.</p>
+          
+<pre><code>Scenario A: Rotate then Translate
+    (1,0) --rotate--> (0,1) --translate--> (5,1)
+
+Scenario B: Translate then Rotate  
+    (1,0) --translate--> (6,0) --rotate--> (0,6)</code></pre>
+          
+          <p>The interactive visualization makes this visceral. You'll see an object take completely different paths depending on transformation order.</p>
+
+          <hr>
+          
+          <h2>4. Reading Order Convention</h2>
+          
+          <p>Matrix multiplication reads <strong>right to left</strong> when thinking about transformation order.</p>
+          
+          <p>If you write:</p>
+<pre><code class="language-typescript">const M = A * B * C;
+const result = M * v;</code></pre>
+          
+          <p>The transformations apply as: <strong>C first, then B, then A</strong>.</p>
+          
+          <p>This feels backwards at first, but it matches how function composition works: f(g(h(x))) applies h first, then g, then f. The innermost operation happens first.</p>
+          
+<pre><code class="language-typescript">// "Translate, then rotate, then scale" is written as:
+const M = Scale * Rotate * Translate;
+
+// When applied to vector v:
+// 1. Translate is applied first
+// 2. Rotate is applied to that result
+// 3. Scale is applied last</code></pre>
+          
+          <p>Many graphics libraries (including Three.js) handle this for you with method chaining that reads in the intuitive order. But when you're debugging matrix math or reading shader code, remember: rightmost matrix acts first.</p>
+
+          <hr>
+          
+          <h2>5. Homogeneous Coordinates</h2>
+          
+          <p>Here's a problem: translation isn't a linear transformation. You can't represent "add 5 to x" as a 2×2 matrix multiplication. Scaling and rotation work because they're centered on the origin, but translation moves the origin itself.</p>
+          
+          <p>The solution is elegant: add an extra dimension.</p>
+          
+          <p><strong>The trick:</strong> Represent 2D points as 3D vectors with a 1 in the third position.</p>
+          
+<pre><code class="language-typescript">// 2D point (x, y) becomes homogeneous (x, y, 1)
+const point2D = [3, 4];
+const pointHomogeneous = [3, 4, 1];</code></pre>
+          
+          <p>Now translation works as matrix multiplication:</p>
+          
+<pre><code class="language-typescript">const translate = [
+  [1, 0, 5],   // x' = x + 5
+  [0, 1, 3],   // y' = y + 3
+  [0, 0, 1]    // 1' = 1 (unchanged)
+];
+
+// [3, 4, 1] × translate = [8, 7, 1]
+// Which represents point (8, 7)</code></pre>
+          
+          <p>For 3D graphics, we use 4×4 matrices with 4D homogeneous coordinates. This is why every 3D graphics API (OpenGL, DirectX, Three.js) uses 4×4 matrices even for 3D transformations.</p>
+          
+          <p><strong>Bonus insight:</strong> The extra dimension also enables perspective projection (things getting smaller with distance), which is why it's universal in 3D graphics.</p>
+
+          <hr>
+          
+          <h2>6. Why This Matters for ML/AI</h2>
+          
+          <p>Understanding transformation composition directly maps to understanding neural networks.</p>
+          
+          <p><strong>Neural networks stack transformations.</strong> Each layer is a transformation of the input space. A deep network is a composition of many transformations, just like chaining matrices:</p>
+          
+<pre><code>Input → Layer1 → Layer2 → Layer3 → Output
+        (W1)      (W2)     (W3)
+        
+Equivalent to: Output = W3 × W2 × W1 × Input</code></pre>
+          
+          <p><strong>Feature space warping.</strong> When you visualize what a neural network learns, you're seeing how it warps feature space. Early layers might do something like rotation and scaling (separating obvious features), while later layers do more complex, nonlinear warping (thanks to activation functions).</p>
+          
+          <p><strong>Data augmentation uses these exact transformations.</strong> Training image classifiers? You're probably randomly applying rotations, scales, translations, and shears to training images. Understanding these matrices helps you implement augmentation correctly and debug when images look wrong.</p>
+          
+          <p><strong>Order matters in networks too.</strong> BatchNorm before activation or after? Dropout before the dense layer or after? These ordering decisions affect what transformation the network learns, just like matrix multiplication order affects the result.</p>
+          
+          <p><strong>Debugging shape issues.</strong> When you understand that each layer transforms dimensions in a predictable way, you can trace through a network and predict shapes at each stage. The composition rules are the same as matrix multiplication compatibility rules.</p>
+
+          <hr>
+          
+          <h2>7. Building Complex Transforms</h2>
+          
+          <p>Let's put it together with a classic problem: <strong>rotate around an arbitrary point</strong>, not the origin.</p>
+          
+          <p>The naive rotation matrix rotates around (0, 0). But what if you want to rotate a shape around its own center at point (cx, cy)?</p>
+          
+          <p><strong>The recipe:</strong></p>
+          <ol>
+            <li>Translate so the center moves to the origin</li>
+            <li>Rotate around the origin</li>
+            <li>Translate back to the original position</li>
+          </ol>
+          
+<pre><code class="language-typescript">const rotateAroundPoint = (
+  theta: number, 
+  cx: number, 
+  cy: number
+) => {
+  const toOrigin = translate2D(-cx, -cy);
+  const rotate = rotate2DHomogeneous(theta);
+  const backToPosition = translate2D(cx, cy);
+  
+  // Remember: rightmost applies first
+  // So: toOrigin first, then rotate, then backToPosition
+  return matmul(backToPosition, matmul(rotate, toOrigin));
+};</code></pre>
+          
+          <p>This pattern appears everywhere: move to a convenient reference frame, do your operation, move back. In 3D graphics, this is how you rotate an object around its local axis rather than the world axis. In robotics, it's how you compute joint movements.</p>
+          
+          <p><strong>Other composite transforms you'll encounter:</strong></p>
+          
+          <p><strong>Reflect across an arbitrary line:</strong> translate line to origin, rotate to align with axis, reflect, rotate back, translate back.</p>
+          
+          <p><strong>Scale from a specific point:</strong> translate point to origin, scale, translate back.</p>
+          
+          <p><strong>Look-at matrix (camera pointing at target):</strong> combination of translation and rotation that's fundamental to 3D rendering.</p>
+          
+          <p>Each of these breaks down into a sequence of simple transforms, multiplied together in the right order.</p>
+
+          <hr>
+          
+          <h2>Wrapping Up</h2>
+          
+          <p>You now have a toolkit of standard transformations and the knowledge to combine them. The key insights are that matrices chain through multiplication, order matters dramatically, and homogeneous coordinates let us include translation in the matrix framework.</p>
+          
+          <p>In your Three.js visualization, experiment freely. Stack transformations, swap their order, and watch the results. That intuition about how transformations compose will serve you well whether you're debugging a graphics pipeline, implementing data augmentation, or reasoning about what a neural network layer is doing to your feature space.</p>
+          
+          <p><em>Next, we'll look at what matrices can tell us about themselves through eigenvalues and eigenvectors, which reveals the "preferred directions" of any transformation.</em></p>
+
+        </article>
       </div>
 
       <nav class="topic-nav">
