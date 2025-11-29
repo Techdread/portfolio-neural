@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B4 - Chain Rule Visualizer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.95);
+            --accent: #4ade80;
+            --accent-grad: #f472b6;
+            --accent-blue: #60a5fa;
+            --text-main: #ffffff;
+            --text-dim: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg-color); 
+            color: var(--text-main); 
+        }
+        
+        /* Header */
+        #header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 24px;
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.95), transparent);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        #header > * { pointer-events: auto; }
+        
+        .header-left h1 { 
+            margin: 0; 
+            font-size: 22px; 
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-left h1 .tag {
+            background: var(--accent);
+            color: #000;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        
+        .header-left p { 
+            margin: 6px 0 0 0; 
+            color: var(--text-dim); 
+            font-size: 13px; 
+        }
+        
+        .header-right {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .keyboard-hints {
+            color: var(--text-dim);
+            font-size: 11px;
+            margin-top: 8px;
+        }
+        
+        .keyboard-hints kbd {
+            background: #334155;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: inherit;
+            margin: 0 2px;
+        }
+
+        /* Formula Display */
+        #formula-display {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 24px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+        
+        #composed-fn {
+            font-size: 18px;
+            color: var(--accent-blue);
+            margin-bottom: 6px;
+        }
+        
+        #chain-formula {
+            font-size: 14px;
+            color: var(--accent-grad);
+        }
+
+        /* Product Chain Display */
+        #product-display {
+            position: absolute;
+            top: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 114, 182, 0.1);
+            border: 1px solid var(--accent-grad);
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            color: var(--accent-grad);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+        
+        #product-display.visible { opacity: 1; }
+
+        /* Main UI Panel */
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 94%;
+            max-width: 1100px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            z-index: 20;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center;
+        }
+        
+        .btn-group-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 4px;
+        }
+
+        button {
+            background: #334155;
+            border: 1px solid #475569;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover { background: #475569; border-color: #64748b; }
+        button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        button.primary { 
+            background: linear-gradient(135deg, #22c55e, #16a34a); 
+            color: #fff; 
+            border: none; 
+            font-weight: 600;
+        }
+        button.primary:hover { background: linear-gradient(135deg, #16a34a, #15803d); }
+        
+        button.secondary { 
+            background: linear-gradient(135deg, #ec4899, #db2777); 
+            color: #fff; 
+            border: none;
+            font-weight: 600;
+        }
+        button.secondary:hover { background: linear-gradient(135deg, #db2777, #be185d); }
+        
+        button.step {
+            background: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+        button.step:hover { background: #1d4ed8; }
+        
+        button.preset-active {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+        
+        input[type="range"] { 
+            accent-color: var(--accent); 
+            width: 160px;
+            cursor: pointer;
+        }
+
+        .stat-display {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .math-val { color: var(--accent); font-weight: bold; }
+        .math-grad { color: var(--accent-grad); font-weight: bold; }
+
+        hr {
+            width: 100%;
+            border: 0;
+            border-top: 1px solid var(--border-color);
+            margin: 4px 0;
+        }
+
+        /* Hint Box */
+        #hint-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        #hint-box .hint-icon { font-size: 16px; }
+        #hint-text { 
+            font-size: 12px; 
+            color: #fbbf24; 
+            line-height: 1.4;
+        }
+
+        /* Verification Box */
+        #verification-box {
+            position: absolute;
+            bottom: 200px;
+            right: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+        
+        #verification-box.visible { opacity: 1; }
+        #verification-box h4 { 
+            margin: 0 0 8px 0; 
+            color: var(--text-dim);
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        /* Status Bar */
+        #status-bar {
+            text-align: center;
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #status-text {
+            font-size: 13px;
+        }
+
+        /* CSS2D Labels */
+        .block-label {
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            text-align: center;
+            pointer-events: none;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .block-label.gradient-mode {
+            border-color: var(--accent-grad);
+            color: var(--accent-grad);
+            background: rgba(244, 114, 182, 0.15);
+        }
+
+        .value-bubble {
+            font-weight: bold;
+            font-size: 13px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        
+        .endpoint-label {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        
+        .packet-label {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@tweenjs/tween.js": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Header -->
+    <div id="header">
+        <div class="header-left">
+            <h1><span class="tag">B4</span> Chain Rule Visualizer</h1>
+            <p>Forward Pass: Compose Functions → Backward Pass: Multiply Derivatives</p>
+        </div>
+        <div class="header-right">
+            <div class="keyboard-hints">
+                <kbd>Space</kbd> Forward
+                <kbd>B</kbd> Backward
+                <kbd>→</kbd><kbd>←</kbd> Step
+                <kbd>R</kbd> Reset
+            </div>
+        </div>
+    </div>
+
+    <!-- Formula Display -->
+    <div id="formula-display">
+        <div id="composed-fn">y = sin(x²)</div>
+        <div id="chain-formula">dy/dx = cos(x²) · 2x</div>
+    </div>
+
+    <!-- Product Chain (shows during backward pass) -->
+    <div id="product-display">
+        <span id="product-chain">1 × ... = ?</span>
+    </div>
+
+    <!-- Verification Box -->
+    <div id="verification-box">
+        <h4>✓ Verification</h4>
+        <div id="verification-content"></div>
+    </div>
+
+    <!-- Main UI Panel -->
+    <div id="ui-container">
+        <!-- Presets Row -->
+        <div class="controls-row">
+            <div class="btn-group">
+                <span class="btn-group-label">Presets:</span>
+                <button data-preset="simple" onclick="app.loadPreset('simple')">(x+1)²</button>
+                <button data-preset="medium" onclick="app.loadPreset('medium')" class="preset-active">sin(x²)</button>
+                <button data-preset="deep" onclick="app.loadPreset('deep')">e^(sin(x²))</button>
+                <button data-preset="neuron" onclick="app.loadPreset('neuron')">🧠 Neuron</button>
+            </div>
+            <div class="btn-group">
+                <button onclick="app.addBlock()">+ Add Block</button>
+                <button onclick="app.resetChain()">Reset Chain</button>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Input & Playback Row -->
+        <div class="controls-row">
+            <div class="btn-group">
+                <span class="stat-display">Input x =</span>
+                <input type="range" id="input-slider" min="-3" max="3" step="0.1" value="1.0">
+                <span id="input-val-display" class="math-val" style="min-width: 40px;">1.0</span>
+            </div>
+
+            <div class="btn-group">
+                <button class="step" onclick="app.stepForward()" title="Step Forward (→)">
+                    Step →
+                </button>
+                <button class="primary" onclick="app.playForward()" title="Play Forward (Space)">
+                    ▶ Forward Pass
+                </button>
+                <button class="secondary" onclick="app.playBackward()" title="Play Backward (B)">
+                    ◀ Backward Pass
+                </button>
+                <button class="step" onclick="app.stepBackward()" title="Step Backward (←)">
+                    ← Step
+                </button>
+            </div>
+            
+            <div class="btn-group">
+                <button onclick="app.resetVisuals()" title="Reset Visuals (R)">⟳ Reset</button>
+            </div>
+        </div>
+
+        <!-- Hint Box -->
+        <div id="hint-box">
+            <span class="hint-icon">💡</span>
+            <span id="hint-text">Each block represents a function. Data flows left→right (forward), gradients flow right→left (backward). The key insight: derivatives MULTIPLY through the chain!</span>
+        </div>
+        
+        <!-- Status Bar -->
+        <div id="status-bar">
+            <span id="status-text" class="stat-display">Ready. Adjust input x or click Forward Pass to begin.</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+        import TWEEN from '@tweenjs/tween.js';
+
+        // --- Math Operations ---
+        const MATH_OPS = {
+            'linear': { 
+                name: 'u + 1',
+                displayName: '+1', 
+                fn: (x) => x + 1, 
+                df: (x) => 1,
+                dfName: '1',
+                dfFormula: '1',
+                color: 0x3b82f6 
+            },
+            'square': { 
+                name: 'u²',
+                displayName: 'x²', 
+                fn: (x) => x * x, 
+                df: (x) => 2 * x,
+                dfName: '2u',
+                dfFormula: (u) => `2·(${u.toFixed(2)})`,
+                color: 0xa855f7 
+            },
+            'sin': { 
+                name: 'sin(u)',
+                displayName: 'sin', 
+                fn: (x) => Math.sin(x), 
+                df: (x) => Math.cos(x),
+                dfName: 'cos(u)',
+                dfFormula: (u) => `cos(${u.toFixed(2)})`,
+                color: 0xeab308 
+            },
+            'cos': { 
+                name: 'cos(u)',
+                displayName: 'cos', 
+                fn: (x) => Math.cos(x), 
+                df: (x) => -Math.sin(x),
+                dfName: '-sin(u)',
+                dfFormula: (u) => `-sin(${u.toFixed(2)})`,
+                color: 0x06b6d4 
+            },
+            'exp': { 
+                name: 'eᵘ',
+                displayName: 'exp', 
+                fn: (x) => Math.exp(Math.min(x, 10)), // Clamp to avoid overflow
+                df: (x) => Math.exp(Math.min(x, 10)),
+                dfName: 'eᵘ',
+                dfFormula: (u) => `e^(${u.toFixed(2)})`,
+                color: 0xef4444 
+            },
+            'relu': {
+                name: 'ReLU(u)',
+                displayName: 'ReLU',
+                fn: (x) => Math.max(0, x),
+                df: (x) => x > 0 ? 1 : 0,
+                dfName: 'u>0?1:0',
+                dfFormula: (u) => u > 0 ? '1' : '0',
+                color: 0x14b8a6
+            },
+            'weight': {
+                name: 'W·u',
+                displayName: '×W',
+                fn: (x) => 2 * x,  // W = 2
+                df: (x) => 2,
+                dfName: 'W',
+                dfFormula: () => 'W=2',
+                color: 0x8b5cf6
+            },
+            'bias': {
+                name: 'u + b',
+                displayName: '+b',
+                fn: (x) => x + 0.5,  // b = 0.5
+                df: (x) => 1,
+                dfName: '1',
+                dfFormula: () => '1',
+                color: 0x64748b
+            },
+            'sigmoid': {
+                name: 'σ(u)',
+                displayName: 'σ',
+                fn: (x) => 1 / (1 + Math.exp(-Math.max(-20, Math.min(20, x)))),
+                df: (x) => {
+                    const s = 1 / (1 + Math.exp(-Math.max(-20, Math.min(20, x))));
+                    return s * (1 - s);
+                },
+                dfName: 'σ(1-σ)',
+                dfFormula: (u) => {
+                    const s = 1 / (1 + Math.exp(-Math.max(-20, Math.min(20, u))));
+                    return `${s.toFixed(2)}·${(1-s).toFixed(2)}`;
+                },
+                color: 0xf97316
+            }
+        };
+
+        const PRESETS = {
+            simple: { 
+                chain: ['linear', 'square'],
+                hint: "Simple 2-function chain: (x+1)². The derivative is 2(x+1)·1 = 2(x+1). Watch how the local derivatives multiply!"
+            },
+            medium: { 
+                chain: ['square', 'sin'],
+                hint: "sin(x²) — a classic composition. The outer derivative cos(u) is evaluated at u=x², then multiplied by the inner derivative 2x."
+            },
+            deep: { 
+                chain: ['square', 'sin', 'exp'],
+                hint: "Three functions deep: e^(sin(x²)). Each layer multiplies its local derivative. This is exactly how gradients flow through neural network layers!"
+            },
+            neuron: { 
+                chain: ['weight', 'bias', 'sigmoid'],
+                hint: "🧠 A single neuron: output = σ(Wx + b). Backprop computes ∂Loss/∂W and ∂Loss/∂b by multiplying through — this is how neural networks learn!"
+            }
+        };
+
+        const HINTS = {
+            ready: "Each block represents a function. Data flows left→right (forward), gradients flow right→left (backward). The key insight: derivatives MULTIPLY through the chain!",
+            forward_start: "Forward Pass: Watch data flow through each function. The output of each block becomes the input to the next.",
+            forward_complete: "Forward Pass complete! Now try Backward Pass to see how gradients multiply back through the chain.",
+            backward_start: "Backward Pass: Starting from the output, we multiply local derivatives. This is EXACTLY what backpropagation does!",
+            backward_step: "At each block: multiply the incoming gradient by the local derivative. The product flows to the previous block.",
+            backward_complete: "The final gradient tells us: how much does the output change when we wiggle the input? Chain rule = multiply all local derivatives!"
+        };
+
+        // --- Block Class ---
+        class Block {
+            constructor(type, index, scene) {
+                this.type = type;
+                this.op = MATH_OPS[type];
+                this.index = index;
+                this.scene = scene;
+                
+                this.inputValue = 0;
+                this.outputValue = 0;
+                this.localGrad = 0;
+                this.accumGrad = 0;
+
+                this.createMesh();
+                this.createConnector();
+                this.createLabels();
+            }
+
+            get xPos() { return this.index * 4; }
+
+            createMesh() {
+                const geometry = new RoundedBoxGeometry(2.2, 1.6, 1, 4, 0.15);
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: this.op.color,
+                    roughness: 0.3,
+                    metalness: 0.1,
+                    transparent: true,
+                    opacity: 0.92
+                });
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(this.xPos, 0, 0);
+                this.mesh.castShadow = true;
+                this.mesh.receiveShadow = true;
+                this.scene.add(this.mesh);
+                
+                // Emissive glow ring
+                const ringGeo = new THREE.TorusGeometry(1.3, 0.05, 8, 32);
+                const ringMat = new THREE.MeshBasicMaterial({ 
+                    color: this.op.color, 
+                    transparent: true, 
+                    opacity: 0 
+                });
+                this.glowRing = new THREE.Mesh(ringGeo, ringMat);
+                this.glowRing.rotation.x = Math.PI / 2;
+                this.mesh.add(this.glowRing);
+            }
+
+            createConnector() {
+                if (this.index <= 0) return;
+                
+                // Arrow shaft
+                const shaftGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8);
+                shaftGeo.rotateZ(Math.PI / 2);
+                const shaftMat = new THREE.MeshBasicMaterial({ color: 0x475569 });
+                this.connector = new THREE.Mesh(shaftGeo, shaftMat);
+                this.connector.position.set(this.xPos - 2, 0, 0);
+                this.scene.add(this.connector);
+                
+                // Arrow head
+                const headGeo = new THREE.ConeGeometry(0.15, 0.3, 8);
+                headGeo.rotateZ(-Math.PI / 2);
+                const headMat = new THREE.MeshBasicMaterial({ color: 0x475569 });
+                this.arrowHead = new THREE.Mesh(headGeo, headMat);
+                this.arrowHead.position.set(this.xPos - 1.1, 0, 0);
+                this.scene.add(this.arrowHead);
+            }
+
+            createLabels() {
+                // Function name label (top)
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'block-label';
+                nameDiv.textContent = this.op.name;
+                this.nameLabel = new CSS2DObject(nameDiv);
+                this.nameLabel.position.set(0, 1.3, 0);
+                this.mesh.add(this.nameLabel);
+
+                // Value display (bottom)
+                const valDiv = document.createElement('div');
+                valDiv.className = 'value-bubble';
+                valDiv.style.color = '#fff';
+                this.valLabel = new CSS2DObject(valDiv);
+                this.valLabel.position.set(0, -1.3, 0);
+                this.mesh.add(this.valLabel);
+            }
+
+            setValueDisplay(text, color = '#fff') {
+                this.valLabel.element.textContent = text;
+                this.valLabel.element.style.color = color;
+            }
+            
+            setNameDisplay(text, isGradient = false) {
+                this.nameLabel.element.textContent = text;
+                if (isGradient) {
+                    this.nameLabel.element.classList.add('gradient-mode');
+                } else {
+                    this.nameLabel.element.classList.remove('gradient-mode');
+                }
+            }
+
+            highlight(isGradient = false, duration = 400) {
+                const targetColor = isGradient ? 0xf472b6 : 0xffffff;
+                const targetOpacity = 0.6;
+                
+                // Glow ring animation
+                new TWEEN.Tween(this.glowRing.material)
+                    .to({ opacity: targetOpacity }, duration / 2)
+                    .yoyo(true)
+                    .repeat(1)
+                    .start();
+                
+                this.glowRing.material.color.setHex(targetColor);
+                
+                // Emissive flash
+                const emissiveColor = new THREE.Color(targetColor);
+                new TWEEN.Tween(this.mesh.material.emissive)
+                    .to({ r: emissiveColor.r * 0.3, g: emissiveColor.g * 0.3, b: emissiveColor.b * 0.3 }, duration / 2)
+                    .yoyo(true)
+                    .repeat(1)
+                    .start();
+            }
+
+            pulseConnector(isBackward = false, duration = 400) {
+                if (!this.connector) return;
+                
+                const color = isBackward ? 0xf472b6 : 0x4ade80;
+                this.connector.material.color.setHex(color);
+                this.arrowHead.material.color.setHex(color);
+                
+                setTimeout(() => {
+                    this.connector.material.color.setHex(0x475569);
+                    this.arrowHead.material.color.setHex(0x475569);
+                }, duration);
+            }
+
+            resetVisuals() {
+                this.nameLabel.element.classList.remove('gradient-mode');
+                this.nameLabel.element.textContent = this.op.name;
+                this.setValueDisplay('');
+                this.mesh.material.emissive.setHex(0x000000);
+                this.glowRing.material.opacity = 0;
+                if (this.connector) {
+                    this.connector.material.color.setHex(0x475569);
+                    this.arrowHead.material.color.setHex(0x475569);
+                }
+            }
+
+            dispose() {
+                this.scene.remove(this.mesh);
+                if (this.connector) {
+                    this.scene.remove(this.connector);
+                    this.scene.remove(this.arrowHead);
+                }
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+            }
+        }
+
+        // --- Main Application ---
+        class App {
+            constructor() {
+                this.blocks = [];
+                this.isAnimating = false;
+                this.forwardComplete = false;
+                this.currentPreset = 'medium';
+                
+                // Step mode tracking
+                this.stepIndex = 0;
+                this.stepMode = null; // 'forward' or 'backward'
+                this.stepValues = [];
+                
+                this.initScene();
+                this.initEndpoints();
+                this.initPacket();
+                this.initInteraction();
+                
+                this.loadPreset('medium');
+                this.animate();
+            }
+
+            initScene() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0f172a);
+                
+                // Grid
+                const grid = new THREE.GridHelper(60, 60, 0x1e293b, 0x1e293b);
+                grid.position.y = -2;
+                this.scene.add(grid);
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(4, 5, 12);
+
+                // WebGL Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                document.body.appendChild(this.renderer.domElement);
+
+                // CSS2D Renderer
+                this.labelRenderer = new CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0px';
+                this.labelRenderer.domElement.style.pointerEvents = 'none';
+                document.body.appendChild(this.labelRenderer.domElement);
+
+                // Lighting
+                this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight.position.set(5, 10, 7);
+                dirLight.castShadow = true;
+                this.scene.add(dirLight);
+                
+                const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+                backLight.position.set(-5, 5, -5);
+                this.scene.add(backLight);
+
+                // Controls
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.target.set(4, 0, 0);
+
+                window.addEventListener('resize', () => this.onWindowResize());
+            }
+
+            initEndpoints() {
+                // Input node (x)
+                const inputGeo = new THREE.SphereGeometry(0.5, 24, 24);
+                const inputMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x4ade80, 
+                    roughness: 0.3,
+                    metalness: 0.2 
+                });
+                this.inputNode = new THREE.Mesh(inputGeo, inputMat);
+                this.inputNode.position.set(-3, 0, 0);
+                this.scene.add(this.inputNode);
+                
+                const inputLabelDiv = document.createElement('div');
+                inputLabelDiv.className = 'endpoint-label';
+                inputLabelDiv.style.color = '#4ade80';
+                inputLabelDiv.innerHTML = 'x = <span id="input-node-val">1.0</span>';
+                this.inputLabel = new CSS2DObject(inputLabelDiv);
+                this.inputLabel.position.set(0, 1.2, 0);
+                this.inputNode.add(this.inputLabel);
+
+                // Output node (y)
+                const outputGeo = new THREE.SphereGeometry(0.5, 24, 24);
+                const outputMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x60a5fa, 
+                    roughness: 0.3,
+                    metalness: 0.2 
+                });
+                this.outputNode = new THREE.Mesh(outputGeo, outputMat);
+                this.scene.add(this.outputNode);
+                
+                const outputLabelDiv = document.createElement('div');
+                outputLabelDiv.className = 'endpoint-label';
+                outputLabelDiv.style.color = '#60a5fa';
+                outputLabelDiv.innerHTML = 'y = <span id="output-node-val">?</span>';
+                this.outputLabel = new CSS2DObject(outputLabelDiv);
+                this.outputLabel.position.set(0, 1.2, 0);
+                this.outputNode.add(this.outputLabel);
+                
+                // Input-to-first-block connector
+                const connGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8);
+                connGeo.rotateZ(Math.PI / 2);
+                const connMat = new THREE.MeshBasicMaterial({ color: 0x475569 });
+                this.inputConnector = new THREE.Mesh(connGeo, connMat);
+                this.inputConnector.position.set(-1.5, 0, 0);
+                this.scene.add(this.inputConnector);
+                
+                const headGeo = new THREE.ConeGeometry(0.15, 0.3, 8);
+                headGeo.rotateZ(-Math.PI / 2);
+                this.inputArrow = new THREE.Mesh(headGeo, connMat.clone());
+                this.inputArrow.position.set(-0.8, 0, 0);
+                this.scene.add(this.inputArrow);
+            }
+
+            initPacket() {
+                const ballGeo = new THREE.SphereGeometry(0.25, 16, 16);
+                const ballMat = new THREE.MeshStandardMaterial({ 
+                    color: 0x4ade80,
+                    emissive: 0x4ade80,
+                    emissiveIntensity: 0.3,
+                    roughness: 0.2
+                });
+                this.packet = new THREE.Mesh(ballGeo, ballMat);
+                this.packet.visible = false;
+                this.scene.add(this.packet);
+                
+                // Packet value label
+                const packetLabelDiv = document.createElement('div');
+                packetLabelDiv.className = 'packet-label';
+                packetLabelDiv.style.color = '#4ade80';
+                this.packetLabel = new CSS2DObject(packetLabelDiv);
+                this.packetLabel.position.set(0, 0.6, 0);
+                this.packet.add(this.packetLabel);
+            }
+
+            initInteraction() {
+                const slider = document.getElementById('input-slider');
+                const display = document.getElementById('input-val-display');
+                const nodeVal = document.getElementById('input-node-val');
+                
+                slider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value).toFixed(1);
+                    display.textContent = val;
+                    nodeVal.textContent = val;
+                    this.resetVisuals();
+                });
+                
+                // Keyboard shortcuts
+                window.addEventListener('keydown', (e) => {
+                    if (e.target.tagName === 'INPUT') return;
+                    
+                    switch(e.key.toLowerCase()) {
+                        case ' ':
+                            e.preventDefault();
+                            this.playForward();
+                            break;
+                        case 'b':
+                            this.playBackward();
+                            break;
+                        case 'arrowright':
+                            e.preventDefault();
+                            this.stepForward();
+                            break;
+                        case 'arrowleft':
+                            e.preventDefault();
+                            this.stepBackward();
+                            break;
+                        case 'r':
+                            this.resetVisuals();
+                            break;
+                        case '1': this.loadPreset('simple'); break;
+                        case '2': this.loadPreset('medium'); break;
+                        case '3': this.loadPreset('deep'); break;
+                        case '4': this.loadPreset('neuron'); break;
+                    }
+                });
+            }
+
+            // --- Chain Management ---
+
+            clearBlocks() {
+                this.blocks.forEach(b => b.dispose());
+                this.blocks = [];
+            }
+
+            createChain(types) {
+                this.clearBlocks();
+                types.forEach((type, i) => {
+                    this.blocks.push(new Block(type, i, this.scene));
+                });
+                
+                // Position output node
+                const lastX = (this.blocks.length - 1) * 4;
+                this.outputNode.position.set(lastX + 3, 0, 0);
+                
+                // Add last-block-to-output connector
+                if (this.outputConnector) {
+                    this.scene.remove(this.outputConnector);
+                    this.scene.remove(this.outputArrow);
+                }
+                
+                const connGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8);
+                connGeo.rotateZ(Math.PI / 2);
+                const connMat = new THREE.MeshBasicMaterial({ color: 0x475569 });
+                this.outputConnector = new THREE.Mesh(connGeo, connMat);
+                this.outputConnector.position.set(lastX + 1.5, 0, 0);
+                this.scene.add(this.outputConnector);
+                
+                const headGeo = new THREE.ConeGeometry(0.15, 0.3, 8);
+                headGeo.rotateZ(-Math.PI / 2);
+                this.outputArrow = new THREE.Mesh(headGeo, connMat.clone());
+                this.outputArrow.position.set(lastX + 2.2, 0, 0);
+                this.scene.add(this.outputArrow);
+                
+                // Center camera
+                const centerX = lastX / 2;
+                new TWEEN.Tween(this.controls.target)
+                    .to({ x: centerX, y: 0, z: 0 }, 800)
+                    .easing(TWEEN.Easing.Cubic.Out)
+                    .start();
+                
+                this.updateFormulaDisplay();
+            }
+
+            updateFormulaDisplay() {
+                // Build composed function string
+                const types = this.blocks.map(b => b.type);
+                let composed = 'x';
+                let derivative = '';
+                const derivParts = [];
+                
+                types.forEach((type, i) => {
+                    const op = MATH_OPS[type];
+                    composed = op.name.replace('u', `(${composed})`);
+                    derivParts.push(op.dfName);
+                });
+                
+                // Simplify display
+                composed = composed.replace(/\(x\)/g, 'x');
+                
+                document.getElementById('composed-fn').textContent = `y = ${composed}`;
+                document.getElementById('chain-formula').textContent = `dy/dx = ${derivParts.join(' · ')}`;
+            }
+
+            loadPreset(name) {
+                if (this.isAnimating) return;
+                
+                this.currentPreset = name;
+                const preset = PRESETS[name];
+                
+                // Update button states
+                document.querySelectorAll('[data-preset]').forEach(btn => {
+                    btn.classList.toggle('preset-active', btn.dataset.preset === name);
+                });
+                
+                this.createChain(preset.chain);
+                this.setHint(preset.hint);
+                this.resetVisuals();
+            }
+
+            addBlock() {
+                if (this.isAnimating) return;
+                
+                const ops = ['square', 'sin', 'cos', 'exp', 'relu'];
+                const randomOp = ops[Math.floor(Math.random() * ops.length)];
+                
+                this.blocks.push(new Block(randomOp, this.blocks.length, this.scene));
+                
+                // Reposition output node
+                const lastX = (this.blocks.length - 1) * 4;
+                this.outputNode.position.set(lastX + 3, 0, 0);
+                
+                if (this.outputConnector) {
+                    this.outputConnector.position.set(lastX + 1.5, 0, 0);
+                    this.outputArrow.position.set(lastX + 2.2, 0, 0);
+                }
+                
+                this.updateFormulaDisplay();
+                this.resetVisuals();
+            }
+
+            resetChain() {
+                this.loadPreset(this.currentPreset);
+            }
+
+            // --- Animation Logic ---
+
+            async playForward() {
+                if (this.isAnimating) return;
+                this.isAnimating = true;
+                this.forwardComplete = false;
+                this.resetVisuals();
+                this.hideVerification();
+                
+                this.setHint(HINTS.forward_start);
+                this.setStatus("Forward Pass: Computing values...");
+                
+                let val = parseFloat(document.getElementById('input-slider').value);
+                
+                // Setup packet
+                this.packet.material.color.setHex(0x4ade80);
+                this.packet.material.emissive.setHex(0x4ade80);
+                this.packetLabel.element.style.color = '#4ade80';
+                this.packetLabel.element.textContent = val.toFixed(2);
+                
+                // Animate from input node
+                this.packet.position.set(-3, 0, 0);
+                this.packet.visible = true;
+                
+                // Pulse input connector
+                this.inputConnector.material.color.setHex(0x4ade80);
+                this.inputArrow.material.color.setHex(0x4ade80);
+                
+                await this.tweenTo(this.packet.position, { x: -1 }, 400);
+                
+                // Through each block
+                for (let i = 0; i < this.blocks.length; i++) {
+                    const block = this.blocks[i];
+                    
+                    // Move to block
+                    await this.tweenTo(this.packet.position, { x: block.xPos }, 500);
+                    
+                    // Compute
+                    block.inputValue = val;
+                    block.outputValue = block.op.fn(val);
+                    block.localGrad = block.op.df(val);
+                    
+                    // Visual feedback
+                    block.highlight(false);
+                    block.setValueDisplay(`${val.toFixed(2)} → ${block.outputValue.toFixed(2)}`, '#4ade80');
+                    
+                    val = block.outputValue;
+                    this.packetLabel.element.textContent = val.toFixed(2);
+                    
+                    // Pulse next connector
+                    if (i < this.blocks.length - 1) {
+                        this.blocks[i + 1].pulseConnector(false);
+                    }
+                    
+                    await this.wait(300);
+                }
+                
+                // Move to output node
+                this.outputConnector.material.color.setHex(0x4ade80);
+                this.outputArrow.material.color.setHex(0x4ade80);
+                
+                await this.tweenTo(this.packet.position, { x: this.outputNode.position.x }, 500);
+                
+                // Update output display
+                document.getElementById('output-node-val').textContent = val.toFixed(4);
+                
+                this.packet.visible = false;
+                this.forwardComplete = true;
+                this.isAnimating = false;
+                
+                this.setStatus(`Forward Pass Complete. Output y = ${val.toFixed(4)}`);
+                this.setHint(HINTS.forward_complete);
+                
+                // Reset connector colors
+                setTimeout(() => {
+                    this.inputConnector.material.color.setHex(0x475569);
+                    this.inputArrow.material.color.setHex(0x475569);
+                    this.outputConnector.material.color.setHex(0x475569);
+                    this.outputArrow.material.color.setHex(0x475569);
+                }, 500);
+            }
+
+            async playBackward() {
+                if (this.isAnimating) return;
+                
+                // Run forward pass silently if needed
+                if (!this.forwardComplete) {
+                    this.runForwardSilent();
+                }
+                
+                this.isAnimating = true;
+                this.setHint(HINTS.backward_start);
+                this.setStatus("Backward Pass: Multiplying derivatives...");
+                
+                // Show product display
+                const productDisplay = document.getElementById('product-display');
+                productDisplay.classList.add('visible');
+                
+                // Setup packet for backward pass
+                this.packet.material.color.setHex(0xf472b6);
+                this.packet.material.emissive.setHex(0xf472b6);
+                this.packetLabel.element.style.color = '#f472b6';
+                
+                let currentGradient = 1.0;
+                let productChain = '1';
+                
+                this.packetLabel.element.textContent = `∂=1`;
+                
+                // Start at output node
+                this.packet.position.copy(this.outputNode.position);
+                this.packet.visible = true;
+                
+                // Pulse output connector (backward direction)
+                this.outputConnector.material.color.setHex(0xf472b6);
+                this.outputArrow.material.color.setHex(0xf472b6);
+                
+                document.getElementById('product-chain').innerHTML = productChain + ' = <b>1</b>';
+                
+                await this.wait(400);
+                
+                // Through each block (backward)
+                for (let i = this.blocks.length - 1; i >= 0; i--) {
+                    const block = this.blocks[i];
+                    
+                    // Move to block
+                    await this.tweenTo(this.packet.position, { x: block.xPos }, 500);
+                    
+                    // Show derivative formula
+                    const localGradStr = block.localGrad.toFixed(3);
+                    const dfFormula = typeof block.op.dfFormula === 'function' 
+                        ? block.op.dfFormula(block.inputValue) 
+                        : block.op.dfFormula;
+                    
+                    block.highlight(true);
+                    block.setNameDisplay(`${block.op.dfName} = ${localGradStr}`, true);
+                    
+                    this.setStatus(`Block ${i+1}: Incoming gradient (${currentGradient.toFixed(3)}) × Local derivative (${localGradStr})`);
+                    this.setHint(HINTS.backward_step);
+                    
+                    await this.wait(400);
+                    
+                    // Multiply
+                    const oldGrad = currentGradient;
+                    currentGradient = currentGradient * block.localGrad;
+                    
+                    productChain += ` × ${localGradStr}`;
+                    document.getElementById('product-chain').innerHTML = productChain + ` = <b>${currentGradient.toFixed(4)}</b>`;
+                    
+                    // Update displays
+                    block.setValueDisplay(`∂y/∂u = ${currentGradient.toFixed(4)}`, '#f472b6');
+                    this.packetLabel.element.textContent = `∂=${currentGradient.toFixed(2)}`;
+                    
+                    // Pulse connector to previous block
+                    if (i > 0) {
+                        block.pulseConnector(true, 600);
+                    }
+                    
+                    await this.wait(400);
+                }
+                
+                // Move to input node
+                this.inputConnector.material.color.setHex(0xf472b6);
+                this.inputArrow.material.color.setHex(0xf472b6);
+                
+                await this.tweenTo(this.packet.position, { x: this.inputNode.position.x }, 500);
+                
+                this.packet.visible = false;
+                this.isAnimating = false;
+                
+                this.setStatus(`Backward Pass Complete. dy/dx = ${currentGradient.toFixed(6)}`);
+                this.setHint(HINTS.backward_complete);
+                
+                // Show verification
+                this.showVerification(currentGradient);
+                
+                // Reset connector colors after delay
+                setTimeout(() => {
+                    this.inputConnector.material.color.setHex(0x475569);
+                    this.inputArrow.material.color.setHex(0x475569);
+                    this.outputConnector.material.color.setHex(0x475569);
+                    this.outputArrow.material.color.setHex(0x475569);
+                }, 800);
+            }
+
+            runForwardSilent() {
+                let val = parseFloat(document.getElementById('input-slider').value);
+                
+                this.blocks.forEach(block => {
+                    block.inputValue = val;
+                    block.outputValue = block.op.fn(val);
+                    block.localGrad = block.op.df(val);
+                    block.setValueDisplay(`${val.toFixed(2)} → ${block.outputValue.toFixed(2)}`, '#4ade80');
+                    block.valLabel.element.style.opacity = '0.6';
+                    val = block.outputValue;
+                });
+                
+                document.getElementById('output-node-val').textContent = val.toFixed(4);
+                this.forwardComplete = true;
+            }
+
+            // --- Step Mode ---
+
+            stepForward() {
+                if (this.isAnimating) return;
+                
+                // Initialize step mode
+                if (this.stepMode !== 'forward') {
+                    this.resetVisuals();
+                    this.stepMode = 'forward';
+                    this.stepIndex = 0;
+                    this.stepValues = [parseFloat(document.getElementById('input-slider').value)];
+                    
+                    this.packet.material.color.setHex(0x4ade80);
+                    this.packet.material.emissive.setHex(0x4ade80);
+                    this.packetLabel.element.style.color = '#4ade80';
+                    this.packetLabel.element.textContent = this.stepValues[0].toFixed(2);
+                    this.packet.position.set(-3, 0, 0);
+                    this.packet.visible = true;
+                    
+                    this.setStatus("Step Mode: Press → to step through forward pass");
+                    return;
+                }
+                
+                if (this.stepIndex >= this.blocks.length) {
+                    // Move to output
+                    this.isAnimating = true;
+                    this.tweenTo(this.packet.position, { x: this.outputNode.position.x }, 400)
+                        .then(() => {
+                            this.packet.visible = false;
+                            this.forwardComplete = true;
+                            this.isAnimating = false;
+                            this.setStatus("Forward pass complete! Press ← to step backward, or B for full backward pass.");
+                        });
+                    this.stepMode = null;
+                    return;
+                }
+                
+                const block = this.blocks[this.stepIndex];
+                const val = this.stepValues[this.stepIndex];
+                
+                this.isAnimating = true;
+                this.tweenTo(this.packet.position, { x: block.xPos }, 400).then(() => {
+                    block.inputValue = val;
+                    block.outputValue = block.op.fn(val);
+                    block.localGrad = block.op.df(val);
+                    
+                    block.highlight(false);
+                    block.setValueDisplay(`${val.toFixed(2)} → ${block.outputValue.toFixed(2)}`, '#4ade80');
+                    
+                    this.stepValues.push(block.outputValue);
+                    this.packetLabel.element.textContent = block.outputValue.toFixed(2);
+                    
+                    this.stepIndex++;
+                    this.isAnimating = false;
+                    
+                    if (this.stepIndex < this.blocks.length) {
+                        this.setStatus(`Step ${this.stepIndex}/${this.blocks.length}: Output = ${block.outputValue.toFixed(4)}. Press → to continue.`);
+                    }
+                });
+            }
+
+            stepBackward() {
+                if (this.isAnimating) return;
+                
+                // Initialize step mode
+                if (this.stepMode !== 'backward') {
+                    if (!this.forwardComplete) {
+                        this.runForwardSilent();
+                    }
+                    
+                    this.stepMode = 'backward';
+                    this.stepIndex = this.blocks.length - 1;
+                    this.stepGradient = 1.0;
+                    this.stepProductChain = '1';
+                    
+                    document.getElementById('product-display').classList.add('visible');
+                    document.getElementById('product-chain').innerHTML = '1 = <b>1</b>';
+                    
+                    this.packet.material.color.setHex(0xf472b6);
+                    this.packet.material.emissive.setHex(0xf472b6);
+                    this.packetLabel.element.style.color = '#f472b6';
+                    this.packetLabel.element.textContent = '∂=1';
+                    this.packet.position.copy(this.outputNode.position);
+                    this.packet.visible = true;
+                    
+                    this.setStatus("Step Mode: Press ← to step through backward pass");
+                    return;
+                }
+                
+                if (this.stepIndex < 0) {
+                    // Move to input
+                    this.isAnimating = true;
+                    this.tweenTo(this.packet.position, { x: this.inputNode.position.x }, 400)
+                        .then(() => {
+                            this.packet.visible = false;
+                            this.isAnimating = false;
+                            this.setStatus(`Backward pass complete! Final gradient: dy/dx = ${this.stepGradient.toFixed(6)}`);
+                            this.showVerification(this.stepGradient);
+                        });
+                    this.stepMode = null;
+                    return;
+                }
+                
+                const block = this.blocks[this.stepIndex];
+                
+                this.isAnimating = true;
+                this.tweenTo(this.packet.position, { x: block.xPos }, 400).then(() => {
+                    block.highlight(true);
+                    block.setNameDisplay(`${block.op.dfName} = ${block.localGrad.toFixed(3)}`, true);
+                    
+                    this.stepGradient *= block.localGrad;
+                    this.stepProductChain += ` × ${block.localGrad.toFixed(3)}`;
+                    
+                    document.getElementById('product-chain').innerHTML = 
+                        this.stepProductChain + ` = <b>${this.stepGradient.toFixed(4)}</b>`;
+                    
+                    block.setValueDisplay(`∂y/∂u = ${this.stepGradient.toFixed(4)}`, '#f472b6');
+                    this.packetLabel.element.textContent = `∂=${this.stepGradient.toFixed(2)}`;
+                    
+                    this.stepIndex--;
+                    this.isAnimating = false;
+                    
+                    this.setStatus(`Accumulated gradient: ${this.stepGradient.toFixed(4)}. Press ← to continue.`);
+                });
+            }
+
+            // --- Verification ---
+
+            showVerification(chainRuleResult) {
+                const x = parseFloat(document.getElementById('input-slider').value);
+                const h = 0.0001;
+                
+                // Compose all functions
+                const compose = (x) => {
+                    let val = x;
+                    this.blocks.forEach(b => { val = b.op.fn(val); });
+                    return val;
+                };
+                
+                const numerical = (compose(x + h) - compose(x - h)) / (2 * h);
+                const match = Math.abs(chainRuleResult - numerical) < 0.01;
+                
+                const content = document.getElementById('verification-content');
+                content.innerHTML = `
+                    <div style="color: #f472b6">Chain Rule: ${chainRuleResult.toFixed(6)}</div>
+                    <div style="color: #60a5fa">Numerical:  ${numerical.toFixed(6)}</div>
+                    <div style="color: ${match ? '#4ade80' : '#ef4444'}; margin-top: 6px; font-weight: bold;">
+                        ${match ? '✓ Results match!' : '✗ Discrepancy detected'}
+                    </div>
+                `;
+                
+                document.getElementById('verification-box').classList.add('visible');
+            }
+
+            hideVerification() {
+                document.getElementById('verification-box').classList.remove('visible');
+                document.getElementById('product-display').classList.remove('visible');
+            }
+
+            // --- Utilities ---
+
+            resetVisuals() {
+                this.blocks.forEach(b => b.resetVisuals());
+                this.packet.visible = false;
+                this.forwardComplete = false;
+                this.stepMode = null;
+                
+                document.getElementById('output-node-val').textContent = '?';
+                document.getElementById('product-display').classList.remove('visible');
+                
+                this.hideVerification();
+                this.setStatus("Ready. Adjust input x or click Forward Pass to begin.");
+                this.setHint(PRESETS[this.currentPreset]?.hint || HINTS.ready);
+                
+                // Reset connector colors
+                this.inputConnector.material.color.setHex(0x475569);
+                this.inputArrow.material.color.setHex(0x475569);
+                if (this.outputConnector) {
+                    this.outputConnector.material.color.setHex(0x475569);
+                    this.outputArrow.material.color.setHex(0x475569);
+                }
+            }
+
+            setStatus(text) {
+                document.getElementById('status-text').innerHTML = text;
+            }
+
+            setHint(text) {
+                document.getElementById('hint-text').textContent = text;
+            }
+
+            tweenTo(obj, target, duration) {
+                return new Promise(resolve => {
+                    new TWEEN.Tween(obj)
+                        .to(target, duration)
+                        .easing(TWEEN.Easing.Quadratic.InOut)
+                        .onComplete(resolve)
+                        .start();
+                });
+            }
+
+            wait(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                TWEEN.update();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+                this.labelRenderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Initialize
+        const app = new App();
+        window.app = app;
+    </script>
+</body>
+</html>

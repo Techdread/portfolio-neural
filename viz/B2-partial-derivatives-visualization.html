@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partial Derivatives Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; cursor: grab; }
+        #canvas-container:active { cursor: grabbing; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        .panel {
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+
+        .math-mono { font-family: 'Courier New', Courier, monospace; }
+        
+        .hint-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            padding: 0.6rem;
+            margin-top: 0.75rem;
+        }
+
+        .formula-box {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+        }
+
+        .slope-indicator {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        /* Toggle styles */
+        .toggle-container input:checked ~ .toggle-dot { 
+            transform: translateX(100%); 
+            background-color: #38bdf8; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer" class="flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="panel w-full md:max-w-md pointer-events-auto">
+                <h1 class="text-xl font-bold text-sky-400 mb-1">B2: Partial Derivatives</h1>
+                <p class="text-xs text-slate-300">
+                    <span class="text-sky-300">Drag</span> to rotate view. <span class="text-yellow-300">Click</span> on surface to move point.<br>
+                    <span class="text-slate-400">Arrow keys</span> nudge position. <span class="text-slate-400">R</span> to reset view.
+                </p>
+                
+                <!-- Guided Hint -->
+                <div class="hint-box">
+                    <p class="text-xs text-amber-300"><span class="font-bold">💡</span> <span id="hint-text">This bowl-shaped surface has minimum at the origin. Both partial derivatives are zero there!</span></p>
+                </div>
+            </div>
+
+            <!-- Math Stats Panel -->
+            <div class="panel md:absolute md:top-6 md:right-6 w-full md:w-80 pointer-events-auto">
+                
+                <!-- Formula Display -->
+                <div class="formula-box mb-3">
+                    <div class="text-slate-400 text-xs mb-1">Function:</div>
+                    <div id="formula-f" class="text-sky-300">f(x,y) = ¼(x² + y²)</div>
+                    <div id="formula-dfdx" class="text-red-400 mt-1">∂f/∂x = ½x</div>
+                    <div id="formula-dfdy" class="text-blue-400">∂f/∂y = ½y</div>
+                </div>
+
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-3">
+                    <span class="text-slate-400 text-xs">Position (x, y)</span>
+                    <span id="val-pos" class="math-mono font-bold text-sm">1.00, 1.00</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-3">
+                    <span class="text-slate-400 text-xs">Height f(x,y)</span>
+                    <span id="val-height" class="math-mono font-bold text-sm text-sky-300">0.50</span>
+                </div>
+                
+                <!-- Partial X -->
+                <div class="flex flex-col mb-3 pb-3 border-b border-slate-700">
+                    <div class="flex justify-between items-center">
+                        <span class="text-red-400 text-sm font-bold">∂f/∂x</span>
+                        <div class="flex items-center">
+                            <span id="val-dfdx" class="math-mono font-bold text-lg">0.50</span>
+                            <span id="sign-dfdx" class="slope-indicator bg-green-900 text-green-400">↗ Rising</span>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-slate-500">Slope along <span class="text-red-400">RED</span> slice (y held constant)</div>
+                </div>
+
+                <!-- Partial Y -->
+                <div class="flex flex-col">
+                    <div class="flex justify-between items-center">
+                        <span class="text-blue-400 text-sm font-bold">∂f/∂y</span>
+                        <div class="flex items-center">
+                            <span id="val-dfdy" class="math-mono font-bold text-lg">0.50</span>
+                            <span id="sign-dfdy" class="slope-indicator bg-green-900 text-green-400">↗ Rising</span>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-slate-500">Slope along <span class="text-blue-400">BLUE</span> slice (x held constant)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Bottom -->
+        <div class="panel w-full max-w-2xl self-center mb-2 pointer-events-auto">
+            
+            <!-- Function Select -->
+            <div class="flex items-center gap-4 mb-4">
+                <label class="text-sm font-bold text-slate-400">Surface:</label>
+                <select id="func-select" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 text-sm focus:outline-none focus:border-sky-500 flex-grow">
+                    <option value="paraboloid">Paraboloid (Bowl)</option>
+                    <option value="saddle">Saddle (Hyperbolic)</option>
+                    <option value="wave">Sine Wave (Peaks/Valleys)</option>
+                    <option value="gaussian">Gaussian (Hill)</option>
+                    <option value="loss">📉 2-Weight Loss Surface (ML)</option>
+                </select>
+                <button id="btn-reset" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-2 px-3 rounded transition">
+                    Reset View
+                </button>
+            </div>
+
+            <!-- Toggles and Animation -->
+            <div class="flex flex-wrap gap-4 justify-between items-center">
+                <div class="flex gap-6">
+                    <!-- X Slice Toggle -->
+                    <label class="flex items-center cursor-pointer toggle-container">
+                        <div class="relative">
+                            <input id="toggle-x" type="checkbox" class="sr-only" checked>
+                            <div class="w-10 h-4 bg-slate-700 rounded-full shadow-inner"></div>
+                            <div class="toggle-dot absolute w-6 h-6 bg-slate-200 rounded-full shadow -left-1 -top-1 transition transform duration-200 ease-in-out"></div>
+                        </div>
+                        <div class="ml-3 text-sm font-medium text-red-400">X-Slice</div>
+                    </label>
+
+                    <!-- Y Slice Toggle -->
+                    <label class="flex items-center cursor-pointer toggle-container">
+                        <div class="relative">
+                            <input id="toggle-y" type="checkbox" class="sr-only" checked>
+                            <div class="w-10 h-4 bg-slate-700 rounded-full shadow-inner"></div>
+                            <div class="toggle-dot absolute w-6 h-6 bg-slate-200 rounded-full shadow -left-1 -top-1 transition transform duration-200 ease-in-out"></div>
+                        </div>
+                        <div class="ml-3 text-sm font-medium text-blue-400">Y-Slice</div>
+                    </label>
+
+                    <!-- Slice Planes Toggle -->
+                    <label class="flex items-center cursor-pointer toggle-container">
+                        <div class="relative">
+                            <input id="toggle-planes" type="checkbox" class="sr-only" checked>
+                            <div class="w-10 h-4 bg-slate-700 rounded-full shadow-inner"></div>
+                            <div class="toggle-dot absolute w-6 h-6 bg-slate-200 rounded-full shadow -left-1 -top-1 transition transform duration-200 ease-in-out"></div>
+                        </div>
+                        <div class="ml-3 text-sm font-medium text-slate-300">Slice Planes</div>
+                    </label>
+                </div>
+
+                <!-- Animate Sweep Button -->
+                <button id="btn-sweep" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold py-2 px-4 rounded transition">
+                    ▶ Animate Sweep
+                </button>
+            </div>
+
+            <!-- ML Hint (shown only for loss function) -->
+            <div id="ml-hint" class="hidden hint-box mt-3">
+                <p class="text-xs text-amber-300"><span class="font-bold">🤖 ML Insight:</span> x and y represent two neural network weights. The height is the loss. ∂L/∂x tells you how to adjust weight x; ∂L/∂y tells you how to adjust weight y. Gradient descent moves opposite to both!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js App -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Config ---
+        const CONFIG = {
+            range: 3,
+            resolution: 80,
+            sliceRes: 120,
+            colors: {
+                surfaceLow: new THREE.Color(0x1e293b),
+                surfaceHigh: new THREE.Color(0x38bdf8),
+                xSlice: 0xf87171,
+                ySlice: 0x60a5fa,
+                xPlane: 0xf87171,
+                yPlane: 0x60a5fa,
+                point: 0xfacc15,
+                grid: 0x475569,
+                tangent: 0xffffff
+            }
+        };
+
+        const state = {
+            funcType: 'paraboloid',
+            x: 1.0,
+            y: 1.0,
+            showX: true,
+            showY: true,
+            showPlanes: true,
+            isDragging: false,
+            isSweeping: false,
+            sweepPhase: 0
+        };
+
+        // --- Function Definitions with Formulas ---
+        const FUNCTIONS = {
+            paraboloid: {
+                eval: (x, y) => 0.25 * (x*x + y*y),
+                formula: 'f(x,y) = ¼(x² + y²)',
+                dfdx: '∂f/∂x = ½x',
+                dfdy: '∂f/∂y = ½y',
+                hint: 'This bowl-shaped surface has its minimum at the origin. Both partial derivatives are zero there—it\'s flat in all directions!'
+            },
+            saddle: {
+                eval: (x, y) => 0.3 * (x*x - y*y),
+                formula: 'f(x,y) = 0.3(x² − y²)',
+                dfdx: '∂f/∂x = 0.6x',
+                dfdy: '∂f/∂y = −0.6y',
+                hint: 'A saddle point! Notice ∂f/∂x is POSITIVE (rising in x) but ∂f/∂y is NEGATIVE (falling in y) when x,y > 0. The surface curves up in one direction and down in another.'
+            },
+            wave: {
+                eval: (x, y) => Math.sin(x * 1.5) * Math.cos(y * 1.5),
+                formula: 'f(x,y) = sin(1.5x)·cos(1.5y)',
+                dfdx: '∂f/∂x = 1.5·cos(1.5x)·cos(1.5y)',
+                dfdy: '∂f/∂y = −1.5·sin(1.5x)·sin(1.5y)',
+                hint: 'Find a peak or valley. At the very top/bottom, both partial derivatives equal zero—the surface is momentarily flat in all directions.'
+            },
+            gaussian: {
+                eval: (x, y) => 2 * Math.exp(-(x*x + y*y)),
+                formula: 'f(x,y) = 2·e^(−x²−y²)',
+                dfdx: '∂f/∂x = −4x·e^(−x²−y²)',
+                dfdy: '∂f/∂y = −4y·e^(−x²−y²)',
+                hint: 'This bell curve is like a probability distribution. The steepest descent is always pointing toward the origin. Where is the slope zero?'
+            },
+            loss: {
+                eval: (x, y) => 0.5 * ((x - 1)**2 + (y - 1)**2) + 0.3,
+                formula: 'L(w₁,w₂) = ½[(w₁−1)² + (w₂−1)²]',
+                dfdx: '∂L/∂w₁ = (w₁ − 1)',
+                dfdy: '∂L/∂w₂ = (w₂ − 1)',
+                hint: 'This is a loss surface! The minimum is at (1,1). Gradient descent would follow the negative gradient from any starting point to reach the optimum.'
+            }
+        };
+
+        function evaluateFunction(x, y, type) {
+            return FUNCTIONS[type].eval(x, y);
+        }
+
+        function getPartials(x, y, type) {
+            const h = 0.001;
+            const z = evaluateFunction(x, y, type);
+            const z_dx = evaluateFunction(x + h, y, type);
+            const z_dy = evaluateFunction(x, y + h, type);
+            
+            return {
+                dfdx: (z_dx - z) / h,
+                dfdy: (z_dy - z) / h,
+                val: z
+            };
+        }
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x0f172a, 8, 30);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        const defaultCameraPos = new THREE.Vector3(7, 5, 9);
+        camera.position.copy(defaultCameraPos);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05;
+        controls.target.set(0, 0.5, 0);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        backLight.position.set(-5, 5, -5);
+        scene.add(backLight);
+
+        // --- Objects ---
+
+        // 1. Base Grid
+        const gridHelper = new THREE.GridHelper(CONFIG.range * 2, 20, 0x64748b, 0x1e293b);
+        scene.add(gridHelper);
+
+        // 2. Axis Labels
+        function createTextSprite(text, color = '#94a3b8') {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 128;
+            canvas.height = 64;
+            ctx.fillStyle = color;
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(0.8, 0.4, 1);
+            return sprite;
+        }
+
+        // Axis lines
+        const axisLength = CONFIG.range + 0.5;
+        const axisGroup = new THREE.Group();
+        
+        // X axis (red)
+        const xAxisGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-axisLength, 0, 0),
+            new THREE.Vector3(axisLength, 0, 0)
+        ]);
+        const xAxisLine = new THREE.Line(xAxisGeo, new THREE.LineBasicMaterial({ color: 0xf87171 }));
+        axisGroup.add(xAxisLine);
+        
+        // Y axis (in Three.js Z direction) - blue
+        const yAxisGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, -axisLength),
+            new THREE.Vector3(0, 0, axisLength)
+        ]);
+        const yAxisLine = new THREE.Line(yAxisGeo, new THREE.LineBasicMaterial({ color: 0x60a5fa }));
+        axisGroup.add(yAxisLine);
+        
+        // Z axis (height, in Three.js Y direction) - white
+        const zAxisGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 3, 0)
+        ]);
+        const zAxisLine = new THREE.Line(zAxisGeo, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent: true }));
+        axisGroup.add(zAxisLine);
+
+        // Labels
+        const xLabel = createTextSprite('x', '#f87171');
+        xLabel.position.set(axisLength + 0.3, 0, 0);
+        axisGroup.add(xLabel);
+
+        const yLabel = createTextSprite('y', '#60a5fa');
+        yLabel.position.set(0, 0, axisLength + 0.3);
+        axisGroup.add(yLabel);
+
+        const zLabel = createTextSprite('f(x,y)', '#ffffff');
+        zLabel.position.set(0, 3.3, 0);
+        zLabel.scale.set(1.2, 0.5, 1);
+        axisGroup.add(zLabel);
+
+        scene.add(axisGroup);
+
+        // 3. The Surface Mesh
+        let surfaceMesh;
+        
+        function createSurface() {
+            if (surfaceMesh) {
+                scene.remove(surfaceMesh);
+                surfaceMesh.geometry.dispose();
+                surfaceMesh.material.dispose();
+            }
+
+            const geom = new THREE.PlaneGeometry(CONFIG.range * 2, CONFIG.range * 2, CONFIG.resolution, CONFIG.resolution);
+            geom.rotateX(-Math.PI / 2);
+
+            const count = geom.attributes.position.count;
+            const colors = [];
+            
+            for (let i = 0; i < count; i++) {
+                const x = geom.attributes.position.getX(i);
+                const z = geom.attributes.position.getZ(i);
+                const y = evaluateFunction(x, z, state.funcType);
+                
+                geom.attributes.position.setY(i, y);
+
+                const t = THREE.MathUtils.clamp((y + 1) / 3, 0, 1);
+                const color = new THREE.Color().lerpColors(CONFIG.colors.surfaceLow, CONFIG.colors.surfaceHigh, t);
+                colors.push(color.r, color.g, color.b);
+            }
+
+            geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geom.computeVertexNormals();
+
+            const mat = new THREE.MeshPhongMaterial({ 
+                side: THREE.DoubleSide, 
+                vertexColors: true, 
+                shininess: 40,
+                transparent: true,
+                opacity: 0.85
+            });
+
+            surfaceMesh = new THREE.Mesh(geom, mat);
+            scene.add(surfaceMesh);
+
+            // Wireframe overlay
+            const wireGeo = new THREE.WireframeGeometry(geom);
+            const wireMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 });
+            const wireframe = new THREE.LineSegments(wireGeo, wireMat);
+            surfaceMesh.add(wireframe);
+        }
+
+        // 4. Slice Groups with Planes
+        const xSliceGroup = new THREE.Group();
+        const ySliceGroup = new THREE.Group();
+        scene.add(xSliceGroup);
+        scene.add(ySliceGroup);
+
+        // Slice curve materials (thicker, more visible)
+        const xSliceMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.xSlice, linewidth: 2 });
+        const ySliceMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.ySlice, linewidth: 2 });
+
+        // Slice PLANES (translucent)
+        const planeHeight = 4;
+        const planeWidth = CONFIG.range * 2;
+        
+        const xPlaneGeo = new THREE.PlaneGeometry(planeWidth, planeHeight);
+        const xPlaneMat = new THREE.MeshBasicMaterial({ 
+            color: CONFIG.colors.xPlane, 
+            transparent: true, 
+            opacity: 0.12,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const xSlicePlane = new THREE.Mesh(xPlaneGeo, xPlaneMat);
+        xSliceGroup.add(xSlicePlane);
+
+        const yPlaneGeo = new THREE.PlaneGeometry(planeWidth, planeHeight);
+        const yPlaneMat = new THREE.MeshBasicMaterial({ 
+            color: CONFIG.colors.yPlane, 
+            transparent: true, 
+            opacity: 0.12,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const ySlicePlane = new THREE.Mesh(yPlaneGeo, yPlaneMat);
+        ySliceGroup.add(ySlicePlane);
+
+        // Tangent line segments (not arrows - clearer representation)
+        const xTangentGeo = new THREE.BufferGeometry();
+        const xTangentMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.xSlice, linewidth: 3 });
+        const xTangentLine = new THREE.Line(xTangentGeo, xTangentMat);
+        xSliceGroup.add(xTangentLine);
+
+        const yTangentGeo = new THREE.BufferGeometry();
+        const yTangentMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.ySlice, linewidth: 3 });
+        const yTangentLine = new THREE.Line(yTangentGeo, yTangentMat);
+        ySliceGroup.add(yTangentLine);
+
+        // 5. Marker Point with Glow
+        const markerGroup = new THREE.Group();
+        
+        const markerGeo = new THREE.SphereGeometry(0.1, 24, 24);
+        const markerMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.point });
+        const marker = new THREE.Mesh(markerGeo, markerMat);
+        markerGroup.add(marker);
+
+        // Glow ring
+        const glowGeo = new THREE.RingGeometry(0.12, 0.22, 32);
+        const glowMat = new THREE.MeshBasicMaterial({ 
+            color: CONFIG.colors.point, 
+            transparent: true, 
+            opacity: 0.4,
+            side: THREE.DoubleSide
+        });
+        const glowRing = new THREE.Mesh(glowGeo, glowMat);
+        markerGroup.add(glowRing);
+
+        scene.add(markerGroup);
+
+        // Drop line (pole) - more visible
+        const poleGeo = new THREE.BufferGeometry();
+        const poleMat = new THREE.LineDashedMaterial({ 
+            color: CONFIG.colors.point, 
+            transparent: true, 
+            opacity: 0.6,
+            dashSize: 0.1,
+            gapSize: 0.05
+        });
+        const pole = new THREE.Line(poleGeo, poleMat);
+        scene.add(pole);
+
+        // Floor marker (shows x,y position on base plane)
+        const floorMarkerGeo = new THREE.RingGeometry(0.08, 0.12, 32);
+        const floorMarkerMat = new THREE.MeshBasicMaterial({ 
+            color: CONFIG.colors.point, 
+            transparent: true, 
+            opacity: 0.5,
+            side: THREE.DoubleSide
+        });
+        const floorMarker = new THREE.Mesh(floorMarkerGeo, floorMarkerMat);
+        floorMarker.rotation.x = -Math.PI / 2;
+        scene.add(floorMarker);
+
+        // --- Update Functions ---
+
+        function updateSlices() {
+            const range = CONFIG.range;
+            const res = CONFIG.sliceRes;
+            const derivs = getPartials(state.x, state.y, state.funcType);
+            const currentHeight = derivs.val;
+
+            // X-Slice (y held constant)
+            if (state.showX) {
+                xSliceGroup.visible = true;
+                
+                // Slice curve
+                const points = [];
+                const step = (range * 2) / res;
+                for (let mx = -range; mx <= range; mx += step) {
+                    const h = evaluateFunction(mx, state.y, state.funcType);
+                    points.push(new THREE.Vector3(mx, h, state.y));
+                }
+                
+                if (!xSliceGroup.userData.line) {
+                    const geo = new THREE.BufferGeometry().setFromPoints(points);
+                    const line = new THREE.Line(geo, xSliceMat);
+                    xSliceGroup.userData.line = line;
+                    xSliceGroup.add(line);
+                } else {
+                    xSliceGroup.userData.line.geometry.setFromPoints(points);
+                }
+
+                // Slice plane position
+                xSlicePlane.position.set(0, planeHeight / 2 - 0.5, state.y);
+                xSlicePlane.rotation.y = 0;
+                xSlicePlane.visible = state.showPlanes;
+
+                // Tangent line (scaled by slope)
+                const tangentLen = 0.8;
+                const slope = derivs.dfdx;
+                const dx = tangentLen;
+                const dy = slope * tangentLen;
+                
+                xTangentLine.geometry.setFromPoints([
+                    new THREE.Vector3(state.x - dx, currentHeight - dy, state.y),
+                    new THREE.Vector3(state.x + dx, currentHeight + dy, state.y)
+                ]);
+
+            } else {
+                xSliceGroup.visible = false;
+            }
+
+            // Y-Slice (x held constant)
+            if (state.showY) {
+                ySliceGroup.visible = true;
+                
+                const points = [];
+                const step = (range * 2) / res;
+                for (let my = -range; my <= range; my += step) {
+                    const h = evaluateFunction(state.x, my, state.funcType);
+                    points.push(new THREE.Vector3(state.x, h, my));
+                }
+                
+                if (!ySliceGroup.userData.line) {
+                    const geo = new THREE.BufferGeometry().setFromPoints(points);
+                    const line = new THREE.Line(geo, ySliceMat);
+                    ySliceGroup.userData.line = line;
+                    ySliceGroup.add(line);
+                } else {
+                    ySliceGroup.userData.line.geometry.setFromPoints(points);
+                }
+
+                // Slice plane position
+                ySlicePlane.position.set(state.x, planeHeight / 2 - 0.5, 0);
+                ySlicePlane.rotation.y = Math.PI / 2;
+                ySlicePlane.visible = state.showPlanes;
+
+                // Tangent line
+                const tangentLen = 0.8;
+                const slope = derivs.dfdy;
+                const dz = tangentLen;
+                const dy = slope * tangentLen;
+                
+                yTangentLine.geometry.setFromPoints([
+                    new THREE.Vector3(state.x, currentHeight - dy, state.y - dz),
+                    new THREE.Vector3(state.x, currentHeight + dy, state.y + dz)
+                ]);
+
+            } else {
+                ySliceGroup.visible = false;
+            }
+
+            // Update Marker
+            markerGroup.position.set(state.x, currentHeight, state.y);
+            
+            // Rotate glow ring to face camera
+            glowRing.lookAt(camera.position);
+
+            // Update pole
+            pole.geometry.setFromPoints([
+                new THREE.Vector3(state.x, 0, state.y),
+                new THREE.Vector3(state.x, currentHeight, state.y)
+            ]);
+            pole.computeLineDistances();
+
+            // Floor marker
+            floorMarker.position.set(state.x, 0.01, state.y);
+
+            // Update UI
+            updateUI(derivs);
+        }
+
+        function updateUI(derivs) {
+            document.getElementById('val-pos').textContent = `${state.x.toFixed(2)}, ${state.y.toFixed(2)}`;
+            document.getElementById('val-height').textContent = derivs.val.toFixed(3);
+            
+            // Partial X
+            const dfdxEl = document.getElementById('val-dfdx');
+            const signXEl = document.getElementById('sign-dfdx');
+            dfdxEl.textContent = derivs.dfdx.toFixed(3);
+            
+            if (derivs.dfdx > 0.05) {
+                dfdxEl.className = 'math-mono font-bold text-lg text-green-400';
+                signXEl.textContent = '↗ Rising';
+                signXEl.className = 'slope-indicator bg-green-900 text-green-400';
+            } else if (derivs.dfdx < -0.05) {
+                dfdxEl.className = 'math-mono font-bold text-lg text-red-400';
+                signXEl.textContent = '↘ Falling';
+                signXEl.className = 'slope-indicator bg-red-900 text-red-400';
+            } else {
+                dfdxEl.className = 'math-mono font-bold text-lg text-yellow-400';
+                signXEl.textContent = '→ Flat';
+                signXEl.className = 'slope-indicator bg-yellow-900 text-yellow-400';
+            }
+
+            // Partial Y
+            const dfdyEl = document.getElementById('val-dfdy');
+            const signYEl = document.getElementById('sign-dfdy');
+            dfdyEl.textContent = derivs.dfdy.toFixed(3);
+            
+            if (derivs.dfdy > 0.05) {
+                dfdyEl.className = 'math-mono font-bold text-lg text-green-400';
+                signYEl.textContent = '↗ Rising';
+                signYEl.className = 'slope-indicator bg-green-900 text-green-400';
+            } else if (derivs.dfdy < -0.05) {
+                dfdyEl.className = 'math-mono font-bold text-lg text-red-400';
+                signYEl.textContent = '↘ Falling';
+                signYEl.className = 'slope-indicator bg-red-900 text-red-400';
+            } else {
+                dfdyEl.className = 'math-mono font-bold text-lg text-yellow-400';
+                signYEl.textContent = '→ Flat';
+                signYEl.className = 'slope-indicator bg-yellow-900 text-yellow-400';
+            }
+        }
+
+        function updateFormulas() {
+            const func = FUNCTIONS[state.funcType];
+            document.getElementById('formula-f').textContent = func.formula;
+            document.getElementById('formula-dfdx').textContent = func.dfdx;
+            document.getElementById('formula-dfdy').textContent = func.dfdy;
+            document.getElementById('hint-text').textContent = func.hint;
+
+            // Show/hide ML hint
+            const mlHint = document.getElementById('ml-hint');
+            if (state.funcType === 'loss') {
+                mlHint.classList.remove('hidden');
+            } else {
+                mlHint.classList.add('hidden');
+            }
+        }
+
+        // --- Interaction ---
+        
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function onPointerDown(event) {
+            if (event.target.tagName !== 'CANVAS') return;
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Try to hit the surface first
+            if (surfaceMesh) {
+                const intersects = raycaster.intersectObject(surfaceMesh);
+                if (intersects.length > 0) {
+                    const point = intersects[0].point;
+                    state.x = THREE.MathUtils.clamp(point.x, -CONFIG.range, CONFIG.range);
+                    state.y = THREE.MathUtils.clamp(point.z, -CONFIG.range, CONFIG.range);
+                    state.isDragging = true;
+                    updateSlices();
+                    return;
+                }
+            }
+            
+            // Fall back to ground plane
+            const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            const intersect = new THREE.Vector3();
+            raycaster.ray.intersectPlane(groundPlane, intersect);
+            
+            if (intersect) {
+                state.x = THREE.MathUtils.clamp(intersect.x, -CONFIG.range, CONFIG.range);
+                state.y = THREE.MathUtils.clamp(intersect.z, -CONFIG.range, CONFIG.range);
+                state.isDragging = true;
+                updateSlices();
+            }
+        }
+
+        function onPointerMove(event) {
+            if (!state.isDragging) return;
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Use ground plane for smoother dragging
+            const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            const intersect = new THREE.Vector3();
+            raycaster.ray.intersectPlane(groundPlane, intersect);
+            
+            if (intersect) {
+                state.x = THREE.MathUtils.clamp(intersect.x, -CONFIG.range, CONFIG.range);
+                state.y = THREE.MathUtils.clamp(intersect.z, -CONFIG.range, CONFIG.range);
+                updateSlices();
+            }
+        }
+
+        function onPointerUp() {
+            state.isDragging = false;
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+
+        // Keyboard controls
+        window.addEventListener('keydown', (e) => {
+            const step = e.shiftKey ? 0.5 : 0.1;
+            let changed = false;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    state.x = Math.max(-CONFIG.range, state.x - step);
+                    changed = true;
+                    break;
+                case 'ArrowRight':
+                    state.x = Math.min(CONFIG.range, state.x + step);
+                    changed = true;
+                    break;
+                case 'ArrowUp':
+                    state.y = Math.min(CONFIG.range, state.y + step);
+                    changed = true;
+                    break;
+                case 'ArrowDown':
+                    state.y = Math.max(-CONFIG.range, state.y - step);
+                    changed = true;
+                    break;
+                case 'r':
+                case 'R':
+                    resetView();
+                    break;
+            }
+            
+            if (changed) {
+                e.preventDefault();
+                updateSlices();
+            }
+        });
+
+        function resetView() {
+            camera.position.copy(defaultCameraPos);
+            controls.target.set(0, 0.5, 0);
+            controls.update();
+            state.x = 1.0;
+            state.y = 1.0;
+            updateSlices();
+        }
+
+        // --- DOM Bindings ---
+        document.getElementById('func-select').addEventListener('change', (e) => {
+            state.funcType = e.target.value;
+            createSurface();
+            updateFormulas();
+            updateSlices();
+        });
+
+        document.getElementById('toggle-x').addEventListener('change', (e) => {
+            state.showX = e.target.checked;
+            updateSlices();
+        });
+
+        document.getElementById('toggle-y').addEventListener('change', (e) => {
+            state.showY = e.target.checked;
+            updateSlices();
+        });
+
+        document.getElementById('toggle-planes').addEventListener('change', (e) => {
+            state.showPlanes = e.target.checked;
+            xSlicePlane.visible = state.showPlanes && state.showX;
+            ySlicePlane.visible = state.showPlanes && state.showY;
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', resetView);
+
+        document.getElementById('btn-sweep').addEventListener('click', () => {
+            if (!state.isSweeping) {
+                state.isSweeping = true;
+                state.sweepPhase = 0;
+                document.getElementById('btn-sweep').textContent = '⏹ Stop';
+            } else {
+                state.isSweeping = false;
+                document.getElementById('btn-sweep').textContent = '▶ Animate Sweep';
+            }
+        });
+
+        // --- Animation Loop ---
+        let glowPhase = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Glow pulse
+            glowPhase += 0.04;
+            glowMat.opacity = 0.3 + 0.2 * Math.sin(glowPhase);
+            
+            // Sweep animation
+            if (state.isSweeping) {
+                state.sweepPhase += 0.02;
+                state.x = Math.sin(state.sweepPhase) * 2;
+                state.y = Math.cos(state.sweepPhase * 0.7) * 2;
+                updateSlices();
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onResize);
+
+        // --- Init ---
+        createSurface();
+        updateFormulas();
+        updateSlices();
+        animate();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B4 - Chain Rule Visualizer</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: rgba(30, 30, 30, 0.9);
+            --accent: #4ade80;
+            --accent-grad: #f472b6;
+            --text-main: #ffffff;
+            --text-dim: #a0a0a0;
+        }
+
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Roboto, monospace; background: var(--bg-color); color: var(--text-main); }
+        
+        /* UI Overlay */
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1000px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group { display: flex; gap: 10px; }
+
+        button {
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        button:hover { background: #444; border-color: #777; }
+        button.primary { background: var(--accent); color: #000; border: none; }
+        button.primary:hover { background: #22c55e; }
+        button.secondary { background: var(--accent-grad); color: #000; border: none; }
+        button.secondary:hover { background: #ec4899; }
+        
+        input[type="range"] { accent-color: var(--accent); width: 200px; }
+
+        .stat-display {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .math-val { color: var(--accent); font-weight: bold; }
+        .math-grad { color: var(--accent-grad); font-weight: bold; }
+
+        /* 3D Labels (CSS2D) */
+        .block-label {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            text-align: center;
+            pointer-events: none;
+            transition: all 0.3s;
+        }
+        
+        .block-label.gradient-mode {
+            border-color: var(--accent-grad);
+            color: var(--accent-grad);
+        }
+
+        .value-bubble {
+            font-weight: bold;
+            font-size: 14px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        #header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+        h1 { margin: 0; font-size: 24px; color: var(--accent); }
+        p { margin: 5px 0 0 0; color: var(--text-dim); font-size: 14px; }
+    </style>
+    
+    <!-- Import Maps for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@tweenjs/tween.js": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="header">
+        <h1>Chain Rule Visualizer</h1>
+        <p>Forward Pass: Compose Functions • Backward Pass: Multiply Derivatives</p>
+    </div>
+
+    <div id="ui-container">
+        <!-- Top Row: Presets and Mode -->
+        <div class="controls-row">
+            <div class="btn-group">
+                <span class="stat-display" style="align-self: center; margin-right: 10px;">Presets:</span>
+                <button onclick="app.loadPreset('simple')">(x+1)²</button>
+                <button onclick="app.loadPreset('medium')">sin(x²)</button>
+                <button onclick="app.loadPreset('deep')">exp(sin(x²))</button>
+            </div>
+            <div class="btn-group">
+                <button id="add-block-btn" onclick="app.addRandomBlock()">+ Add Function</button>
+                <button id="reset-btn" onclick="app.resetChain()">Reset</button>
+            </div>
+        </div>
+
+        <hr style="width:100%; border: 0; border-top: 1px solid #444;">
+
+        <!-- Bottom Row: Playback -->
+        <div class="controls-row">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="stat-display">Input x:</span>
+                <input type="range" id="input-slider" min="-3" max="3" step="0.1" value="1.0">
+                <span id="input-val-display" class="math-val">1.0</span>
+            </div>
+
+            <div class="btn-group">
+                <button class="primary" onclick="app.playForward()">▶ Forward Pass</button>
+                <button class="secondary" onclick="app.playBackward()">◀ Backward Pass</button>
+            </div>
+        </div>
+        
+        <!-- Status Text -->
+        <div style="text-align: center;">
+            <span id="status-text" class="stat-display">Ready. Adjust input or press Play.</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+        import TWEEN from '@tweenjs/tween.js';
+
+        // --- Math Engine ---
+        
+        const MATH_OPS = {
+            'linear': { 
+                name: 'x + 1', 
+                fn: (x) => x + 1, 
+                df: (x) => 1,
+                color: 0x3b82f6 
+            },
+            'square': { 
+                name: 'x²', 
+                fn: (x) => x * x, 
+                df: (x) => 2 * x,
+                color: 0xa855f7 
+            },
+            'sin': { 
+                name: 'sin(x)', 
+                fn: (x) => Math.sin(x), 
+                df: (x) => Math.cos(x),
+                color: 0xeab308 
+            },
+            'exp': { 
+                name: 'e^x', 
+                fn: (x) => Math.exp(x), 
+                df: (x) => Math.exp(x),
+                color: 0xef4444 
+            },
+            'relu': {
+                name: 'ReLU',
+                fn: (x) => Math.max(0, x),
+                df: (x) => x > 0 ? 1 : 0,
+                color: 0x14b8a6
+            }
+        };
+
+        // --- Visualization Components ---
+
+        class Block {
+            constructor(type, index, scene, cssScene) {
+                this.type = type;
+                this.op = MATH_OPS[type];
+                this.index = index;
+                this.scene = scene;
+                this.cssScene = cssScene;
+                
+                this.inputValue = 0;
+                this.outputValue = 0;
+                this.localGrad = 0;
+                this.accumGrad = 0;
+
+                // Mesh
+                const geometry = new RoundedBoxGeometry(2, 1.5, 1, 4, 0.2);
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: this.op.color,
+                    roughness: 0.2,
+                    metalness: 0.1,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.set(index * 4, 0, 0);
+                this.mesh.castShadow = true;
+                this.mesh.receiveShadow = true;
+                this.scene.add(this.mesh);
+
+                // Connector (Input Line)
+                if (index > -1) {
+                    const lineGeo = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
+                    lineGeo.rotateZ(Math.PI / 2);
+                    const lineMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+                    this.connector = new THREE.Mesh(lineGeo, lineMat);
+                    this.connector.position.set(index * 4 - 2, 0, 0);
+                    this.scene.add(this.connector);
+                }
+
+                // Labels (CSS2D)
+                this.createLabels();
+            }
+
+            createLabels() {
+                // Function Name Label
+                const div = document.createElement('div');
+                div.className = 'block-label';
+                div.textContent = this.op.name;
+                this.labelObj = new CSS2DObject(div);
+                this.labelObj.position.set(0, 1.2, 0);
+                this.mesh.add(this.labelObj);
+
+                // Value Display (Bottom)
+                const valDiv = document.createElement('div');
+                valDiv.className = 'value-bubble';
+                valDiv.style.color = '#fff';
+                this.valObj = new CSS2DObject(valDiv);
+                this.valObj.position.set(0, -1.2, 0);
+                this.mesh.add(this.valObj);
+            }
+
+            updateValueDisplay(text, color = '#fff') {
+                this.valObj.element.textContent = text;
+                this.valObj.element.style.color = color;
+            }
+            
+            highlight(isGradient = false) {
+                const targetColor = isGradient ? new THREE.Color(0xf472b6) : new THREE.Color(0xffffff);
+                const originalColor = new THREE.Color(this.op.color);
+                
+                new TWEEN.Tween(this.mesh.material.emissive)
+                    .to({ r: targetColor.r, g: targetColor.g, b: targetColor.b }, 200)
+                    .yoyo(true)
+                    .repeat(1)
+                    .start();
+                    
+                if(isGradient) {
+                    this.labelObj.element.classList.add('gradient-mode');
+                    this.labelObj.element.textContent = `f'(${this.inputValue.toFixed(1)})`;
+                } else {
+                    this.labelObj.element.classList.remove('gradient-mode');
+                    this.labelObj.element.textContent = this.op.name;
+                }
+            }
+
+            resetVisuals() {
+                this.labelObj.element.classList.remove('gradient-mode');
+                this.labelObj.element.textContent = this.op.name;
+                this.updateValueDisplay("");
+                this.mesh.material.emissive.setHex(0x000000);
+            }
+
+            dispose() {
+                this.scene.remove(this.mesh);
+                if(this.connector) this.scene.remove(this.connector);
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+            }
+        }
+
+        // --- Main Application ---
+
+        class App {
+            constructor() {
+                this.container = document.body;
+                this.blocks = [];
+                this.isAnimating = false;
+                
+                this.initScene();
+                this.initInteraction();
+                
+                // Default chain
+                this.loadPreset('medium');
+                
+                this.animate();
+            }
+
+            initScene() {
+                // 1. Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x1a1a1a);
+                // Grid
+                const grid = new THREE.GridHelper(50, 50, 0x333333, 0x222222);
+                grid.position.y = -2;
+                this.scene.add(grid);
+
+                // 2. Camera
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 5, 15);
+
+                // 3. Renderer (WebGL)
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.container.appendChild(this.renderer.domElement);
+
+                // 4. Renderer (CSS2D - for text)
+                this.labelRenderer = new CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0px';
+                this.labelRenderer.domElement.style.pointerEvents = 'none';
+                this.container.appendChild(this.labelRenderer.domElement);
+
+                // 5. Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                this.scene.add(ambientLight);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+                dirLight.position.set(5, 10, 7);
+                dirLight.castShadow = true;
+                this.scene.add(dirLight);
+
+                // 6. Controls
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.target.set(4, 0, 0);
+
+                // 7. Data Packet (The moving ball)
+                const ballGeo = new THREE.SphereGeometry(0.3, 16, 16);
+                const ballMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                this.packet = new THREE.Mesh(ballGeo, ballMat);
+                this.packet.visible = false;
+                this.scene.add(this.packet);
+
+                window.addEventListener('resize', () => this.onWindowResize(), false);
+            }
+
+            initInteraction() {
+                const slider = document.getElementById('input-slider');
+                const display = document.getElementById('input-val-display');
+                
+                slider.addEventListener('input', (e) => {
+                    display.textContent = parseFloat(e.target.value).toFixed(1);
+                    this.resetVisuals(); // Clear old calculations when input changes
+                });
+            }
+
+            clearBlocks() {
+                this.blocks.forEach(b => b.dispose());
+                this.blocks = [];
+            }
+
+            createChain(types) {
+                this.clearBlocks();
+                types.forEach((type, i) => {
+                    this.blocks.push(new Block(type, i, this.scene, this.labelRenderer));
+                });
+                
+                // Center camera
+                const centerX = ((this.blocks.length - 1) * 4) / 2;
+                new TWEEN.Tween(this.controls.target)
+                    .to({ x: centerX, y: 0, z: 0 }, 1000)
+                    .easing(TWEEN.Easing.Cubic.Out)
+                    .start();
+            }
+
+            addRandomBlock() {
+                const ops = Object.keys(MATH_OPS);
+                const randomOp = ops[Math.floor(Math.random() * ops.length)];
+                this.blocks.push(new Block(randomOp, this.blocks.length, this.scene, this.labelRenderer));
+                this.resetVisuals();
+            }
+
+            resetChain() {
+                this.createChain(['linear', 'square']);
+                document.getElementById('input-slider').value = 1;
+                document.getElementById('input-val-display').textContent = "1.0";
+                this.resetVisuals();
+            }
+
+            loadPreset(name) {
+                if (this.isAnimating) return;
+                switch(name) {
+                    case 'simple': this.createChain(['linear', 'square']); break;
+                    case 'medium': this.createChain(['square', 'sin']); break;
+                    case 'deep': this.createChain(['square', 'sin', 'exp']); break;
+                }
+                this.resetVisuals();
+            }
+
+            resetVisuals() {
+                this.blocks.forEach(b => b.resetVisuals());
+                this.packet.visible = false;
+                document.getElementById('status-text').textContent = "Ready.";
+            }
+
+            // --- Animation Logic ---
+
+            async playForward() {
+                if (this.isAnimating) return;
+                this.isAnimating = true;
+                this.resetVisuals();
+                
+                let val = parseFloat(document.getElementById('input-slider').value);
+                document.getElementById('status-text').textContent = "Forward Pass: Computing values...";
+
+                // Animate through chain
+                for (let i = 0; i < this.blocks.length; i++) {
+                    const block = this.blocks[i];
+                    
+                    // 1. Move Packet to block
+                    const startX = i === 0 ? -2 : (i-1)*4;
+                    const endX = i * 4;
+                    
+                    this.packet.position.set(startX, 0, 0);
+                    this.packet.material.color.setHex(0x4ade80); // Green for data
+                    this.packet.visible = true;
+
+                    await this.tweenTo(this.packet.position, { x: endX }, 600);
+                    
+                    // 2. Compute
+                    block.inputValue = val;
+                    block.outputValue = block.op.fn(val);
+                    block.localGrad = block.op.df(val); // Store for later
+                    
+                    // 3. Visual Feedback
+                    block.highlight(false);
+                    block.updateValueDisplay(block.outputValue.toFixed(2), '#4ade80');
+                    
+                    val = block.outputValue; // Pass to next
+                    
+                    await this.wait(200);
+                }
+
+                document.getElementById('status-text').textContent = `Forward Pass Complete. Output: ${val.toFixed(4)}`;
+                this.packet.visible = false;
+                this.isAnimating = false;
+            }
+
+            async playBackward() {
+                if (this.isAnimating) return;
+                
+                // Ensure forward pass values exist (simplification: just run forward logic instantly first)
+                let val = parseFloat(document.getElementById('input-slider').value);
+                this.blocks.forEach(b => {
+                    b.inputValue = val;
+                    b.outputValue = b.op.fn(val);
+                    b.localGrad = b.op.df(val);
+                    b.updateValueDisplay(b.outputValue.toFixed(2), '#4ade80'); // Show forward values dim
+                    b.valObj.element.style.opacity = '0.5';
+                    val = b.outputValue;
+                });
+
+                this.isAnimating = true;
+                document.getElementById('status-text').textContent = "Backward Pass: Multiplying derivatives...";
+                
+                let currentGradient = 1.0; // d(Loss)/d(Output) usually starts at 1
+
+                for (let i = this.blocks.length - 1; i >= 0; i--) {
+                    const block = this.blocks[i];
+                    
+                    // 1. Highlight block as "Active Gradient Calculation"
+                    block.highlight(true); // Changes label to f'(x)
+                    
+                    // 2. Show Local Derivative
+                    const localGradStr = block.localGrad.toFixed(2);
+                    document.getElementById('status-text').innerHTML = 
+                        `Block ${i+1}: <span class='math-grad'>Global</span> (${currentGradient.toFixed(2)}) × <span class='math-val'>Local</span> (${localGradStr})`;
+                    
+                    await this.wait(500);
+
+                    // 3. Move Packet Backwards
+                    this.packet.position.set(i * 4, 0, 0);
+                    this.packet.material.color.setHex(0xf472b6); // Pink for gradient
+                    this.packet.visible = true;
+                    
+                    const targetX = i === 0 ? -2 : (i-1) * 4;
+                    
+                    // While moving, update the gradient
+                    const oldGrad = currentGradient;
+                    currentGradient = currentGradient * block.localGrad;
+                    
+                    // Visual update of the block to show the gradient passing through
+                    block.updateValueDisplay(`∂L/∂x: ${currentGradient.toFixed(2)}`, '#f472b6');
+                    block.valObj.element.style.opacity = '1.0';
+
+                    await this.tweenTo(this.packet.position, { x: targetX }, 800);
+                }
+
+                document.getElementById('status-text').innerHTML = 
+                    `Gradient at input: <span class='math-grad'>${currentGradient.toFixed(4)}</span>`;
+                this.packet.visible = false;
+                this.isAnimating = false;
+            }
+
+            // Utils
+            tweenTo(obj, target, duration) {
+                return new Promise(resolve => {
+                    new TWEEN.Tween(obj)
+                        .to(target, duration)
+                        .easing(TWEEN.Easing.Quadratic.InOut)
+                        .onComplete(resolve)
+                        .start();
+                });
+            }
+
+            wait(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                TWEEN.update();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+                this.labelRenderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Initialize
+        const app = new App();
+        // Expose to window for HTML buttons
+        window.app = app;
+    </script>
+</body>
+</html>

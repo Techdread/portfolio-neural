@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Derivative as Slope</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax for nice formula rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; color: white; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; cursor: grab; }
+        #canvas-container:active { cursor: grabbing; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        /* Floating panels */
+        .panel {
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+
+        .math-text { font-family: 'Courier New', Courier, monospace; }
+        
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            margin-top: -6px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        /* Hint tooltip */
+        .hint-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        /* Convergence display */
+        .convergence-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #1e293b;
+        }
+        .convergence-row:last-child {
+            border-bottom: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .panel { padding: 1rem; }
+            .stats-panel { 
+                position: relative !important;
+                top: auto !important;
+                right: auto !important;
+                width: 100% !important;
+                margin-top: 0.5rem;
+            }
+            .bottom-panel {
+                max-width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer" class="flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- Top Header -->
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="panel w-full md:max-w-md">
+                <h1 class="text-xl font-bold text-sky-400 mb-2">B1: The Derivative as Slope</h1>
+                <p class="text-sm text-slate-300">Drag the <span class="text-sky-400 font-bold">Blue Dot</span> along the curve. The line represents the slope at that exact point.</p>
+                
+                <!-- Guided Hint (changes based on function) -->
+                <div id="hint-box" class="hint-box mt-3">
+                    <p class="text-xs text-amber-300"><span class="font-bold">💡 Try this:</span> <span id="hint-text">Drag to x ≈ 0. Notice the slope is nearly zero—this is the minimum of x²!</span></p>
+                </div>
+            </div>
+
+            <!-- Math Stats Display -->
+            <div class="panel stats-panel md:absolute md:top-6 md:right-6 w-full md:w-72">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-2">
+                    <span class="text-slate-400 text-sm">x value</span>
+                    <span id="val-x" class="math-text font-bold">0.00</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-2">
+                    <span class="text-slate-400 text-sm">f(x)</span>
+                    <span id="val-y" class="math-text font-bold">0.00</span>
+                </div>
+                
+                <!-- Tangent Mode Stats -->
+                <div id="tangent-stats">
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400 text-sm">Slope f'(x)</span>
+                        <span id="val-slope" class="math-text font-bold text-xl">0.00</span>
+                    </div>
+                    <div id="slope-sign-msg" class="text-xs text-center mt-2 font-semibold text-green-400 uppercase tracking-wider">Increasing</div>
+                </div>
+
+                <!-- Limit Mode Stats (Convergence Display) -->
+                <div id="limit-stats" class="hidden">
+                    <div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Convergence</div>
+                    <div class="bg-slate-900 rounded p-2 text-sm">
+                        <div class="convergence-row">
+                            <span class="text-orange-400">Secant slope:</span>
+                            <span id="val-secant-slope" class="math-text text-orange-400">0.00</span>
+                        </div>
+                        <div class="convergence-row">
+                            <span class="text-sky-400">True f'(x):</span>
+                            <span id="val-true-slope" class="math-text text-sky-400">0.00</span>
+                        </div>
+                        <div class="convergence-row">
+                            <span class="text-slate-400">Difference:</span>
+                            <span id="val-slope-diff" class="math-text text-yellow-400">0.00</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2 text-center">As h → 0, difference → 0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Bottom -->
+        <div class="panel bottom-panel w-full max-w-2xl self-center mb-4 md:mb-6">
+            
+            <!-- Function Selector -->
+            <div class="flex flex-wrap gap-4 mb-6 items-center">
+                <label class="text-sm font-bold text-slate-400">Function:</label>
+                <select id="function-select" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 text-sm focus:outline-none focus:border-sky-500">
+                    <option value="x^2">Quadratic (x²)</option>
+                    <option value="x^3">Cubic (x³)</option>
+                    <option value="sin(x)">Sine Wave</option>
+                    <option value="exp">Exponential (eˣ/² − 2) *scaled</option>
+                    <option value="loss">📉 Loss Landscape (ML Example)</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <input id="custom-input" type="text" value="0.5 * x + sin(x*3)" class="hidden bg-slate-800 border border-slate-600 rounded px-3 py-1 text-sm flex-1 font-mono" placeholder="e.g. sin(x) + 0.5*x">
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-700 mb-4">
+                <button id="tab-tangent" class="px-4 py-2 text-sm font-bold text-sky-400 border-b-2 border-sky-400 transition-colors">Tangent Mode</button>
+                <button id="tab-limit" class="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-300 transition-colors">Limit Definition Mode</button>
+            </div>
+
+            <!-- Limit Mode Controls (Hidden by default) -->
+            <div id="limit-controls" class="hidden">
+                <div class="mb-4 text-sm text-slate-300">
+                    <div class="flex justify-between mb-2">
+                        <span>Distance (h): <span id="val-h" class="font-mono text-amber-400">1.00</span></span>
+                        <span class="text-xs text-slate-500">Secant approaches Tangent as h → 0</span>
+                    </div>
+                    <input id="slider-h" type="range" min="0.01" max="2.0" step="0.01" value="1.0">
+                </div>
+
+                <!-- Live Formula Display -->
+                <div id="live-formula" class="bg-slate-900 p-3 rounded border border-slate-700 mb-4 font-mono text-sm overflow-x-auto">
+                    <div class="text-slate-400">slope ≈ (f(x+h) − f(x)) / h</div>
+                    <div class="text-slate-300 mt-1">
+                        <span class="text-slate-500">     = </span>
+                        <span class="text-slate-300">(f(<span id="formula-xh">1.50</span>) − f(<span id="formula-x">1.00</span>)) / <span id="formula-h">0.50</span></span>
+                    </div>
+                    <div class="text-slate-300">
+                        <span class="text-slate-500">     = </span>
+                        <span class="text-slate-300">(<span id="formula-fxh">2.25</span> − <span id="formula-fx">1.00</span>) / <span id="formula-h2">0.50</span></span>
+                    </div>
+                    <div class="text-orange-400 font-bold">
+                        <span class="text-slate-500">     = </span>
+                        <span id="formula-result">2.50</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <div class="flex gap-2 items-center">
+                        <div class="w-3 h-3 rounded-full bg-orange-400"></div>
+                        <span class="text-xs text-slate-400">Secant Line</span>
+                        <div class="w-3 h-3 rounded-full bg-sky-400 ml-3"></div>
+                        <span class="text-xs text-slate-400">Tangent (target)</span>
+                    </div>
+                    <button id="btn-animate-h" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold py-2 px-4 rounded transition">
+                        Animate h → 0
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tangent Mode Controls -->
+            <div id="tangent-controls">
+                <p class="text-sm text-slate-400">The derivative is the "steepness" of the curve at a single point. Watch how the color changes:</p>
+                <div class="flex flex-wrap gap-4 mt-2 text-xs font-bold">
+                    <span class="text-green-400">● Positive (Rising)</span>
+                    <span class="text-red-400">● Negative (Falling)</span>
+                    <span class="text-yellow-400">● Zero (Flat)</span>
+                </div>
+
+                <!-- ML Connection (shows for loss function) -->
+                <div id="ml-hint" class="hidden hint-box mt-3">
+                    <p class="text-xs text-amber-300"><span class="font-bold">🤖 ML Connection:</span> Gradient descent steps <em>opposite</em> to the derivative. Positive slope → decrease x. Negative slope → increase x. This moves toward the minimum!</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Three.js Logic -->
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+        // --- Configuration ---
+        const CONFIG = {
+            gridSize: 14,
+            gridStep: 1,
+            curveResolution: 300,
+            axesColor: 0x94a3b8,
+            gridColor: 0x334155,
+            curveColor: 0x38bdf8,
+            tangentLength: 4,
+            colors: {
+                pos: 0x4ade80,
+                neg: 0xf87171,
+                zero: 0xfacc15,
+                secant: 0xfb923c,
+                tangentTarget: 0x38bdf8,
+                triangle: 0x8b5cf6
+            }
+        };
+
+        // --- Hints for each function ---
+        const HINTS = {
+            "x^2": "Drag to x ≈ 0. Notice the slope is nearly zero—this is the minimum of x²!",
+            "x^3": "Find where the slope is zero. What happens to the curve at that point?",
+            "sin(x)": "Find the peaks and valleys. What's the slope at each maximum and minimum?",
+            "exp": "The exponential always increases. Notice the slope equals the function value (approximately)!",
+            "loss": "Imagine you're training a neural network. The derivative tells you which way is 'downhill' toward lower loss!",
+            "custom": "Explore your custom function. Where are the interesting points?"
+        };
+
+        // --- State ---
+        const state = {
+            funcStr: "x^2",
+            x: 1.0,
+            h: 1.0,
+            mode: 'tangent',
+            isDragging: false,
+            animatingLimit: false
+        };
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+        camera.position.z = 10;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // --- Math Functions ---
+        function evaluateFunction(x, type) {
+            try {
+                switch(type) {
+                    case "x^2": return x * x;
+                    case "x^3": return x * x * x;
+                    case "sin(x)": return Math.sin(x);
+                    case "exp": return Math.exp(x * 0.5) - 2;
+                    case "loss": return 0.5 * x * x - 0.5 * x + 1; // Simple convex loss
+                    case "custom": 
+                        const customStr = document.getElementById('custom-input').value;
+                        const jsStr = customStr
+                            .replace(/\^/g, '**')
+                            .replace(/\bsin\b/g, 'Math.sin')
+                            .replace(/\bcos\b/g, 'Math.cos')
+                            .replace(/\btan\b/g, 'Math.tan')
+                            .replace(/\babs\b/g, 'Math.abs')
+                            .replace(/\bsqrt\b/g, 'Math.sqrt')
+                            .replace(/\bexp\b/g, 'Math.exp')
+                            .replace(/\blog\b/g, 'Math.log')
+                            .replace(/\bPI\b/g, 'Math.PI')
+                            .replace(/\be\b/g, 'Math.E');
+                        return new Function('x', `return ${jsStr}`)(x);
+                    default: return x * x;
+                }
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function getDerivative(x, type) {
+            const epsilon = 0.0001;
+            const y1 = evaluateFunction(x - epsilon, type);
+            const y2 = evaluateFunction(x + epsilon, type);
+            return (y2 - y1) / (2 * epsilon);
+        }
+
+        // --- Objects ---
+        const groupMain = new THREE.Group();
+        scene.add(groupMain);
+
+        // 1. Grid & Axes
+        function createGrid() {
+            const material = new THREE.LineBasicMaterial({ color: CONFIG.gridColor });
+            const points = [];
+            const size = CONFIG.gridSize;
+            
+            for (let i = -size; i <= size; i++) {
+                points.push(new THREE.Vector3(i, -size, 0));
+                points.push(new THREE.Vector3(i, size, 0));
+                points.push(new THREE.Vector3(-size, i, 0));
+                points.push(new THREE.Vector3(size, i, 0));
+            }
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const grid = new THREE.LineSegments(geometry, material);
+            groupMain.add(grid);
+
+            const axesMat = new THREE.LineBasicMaterial({ color: CONFIG.axesColor, linewidth: 2 });
+            const axesPoints = [
+                new THREE.Vector3(-size, 0, 0), new THREE.Vector3(size, 0, 0),
+                new THREE.Vector3(0, -size, 0), new THREE.Vector3(0, size, 0)
+            ];
+            const axesGeo = new THREE.BufferGeometry().setFromPoints(axesPoints);
+            const axes = new THREE.LineSegments(axesGeo, axesMat);
+            groupMain.add(axes);
+        }
+
+        // 2. Axis Labels
+        const axisLabels = [];
+        function createAxisLabels() {
+            const labelValues = [-4, -2, 2, 4];
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 64;
+            canvas.height = 32;
+
+            labelValues.forEach(val => {
+                // X-axis labels
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(val.toString(), canvas.width / 2, canvas.height / 2);
+
+                const textureX = new THREE.CanvasTexture(canvas.cloneNode(true).getContext('2d').canvas);
+                ctx.drawImage(canvas, 0, 0);
+                const texX = new THREE.CanvasTexture(canvas);
+                texX.needsUpdate = true;
+                
+                // Create sprite for X axis
+                const spriteMatX = new THREE.SpriteMaterial({ 
+                    map: createLabelTexture(val.toString()),
+                    transparent: true 
+                });
+                const spriteX = new THREE.Sprite(spriteMatX);
+                spriteX.position.set(val, -0.5, 0);
+                spriteX.scale.set(0.8, 0.4, 1);
+                groupMain.add(spriteX);
+                axisLabels.push(spriteX);
+
+                // Y-axis labels (skip 0)
+                if (val !== 0) {
+                    const spriteMatY = new THREE.SpriteMaterial({ 
+                        map: createLabelTexture(val.toString()),
+                        transparent: true 
+                    });
+                    const spriteY = new THREE.Sprite(spriteMatY);
+                    spriteY.position.set(-0.5, val, 0);
+                    spriteY.scale.set(0.8, 0.4, 1);
+                    groupMain.add(spriteY);
+                    axisLabels.push(spriteY);
+                }
+            });
+
+            // Origin label
+            const originMat = new THREE.SpriteMaterial({ 
+                map: createLabelTexture('0'),
+                transparent: true 
+            });
+            const originSprite = new THREE.Sprite(originMat);
+            originSprite.position.set(-0.35, -0.35, 0);
+            originSprite.scale.set(0.6, 0.3, 1);
+            groupMain.add(originSprite);
+            axisLabels.push(originSprite);
+        }
+
+        function createLabelTexture(text) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 64;
+            canvas.height = 32;
+            ctx.fillStyle = '#64748b';
+            ctx.font = 'bold 22px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        // 3. The Curve
+        let curveMesh;
+        function updateCurve() {
+            if (curveMesh) groupMain.remove(curveMesh);
+            
+            const points = [];
+            const range = CONFIG.gridSize / 2;
+            const step = (range * 2) / CONFIG.curveResolution;
+            
+            for (let x = -range; x <= range; x += step) {
+                const y = evaluateFunction(x, state.funcStr);
+                if (Math.abs(y) < CONFIG.gridSize) {
+                    points.push(new THREE.Vector3(x, y, 0));
+                }
+            }
+
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ color: CONFIG.curveColor, linewidth: 2 });
+            curveMesh = new THREE.Line(geometry, material);
+            groupMain.add(curveMesh);
+        }
+
+        // 4. Interactive Elements
+
+        // Point A (Main Draggable)
+        const pointA_Geo = new THREE.CircleGeometry(0.18, 32);
+        const pointA_Mat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        const pointA = new THREE.Mesh(pointA_Geo, pointA_Mat);
+        pointA.position.z = 0.2;
+        groupMain.add(pointA);
+
+        // Tangency Glow Ring
+        const glowRingGeo = new THREE.RingGeometry(0.22, 0.32, 32);
+        const glowRingMat = new THREE.MeshBasicMaterial({ 
+            color: 0x38bdf8, 
+            transparent: true, 
+            opacity: 0.3 
+        });
+        const glowRing = new THREE.Mesh(glowRingGeo, glowRingMat);
+        glowRing.position.z = 0.15;
+        groupMain.add(glowRing);
+
+        // Point B (For Secant/Limit)
+        const pointB_Geo = new THREE.CircleGeometry(0.14, 32);
+        const pointB_Mat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.secant });
+        const pointB = new THREE.Mesh(pointB_Geo, pointB_Mat);
+        pointB.position.z = 0.2;
+        pointB.visible = false;
+        groupMain.add(pointB);
+
+        // Tangent Line
+        const tangentGeo = new THREE.BufferGeometry();
+        const tangentMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.pos, linewidth: 3 });
+        const tangentLine = new THREE.Line(tangentGeo, tangentMat);
+        groupMain.add(tangentLine);
+
+        // Secant Line
+        const secantGeo = new THREE.BufferGeometry();
+        const secantMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.secant, linewidth: 2 });
+        const secantLine = new THREE.Line(secantGeo, secantMat);
+        secantLine.visible = false;
+        groupMain.add(secantLine);
+
+        // Rise/Run Triangle
+        const triangleGeo = new THREE.BufferGeometry();
+        const triangleMat = new THREE.LineBasicMaterial({ 
+            color: CONFIG.colors.triangle, 
+            transparent: true, 
+            opacity: 0.8 
+        });
+        const triangleLine = new THREE.Line(triangleGeo, triangleMat);
+        triangleLine.visible = false;
+        groupMain.add(triangleLine);
+
+        // Rise and Run Labels
+        let riseLabelSprite, runLabelSprite;
+        function createTriangleLabels() {
+            const riseMat = new THREE.SpriteMaterial({ 
+                map: createDynamicLabel('rise'),
+                transparent: true 
+            });
+            riseLabelSprite = new THREE.Sprite(riseMat);
+            riseLabelSprite.scale.set(1.0, 0.4, 1);
+            riseLabelSprite.visible = false;
+            groupMain.add(riseLabelSprite);
+
+            const runMat = new THREE.SpriteMaterial({ 
+                map: createDynamicLabel('run'),
+                transparent: true 
+            });
+            runLabelSprite = new THREE.Sprite(runMat);
+            runLabelSprite.scale.set(0.8, 0.4, 1);
+            runLabelSprite.visible = false;
+            groupMain.add(runLabelSprite);
+        }
+
+        function createDynamicLabel(text, color = '#a78bfa') {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 128;
+            canvas.height = 48;
+            ctx.fillStyle = color;
+            ctx.font = 'bold 28px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function updateTriangleLabel(sprite, text, color = '#a78bfa') {
+            sprite.material.map = createDynamicLabel(text, color);
+            sprite.material.needsUpdate = true;
+        }
+
+        // Drop Line (Visual aid)
+        const dropLineGeo = new THREE.BufferGeometry();
+        const dropLineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15 });
+        const dropLine = new THREE.Line(dropLineGeo, dropLineMat);
+        groupMain.add(dropLine);
+
+        // --- Interaction Logic ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
+        function onPointerMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            if (state.isDragging) {
+                raycaster.setFromCamera(mouse, camera);
+                const intersect = new THREE.Vector3();
+                raycaster.ray.intersectPlane(plane, intersect);
+                
+                state.x = intersect.x;
+                state.x = Math.max(-6, Math.min(6, state.x));
+            }
+        }
+
+        function onPointerDown(event) {
+            state.isDragging = true;
+            onPointerMove(event);
+        }
+
+        function onPointerUp() {
+            state.isDragging = false;
+        }
+
+        // Keyboard controls
+        function onKeyDown(event) {
+            const step = event.shiftKey ? 0.5 : 0.1;
+            if (event.key === 'ArrowLeft') {
+                state.x = Math.max(-6, state.x - step);
+            } else if (event.key === 'ArrowRight') {
+                state.x = Math.min(6, state.x + step);
+            }
+        }
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerdown', (e) => {
+            if(e.target.tagName === 'CANVAS') onPointerDown(e);
+        });
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('keydown', onKeyDown);
+
+        // --- Update Functions ---
+        function updateGeometry() {
+            const x = state.x;
+            const y = evaluateFunction(x, state.funcStr);
+            const slope = getDerivative(x, state.funcStr);
+
+            // Update Point A and glow
+            pointA.position.set(x, y, 0.2);
+            glowRing.position.set(x, y, 0.15);
+
+            // Update Tangent Line
+            const tLen = CONFIG.tangentLength;
+            const xStart = x - tLen;
+            const yStart = slope * (xStart - x) + y;
+            const xEnd = x + tLen;
+            const yEnd = slope * (xEnd - x) + y;
+
+            tangentLine.geometry.setFromPoints([
+                new THREE.Vector3(xStart, yStart, 0),
+                new THREE.Vector3(xEnd, yEnd, 0)
+            ]);
+
+            // Tangent Color Logic
+            let color = CONFIG.colors.zero;
+            if (slope > 0.1) color = CONFIG.colors.pos;
+            else if (slope < -0.1) color = CONFIG.colors.neg;
+            
+            // In limit mode, tangent is the "target" - make it cyan
+            if (state.mode === 'limit') {
+                tangentLine.material.color.setHex(CONFIG.colors.tangentTarget);
+                tangentLine.material.opacity = 1.0;
+                tangentLine.material.transparent = false;
+            } else {
+                tangentLine.material.color.setHex(color);
+            }
+
+            // Update Drop Line
+            dropLine.geometry.setFromPoints([
+                new THREE.Vector3(x, 0, 0),
+                new THREE.Vector3(x, y, 0)
+            ]);
+
+            // LIMIT MODE LOGIC
+            if (state.mode === 'limit') {
+                const x2 = x + state.h;
+                const y2 = evaluateFunction(x2, state.funcStr);
+                
+                pointB.visible = true;
+                pointB.position.set(x2, y2, 0.2);
+
+                secantLine.visible = true;
+                const mSecant = (y2 - y) / (x2 - x);
+                const sxStart = x - tLen;
+                const syStart = mSecant * (sxStart - x) + y;
+                const sxEnd = x2 + tLen;
+                const syEnd = mSecant * (sxEnd - x2) + y2;
+
+                secantLine.geometry.setFromPoints([
+                    new THREE.Vector3(sxStart, syStart, 0),
+                    new THREE.Vector3(sxEnd, syEnd, 0)
+                ]);
+
+                // Rise/Run Triangle
+                triangleLine.visible = true;
+                triangleLine.geometry.setFromPoints([
+                    new THREE.Vector3(x, y, 0.05),
+                    new THREE.Vector3(x2, y, 0.05),  // Horizontal (run)
+                    new THREE.Vector3(x2, y2, 0.05)  // Vertical (rise)
+                ]);
+
+                // Update triangle labels
+                const rise = y2 - y;
+                const run = state.h;
+                
+                riseLabelSprite.visible = true;
+                runLabelSprite.visible = true;
+                
+                updateTriangleLabel(riseLabelSprite, `rise: ${rise.toFixed(2)}`);
+                updateTriangleLabel(runLabelSprite, `run: ${run.toFixed(2)}`);
+                
+                riseLabelSprite.position.set(x2 + 0.6, (y + y2) / 2, 0.1);
+                runLabelSprite.position.set((x + x2) / 2, y - 0.4, 0.1);
+
+                // Update live formula display
+                updateLiveFormula(x, y, x2, y2, state.h);
+
+            } else {
+                pointB.visible = false;
+                secantLine.visible = false;
+                triangleLine.visible = false;
+                riseLabelSprite.visible = false;
+                runLabelSprite.visible = false;
+            }
+
+            updateUI(x, y, slope);
+        }
+
+        function updateLiveFormula(x, y, x2, y2, h) {
+            const secantSlope = (y2 - y) / h;
+            
+            document.getElementById('formula-x').textContent = x.toFixed(2);
+            document.getElementById('formula-xh').textContent = x2.toFixed(2);
+            document.getElementById('formula-h').textContent = h.toFixed(3);
+            document.getElementById('formula-fx').textContent = y.toFixed(2);
+            document.getElementById('formula-fxh').textContent = y2.toFixed(2);
+            document.getElementById('formula-h2').textContent = h.toFixed(3);
+            document.getElementById('formula-result').textContent = secantSlope.toFixed(3);
+        }
+
+        function updateUI(x, y, slope) {
+            document.getElementById('val-x').textContent = x.toFixed(2);
+            document.getElementById('val-y').textContent = y.toFixed(2);
+            document.getElementById('val-slope').textContent = slope.toFixed(2);
+
+            const msgEl = document.getElementById('slope-sign-msg');
+            if(Math.abs(slope) < 0.1) {
+                msgEl.textContent = "ZERO SLOPE (Extremum)";
+                msgEl.className = "text-xs text-center mt-2 font-semibold text-yellow-400 uppercase tracking-wider";
+            } else if (slope > 0) {
+                msgEl.textContent = "INCREASING (Uphill)";
+                msgEl.className = "text-xs text-center mt-2 font-semibold text-green-400 uppercase tracking-wider";
+            } else {
+                msgEl.textContent = "DECREASING (Downhill)";
+                msgEl.className = "text-xs text-center mt-2 font-semibold text-red-400 uppercase tracking-wider";
+            }
+
+            // Limit Mode UI
+            if(state.mode === 'limit') {
+                document.getElementById('val-h').textContent = state.h.toFixed(3);
+                
+                const y2 = evaluateFunction(x + state.h, state.funcStr);
+                const secantSlope = (y2 - y) / state.h;
+                const diff = Math.abs(secantSlope - slope);
+                
+                document.getElementById('val-secant-slope').textContent = secantSlope.toFixed(3);
+                document.getElementById('val-true-slope').textContent = slope.toFixed(3);
+                document.getElementById('val-slope-diff').textContent = diff.toFixed(4);
+            }
+        }
+
+        // Pulsing glow animation
+        let glowPhase = 0;
+        function animateGlow() {
+            glowPhase += 0.05;
+            const pulse = 0.2 + 0.15 * Math.sin(glowPhase);
+            glowRingMat.opacity = pulse;
+        }
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (state.animatingLimit) {
+                state.h = THREE.MathUtils.lerp(state.h, 0.001, 0.03);
+                document.getElementById('slider-h').value = state.h;
+                if (state.h < 0.005) {
+                    state.animatingLimit = false;
+                    state.h = 0.001;
+                }
+            }
+
+            animateGlow();
+            updateGeometry();
+            renderer.render(scene, camera);
+        }
+
+        // --- Resize Handler ---
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+            const frustumHeight = 12; 
+            const frustumWidth = frustumHeight * aspect;
+
+            camera.left = -frustumWidth / 2;
+            camera.right = frustumWidth / 2;
+            camera.top = frustumHeight / 2;
+            camera.bottom = -frustumHeight / 2;
+
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onWindowResize);
+
+        // --- DOM Event Listeners ---
+        
+        const funcSelect = document.getElementById('function-select');
+        const customInput = document.getElementById('custom-input');
+        const hintText = document.getElementById('hint-text');
+        const mlHint = document.getElementById('ml-hint');
+        
+        funcSelect.addEventListener('change', (e) => {
+            state.funcStr = e.target.value;
+            
+            // Update hint
+            hintText.textContent = HINTS[state.funcStr] || HINTS['custom'];
+            
+            // Show/hide custom input
+            if (state.funcStr === 'custom') {
+                customInput.classList.remove('hidden');
+            } else {
+                customInput.classList.add('hidden');
+            }
+
+            // Show ML hint for loss function
+            if (state.funcStr === 'loss') {
+                mlHint.classList.remove('hidden');
+            } else {
+                mlHint.classList.add('hidden');
+            }
+            
+            updateCurve();
+        });
+
+        customInput.addEventListener('input', () => {
+            updateCurve();
+        });
+
+        // Tabs
+        const tabTangent = document.getElementById('tab-tangent');
+        const tabLimit = document.getElementById('tab-limit');
+        const limitControls = document.getElementById('limit-controls');
+        const tangentControls = document.getElementById('tangent-controls');
+        const tangentStats = document.getElementById('tangent-stats');
+        const limitStats = document.getElementById('limit-stats');
+
+        tabTangent.addEventListener('click', () => {
+            state.mode = 'tangent';
+            limitControls.classList.add('hidden');
+            tangentControls.classList.remove('hidden');
+            tangentStats.classList.remove('hidden');
+            limitStats.classList.add('hidden');
+            
+            tabTangent.classList.replace('text-slate-500', 'text-sky-400');
+            tabTangent.classList.add('border-b-2', 'border-sky-400');
+            tabLimit.classList.replace('text-sky-400', 'text-slate-500');
+            tabLimit.classList.remove('border-b-2', 'border-sky-400');
+        });
+
+        tabLimit.addEventListener('click', () => {
+            state.mode = 'limit';
+            limitControls.classList.remove('hidden');
+            tangentControls.classList.add('hidden');
+            tangentStats.classList.add('hidden');
+            limitStats.classList.remove('hidden');
+            
+            tabLimit.classList.replace('text-slate-500', 'text-sky-400');
+            tabLimit.classList.add('border-b-2', 'border-sky-400');
+            tabTangent.classList.replace('text-sky-400', 'text-slate-500');
+            tabTangent.classList.remove('border-b-2', 'border-sky-400');
+            
+            if(state.h < 0.1) {
+                state.h = 1.0;
+                document.getElementById('slider-h').value = 1.0;
+            }
+        });
+
+        // Sliders
+        const sliderH = document.getElementById('slider-h');
+        sliderH.addEventListener('input', (e) => {
+            state.h = parseFloat(e.target.value);
+            state.animatingLimit = false;
+        });
+
+        document.getElementById('btn-animate-h').addEventListener('click', () => {
+            state.h = 2.0;
+            document.getElementById('slider-h').value = 2.0;
+            state.animatingLimit = true;
+        });
+
+        // --- Initialization ---
+        createGrid();
+        createAxisLabels();
+        createTriangleLabels();
+        updateCurve();
+        onWindowResize();
+        animate();
+
+    </script>
+</body>
+</html>
