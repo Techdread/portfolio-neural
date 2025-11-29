@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B6 - Sum Rule & Linearity</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(15, 23, 42, 0.95);
+            --text-main: #f1f5f9;
+            --c-f: #3b82f6; /* Blue */
+            --c-g: #22c55e; /* Green */
+            --c-h: #a855f7; /* Purple */
+            --c-grid: #1e293b;
+        }
+
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Roboto, monospace; background: var(--bg-color); color: var(--text-main); }
+
+        /* UI Layout */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Sidebar Controls */
+        #sidebar {
+            position: absolute;
+            top: 20px; right: 20px;
+            width: 320px;
+            background: var(--panel-bg);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            pointer-events: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h1 { margin: 0 0 15px 0; font-size: 18px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        
+        .control-group { margin-bottom: 20px; }
+        .label-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; color: #94a3b8; }
+        
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--c-h); }
+        input[type="range"].slider-f { accent-color: var(--c-f); }
+        input[type="range"].slider-g { accent-color: var(--c-g); }
+
+        select {
+            width: 100%; background: #1e293b; border: 1px solid #475569; color: white;
+            padding: 8px; border-radius: 6px; cursor: pointer; margin-bottom: 10px;
+        }
+
+        button {
+            width: 100%; background: #334155; color: white; border: none;
+            padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover { background: #475569; }
+        button.active { background: var(--c-h); }
+
+        /* Bottom Equation Bar */
+        #equation-bar {
+            background: var(--panel-bg);
+            border-top: 1px solid #334155;
+            padding: 20px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            pointer-events: auto;
+        }
+
+        .math-row { display: flex; justify-content: center; align-items: center; gap: 15px; margin: 5px 0; }
+        .val-box { padding: 4px 8px; border-radius: 4px; min-width: 60px; text-align: right; font-weight: bold; }
+        
+        .t-f { color: var(--c-f); }
+        .t-g { color: var(--c-g); }
+        .t-h { color: var(--c-h); }
+        .operator { color: #64748b; }
+
+        /* Floating Labels */
+        .chart-label {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: white;
+            pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+    </style>
+    <!-- Import Maps -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div></div> <!-- Spacer -->
+        
+        <div id="sidebar">
+            <h1>Sum Rule & Linearity</h1>
+            
+            <div class="control-group">
+                <div class="label-row"><span>Functions</span></div>
+                <select id="preset-select">
+                    <option value="poly">Polynomials: 0.5x² + x</option>
+                    <option value="trig">Waves: sin(x) + cos(x)</option>
+                    <option value="mixed">Mixed: 0.2x² + 0.5sin(3x)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <span>Input x</span>
+                    <span id="disp-x">0.00</span>
+                </div>
+                <input type="range" id="slider-x" min="-3" max="3" step="0.01" value="1.0">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <span class="t-f">Coeff a (for f)</span>
+                    <span id="disp-a">1.0</span>
+                </div>
+                <input type="range" class="slider-f" id="slider-a" min="-2" max="2" step="0.1" value="1.0">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <span class="t-g">Coeff b (for g)</span>
+                    <span id="disp-b">1.0</span>
+                </div>
+                <input type="range" class="slider-g" id="slider-b" min="-2" max="2" step="0.1" value="1.0">
+            </div>
+
+            <button id="toggle-mode-btn" onclick="app.toggleDerivativeMode()">
+                View: Function Graph
+            </button>
+        </div>
+
+        <div id="equation-bar">
+            <!-- Function Values -->
+            <div class="math-row" style="font-size: 14px; opacity: 0.8;">
+                <span>Value:</span>
+                <span class="t-f">a·f(x)</span> <span class="operator">+</span> 
+                <span class="t-g">b·g(x)</span> <span class="operator">=</span> 
+                <span class="t-h">h(x)</span>
+            </div>
+            
+            <!-- Slope Values -->
+            <div class="math-row" style="font-size: 18px;">
+                <span>Slope:</span>
+                <div class="val-box t-f" id="val-df">0.00</div>
+                <span class="operator" id="op-plus">+</span>
+                <div class="val-box t-g" id="val-dg">0.00</div>
+                <span class="operator">=</span>
+                <div class="val-box t-h" id="val-dh">0.00</div>
+            </div>
+            <div style="font-size: 12px; color: #64748b; margin-top:5px;">
+                Linearity: (af + bg)' = a(f') + b(g')
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- Configuration Constants ---
+        const CONFIG = {
+            X_RANGE: { min: -4, max: 4 },
+            CURVE_SAMPLES: 600,
+            FRUSTUM_SIZE: 10,
+            TANGENT_LENGTH: 1.5,
+            Z_LAYERS: {
+                GRID: 0,
+                CURVE_F: 0.1,
+                CURVE_G: 0.2,
+                CURVE_H: 0.3,
+                STACK_ARROW: 0.4,
+                MARKER_OFFSET: 0.02,
+                TANGENT_OFFSET: 0.01
+            }
+        };
+
+        // --- Math Engine ---
+
+        const PRESETS = {
+            'poly': {
+                f: { fn: x => x * x * 0.5, df: x => x, label: '0.5x²' },
+                g: { fn: x => x, df: x => 1, label: 'x' }
+            },
+            'trig': {
+                f: { fn: x => Math.sin(x), df: x => Math.cos(x), label: 'sin(x)' },
+                g: { fn: x => Math.cos(x), df: x => -Math.sin(x), label: 'cos(x)' }
+            },
+            'mixed': {
+                f: { fn: x => 0.2 * x * x, df: x => 0.4 * x, label: '0.2x²' },
+                g: { fn: x => Math.sin(3 * x) * 0.5, df: x => 1.5 * Math.cos(3 * x), label: '0.5sin(3x)' }
+            }
+        };
+
+        // --- Visualization Class ---
+
+        class LinePlot {
+            constructor(scene, color, zIndex) {
+                this.scene = scene;
+                this.color = color;
+                this.zIndex = zIndex;
+                
+                // Curve Line
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(CONFIG.CURVE_SAMPLES * 3);
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                
+                // Note: linewidth > 1 has no effect in WebGL. Use Line2/LineMaterial for thick lines.
+                const material = new THREE.LineBasicMaterial({ color: color });
+                this.mesh = new THREE.Line(geometry, material);
+                this.mesh.position.z = zIndex;
+                scene.add(this.mesh);
+
+                // Tangent Line (The visual slope)
+                const tanGeo = new THREE.BufferGeometry();
+                const tanPos = new Float32Array(6); // 2 points
+                tanGeo.setAttribute('position', new THREE.BufferAttribute(tanPos, 3));
+                this.tangentMesh = new THREE.Line(tanGeo, new THREE.LineBasicMaterial({ color: color }));
+                this.tangentMesh.position.z = zIndex + CONFIG.Z_LAYERS.TANGENT_OFFSET;
+                scene.add(this.tangentMesh);
+
+                // Point Marker
+                this.marker = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.1, 16, 16),
+                    new THREE.MeshBasicMaterial({ color: color })
+                );
+                this.marker.position.z = zIndex + CONFIG.Z_LAYERS.MARKER_OFFSET;
+                scene.add(this.marker);
+
+                // Label
+                this.labelDiv = document.createElement('div');
+                this.labelDiv.className = 'chart-label';
+                this.labelDiv.style.backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
+                this.labelObj = new CSS2DObject(this.labelDiv);
+                this.marker.add(this.labelObj);
+            }
+
+            update(fn, dfn, currentX, coeff, isDerivativeMode) {
+                // 1. Update Curve
+                const positions = this.mesh.geometry.attributes.position.array;
+                const steps = CONFIG.CURVE_SAMPLES;
+                const { min: minX, max: maxX } = CONFIG.X_RANGE;
+                const stepSize = (maxX - minX) / steps;
+
+                for (let i = 0; i < steps; i++) {
+                    const x = minX + i * stepSize;
+                    let y;
+                    
+                    if (isDerivativeMode) {
+                        y = coeff * dfn(x); // Plotting the derivative curve
+                    } else {
+                        y = coeff * fn(x);  // Plotting the function curve
+                    }
+
+                    positions[i * 3] = x;
+                    positions[i * 3 + 1] = y;
+                    positions[i * 3 + 2] = 0;
+                }
+                this.mesh.geometry.attributes.position.needsUpdate = true;
+
+                // 2. Update Marker & Tangent at current X
+                const yVal = coeff * fn(currentX);
+                const slope = coeff * dfn(currentX);
+                
+                if (isDerivativeMode) {
+                    // Plotting derivative value directly
+                    const dVal = slope; 
+                    this.marker.position.set(currentX, dVal, this.zIndex + CONFIG.Z_LAYERS.MARKER_OFFSET);
+                    this.tangentMesh.visible = false; // Hide tangent on derivative graph to reduce clutter
+                    this.labelDiv.textContent = `f'=${dVal.toFixed(2)}`;
+                } else {
+                    // Normal Mode: Show function value + Tangent line
+                    this.marker.position.set(currentX, yVal, this.zIndex + CONFIG.Z_LAYERS.MARKER_OFFSET);
+                    this.tangentMesh.visible = true;
+                    
+                    // Draw tangent line
+                    const tanLen = CONFIG.TANGENT_LENGTH;
+                    // Vector direction (1, slope) normalized
+                    const dx = 1;
+                    const dy = slope;
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    const ndx = (dx / len) * (tanLen / 2);
+                    const ndy = (dy / len) * (tanLen / 2);
+
+                    const tPos = this.tangentMesh.geometry.attributes.position.array;
+                    tPos[0] = currentX - ndx; tPos[1] = yVal - ndy; tPos[2] = 0;
+                    tPos[3] = currentX + ndx; tPos[4] = yVal + ndy; tPos[5] = 0;
+                    this.tangentMesh.geometry.attributes.position.needsUpdate = true;
+                    
+                    this.labelDiv.textContent = `y=${yVal.toFixed(2)}`;
+                }
+            }
+
+            dispose() {
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+                this.scene.remove(this.mesh);
+                
+                this.tangentMesh.geometry.dispose();
+                this.tangentMesh.material.dispose();
+                this.scene.remove(this.tangentMesh);
+                
+                this.marker.geometry.dispose();
+                this.marker.material.dispose();
+                this.scene.remove(this.marker);
+            }
+        }
+
+        // --- Main App ---
+
+        class App {
+            constructor() {
+                this.state = {
+                    x: 1.0,
+                    a: 1.0,
+                    b: 1.0,
+                    preset: 'poly',
+                    derivativeMode: false // false = show functions, true = show derivative curves
+                };
+
+                this.initScene();
+                this.initPlots();
+                this.initInteraction();
+                this.animate();
+            }
+
+            initScene() {
+                // Scene
+                this.scene = new THREE.Scene();
+                
+                // Camera (Orthographic for math accuracy)
+                const aspect = window.innerWidth / window.innerHeight;
+                const frustumSize = CONFIG.FRUSTUM_SIZE;
+                this.camera = new THREE.OrthographicCamera(
+                    frustumSize * aspect / -2, frustumSize * aspect / 2,
+                    frustumSize / 2, frustumSize / -2,
+                    1, 1000
+                );
+                this.camera.position.set(0, 0, 10);
+                this.camera.lookAt(0, 0, 0);
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                document.body.appendChild(this.renderer.domElement);
+
+                // Label Renderer
+                this.labelRenderer = new CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0px';
+                this.labelRenderer.domElement.style.pointerEvents = 'none';
+                document.body.appendChild(this.labelRenderer.domElement);
+
+                // Grid
+                const grid = new THREE.GridHelper(20, 20, 0x334155, 0x1e293b);
+                grid.rotation.x = Math.PI / 2;
+                this.scene.add(grid);
+
+                // Axes
+                const axes = new THREE.AxesHelper(5);
+                this.scene.add(axes);
+
+                // Vertical Cursor Line (Dashed)
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, -10, 0), new THREE.Vector3(0, 10, 0)
+                ]);
+                // Fixed: Use LineDashedMaterial for dashed lines
+                this.cursorLine = new THREE.Line(
+                    lineGeo, 
+                    new THREE.LineDashedMaterial({ 
+                        color: 0x64748b, 
+                        transparent: true, 
+                        opacity: 0.5, 
+                        dashSize: 0.2, 
+                        gapSize: 0.1 
+                    })
+                );
+                this.cursorLine.computeLineDistances(); // Required for dashed lines
+                this.scene.add(this.cursorLine);
+                
+                // Controls
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableRotate = false; // Keep 2D
+                this.controls.enableZoom = true;
+            }
+
+            initPlots() {
+                // f(x) - Blue
+                this.plotF = new LinePlot(this.scene, 0x3b82f6, CONFIG.Z_LAYERS.CURVE_F);
+                // g(x) - Green
+                this.plotG = new LinePlot(this.scene, 0x22c55e, CONFIG.Z_LAYERS.CURVE_G);
+                // h(x) - Purple
+                this.plotH = new LinePlot(this.scene, 0xa855f7, CONFIG.Z_LAYERS.CURVE_H);
+
+                // Stack Connector (Arrow from f to f+g)
+                // This visualizes the "Addition" explicitly
+                this.stackLine = new THREE.ArrowHelper(
+                    new THREE.Vector3(0, 1, 0),
+                    new THREE.Vector3(0, 0, CONFIG.Z_LAYERS.STACK_ARROW),
+                    1, 0x22c55e, 0.2, 0.1
+                );
+                this.scene.add(this.stackLine);
+            }
+
+            initInteraction() {
+                // Sliders
+                document.getElementById('slider-x').addEventListener('input', (e) => {
+                    this.state.x = parseFloat(e.target.value);
+                    this.update();
+                });
+                document.getElementById('slider-a').addEventListener('input', (e) => {
+                    this.state.a = parseFloat(e.target.value);
+                    this.update();
+                });
+                document.getElementById('slider-b').addEventListener('input', (e) => {
+                    this.state.b = parseFloat(e.target.value);
+                    this.update();
+                });
+                document.getElementById('preset-select').addEventListener('change', (e) => {
+                    this.state.preset = e.target.value;
+                    this.update();
+                });
+
+                window.addEventListener('resize', () => this.handleResize());
+            }
+
+            handleResize() {
+                const aspect = window.innerWidth / window.innerHeight;
+                const frustumSize = CONFIG.FRUSTUM_SIZE;
+                this.camera.left = frustumSize * aspect / -2;
+                this.camera.right = frustumSize * aspect / 2;
+                this.camera.top = frustumSize / 2;
+                this.camera.bottom = frustumSize / -2;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            toggleDerivativeMode() {
+                this.state.derivativeMode = !this.state.derivativeMode;
+                const btn = document.getElementById('toggle-mode-btn');
+                btn.textContent = this.state.derivativeMode ? "View: Derivative Graph" : "View: Function Graph";
+                btn.classList.toggle('active');
+                this.update();
+            }
+
+            update() {
+                const { x, a, b, preset, derivativeMode } = this.state;
+                const data = PRESETS[preset];
+
+                // Update UI text
+                document.getElementById('disp-x').textContent = x.toFixed(2);
+                document.getElementById('disp-a').textContent = a.toFixed(1);
+                document.getElementById('disp-b').textContent = b.toFixed(1);
+
+                // 1. Update F
+                this.plotF.update(data.f.fn, data.f.df, x, a, derivativeMode);
+                this.plotF.labelObj.element.textContent = derivativeMode ? `a·f'` : `a·f`;
+
+                // 2. Update G
+                this.plotG.update(data.g.fn, data.g.df, x, b, derivativeMode);
+                this.plotG.labelObj.element.textContent = derivativeMode ? `b·g'` : `b·g`;
+
+                // 3. Update H (Sum)
+                const hFn = (v) => a * data.f.fn(v) + b * data.g.fn(v);
+                const hDf = (v) => a * data.f.df(v) + b * data.g.df(v);
+                this.plotH.update(hFn, hDf, x, 1.0, derivativeMode);
+                this.plotH.labelObj.element.textContent = derivativeMode ? `h'` : `h = af+bg`;
+
+                // 4. Cursor Line
+                this.cursorLine.position.x = x;
+
+                // 5. Stack Arrow (Only in function mode)
+                if (!derivativeMode) {
+                    const yF = a * data.f.fn(x);
+                    const yH = hFn(x);
+                    const diff = yH - yF;
+                    
+                    this.stackLine.visible = true;
+                    this.stackLine.position.set(x, yF, CONFIG.Z_LAYERS.STACK_ARROW);
+                    
+                    if (Math.abs(diff) > 0.1) {
+                        const dir = diff > 0 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, -1, 0);
+                        this.stackLine.setDirection(dir);
+                        this.stackLine.setLength(Math.abs(diff), 0.2, 0.1);
+                    } else {
+                        this.stackLine.visible = false;
+                    }
+                } else {
+                    this.stackLine.visible = false;
+                }
+
+                // 6. Update Bottom Bar Math
+                const valA = a * data.f.df(x);
+                const valB = b * data.g.df(x);
+                const valH = valA + valB;
+
+                document.getElementById('val-df').textContent = valA.toFixed(2);
+                // Fixed: Handle operator and value separately for cleaner display
+                document.getElementById('op-plus').textContent = valB >= 0 ? '+' : '−';
+                document.getElementById('val-dg').textContent = Math.abs(valB).toFixed(2);
+                document.getElementById('val-dh').textContent = valH.toFixed(2);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+                this.labelRenderer.render(this.scene, this.camera);
+            }
+
+            dispose() {
+                // Clean up Three.js resources
+                this.plotF.dispose();
+                this.plotG.dispose();
+                this.plotH.dispose();
+                
+                this.cursorLine.geometry.dispose();
+                this.cursorLine.material.dispose();
+                this.scene.remove(this.cursorLine);
+                
+                this.scene.remove(this.stackLine);
+                
+                this.renderer.dispose();
+                this.controls.dispose();
+                
+                // Remove DOM elements
+                document.body.removeChild(this.renderer.domElement);
+                document.body.removeChild(this.labelRenderer.domElement);
+            }
+        }
+
+        // Initialize
+        window.app = new App();
+        // Trigger initial update
+        window.app.update();
+
+    </script>
+</body>
+</html>

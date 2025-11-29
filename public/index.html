@@ -3,453 +3,383 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neural Pathways — Interactive ML/AI Visualizations</title>
-  <meta name="description" content="Learn neural network mathematics through interactive Three.js visualizations. From linear algebra to backpropagation, see the math come alive.">
+  <title>Neural Pathways | Mathematical Intuition</title>
+  <meta name="description" content="Interactive visualizations for the mathematics of machine learning.">
   
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="css/style.css">
-  
-  <style>
-    /* Neural network background animation */
-    #neural-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      opacity: 0.12;
+  <!-- Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            neural: {
+              bg: '#050508',
+              card: '#0f111a',
+              border: '#1e2130',
+              accent: '#6366f1',
+              success: '#10b981',
+              glow: 'rgba(99, 102, 241, 0.15)'
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+        }
+      }
     }
+  </script>
+
+  <style>
+    body { background-color: #050508; color: #e2e8f0; overflow-x: hidden; }
+    #neural-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.6; }
+    .glass-panel { background: rgba(15, 17, 26, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+    .glass-panel:hover { transform: translateY(-4px); border-color: rgba(99, 102, 241, 0.3); box-shadow: 0 10px 40px -10px rgba(99, 102, 241, 0.2); }
+    .cat-blue:hover { border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 10px 40px -10px rgba(56, 189, 248, 0.15); }
+    .cat-purple:hover { border-color: rgba(168, 85, 247, 0.4); box-shadow: 0 10px 40px -10px rgba(168, 85, 247, 0.15); }
+    .cat-emerald:hover { border-color: rgba(52, 211, 153, 0.4); box-shadow: 0 10px 40px -10px rgba(52, 211, 153, 0.15); }
+    .cat-amber:hover { border-color: rgba(251, 191, 36, 0.4); box-shadow: 0 10px 40px -10px rgba(251, 191, 36, 0.15); }
+    .cat-rose:hover { border-color: rgba(244, 63, 94, 0.4); box-shadow: 0 10px 40px -10px rgba(244, 63, 94, 0.15); }
+    .cat-cyan:hover { border-color: rgba(34, 211, 238, 0.4); box-shadow: 0 10px 40px -10px rgba(34, 211, 238, 0.15); }
+    .cat-pink:hover { border-color: rgba(236, 72, 153, 0.4); box-shadow: 0 10px 40px -10px rgba(236, 72, 153, 0.15); }
+    .cat-orange:hover { border-color: rgba(249, 115, 22, 0.4); box-shadow: 0 10px 40px -10px rgba(249, 115, 22, 0.15); }
+    .topic-link { transition: all 0.2s ease; position: relative; overflow: hidden; }
+    .topic-link::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: currentColor; transform: scaleY(0); transition: transform 0.2s ease; transform-origin: bottom; }
+    .topic-link:hover { background: rgba(255,255,255,0.03); padding-left: 1rem; }
+    .topic-link:hover::before { transform: scaleY(1); transform-origin: top; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #050508; }
+    ::-webkit-scrollbar-thumb { background: #1e2130; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #313545; }
+    .text-gradient { background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-image: linear-gradient(to right, #818cf8, #38bdf8); }
   </style>
 </head>
-<body>
+<body class="antialiased selection:bg-indigo-500 selection:text-white">
+
   <canvas id="neural-canvas"></canvas>
-  
-  <header class="header">
-    <div class="container">
-      <a href="index.html" class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-            <!-- Neural network icon -->
-            <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.8"/>
-            <circle cx="12" cy="36" r="4" fill="currentColor" opacity="0.8"/>
-            <circle cx="24" cy="18" r="4" fill="currentColor"/>
-            <circle cx="24" cy="30" r="4" fill="currentColor"/>
-            <circle cx="36" cy="24" r="5" fill="currentColor"/>
-            <line x1="16" y1="12" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
-            <line x1="16" y1="36" x2="20" y2="30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
-            <line x1="28" y1="18" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
-            <line x1="28" y1="30" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
-            <line x1="12" y1="16" x2="12" y2="32" stroke="currentColor" stroke-width="1" opacity="0.3"/>
-            <line x1="24" y1="22" x2="24" y2="26" stroke="currentColor" stroke-width="1" opacity="0.3"/>
-          </svg>
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-[#050508]/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="relative w-8 h-8 flex items-center justify-center bg-indigo-500/10 rounded-lg group-hover:bg-indigo-500/20 transition-colors">
+          <i class="ri-node-tree text-indigo-400 text-xl"></i>
         </div>
-        <div class="logo-text">
-          <h1>Neural Pathways</h1>
-          <span>Interactive ML Visualizations</span>
+        <div class="flex flex-col">
+          <span class="font-bold text-sm tracking-wide text-slate-200">NEURAL<span class="text-indigo-400">PATHWAYS</span></span>
+          <span class="text-[10px] text-slate-500 font-mono">v2.0.4 // STABLE</span>
         </div>
       </a>
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+        <a href="#curriculum" class="hover:text-white transition-colors">Modules</a>
+        <a href="#" class="hover:text-white transition-colors">Playgrounds</a>
+        <a href="#" class="hover:text-white transition-colors">About</a>
+      </div>
     </div>
-  </header>
+  </nav>
 
-  <main>
-    <section class="hero">
-      <div class="container">
-        <h1>
-          See the Math Behind<br>
-          <span class="gradient-text">Neural Networks</span>
-        </h1>
-        <p>
-          Interactive Three.js visualizations that bring machine learning mathematics to life. 
-          Built for developers who learn by seeing and doing.
-        </p>
-        <div class="hero-stats">
-          <div class="stat">
-            <div class="stat-value">42</div>
-            <div class="stat-label">Topics</div>
+  <main class="relative z-10 pt-32 pb-20">
+    <!-- Hero Section -->
+    <section class="max-w-7xl mx-auto px-6 mb-32">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <div class="space-y-8">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+            </span>
+            SYSTEM ONLINE: INTERACTIVE MODE
           </div>
-          <div class="stat">
-            <div class="stat-value">9</div>
-            <div class="stat-label">Categories</div>
+          <h1 class="text-5xl md:text-7xl font-bold tracking-tight leading-tight">
+            Decode the <br><span class="text-gradient">Black Box</span>
+          </h1>
+          <p class="text-lg text-slate-400 max-w-xl leading-relaxed">
+            Stop treating Neural Networks like magic. Visualize the linear algebra, calculus, and optimization dynamics that power modern AI.
+          </p>
+          <div class="flex flex-wrap gap-4">
+            <button class="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold shadow-lg shadow-indigo-500/20 transition-all hover:scale-105 flex items-center gap-2">
+              <i class="ri-play-circle-line text-xl"></i> Start Learning
+            </button>
+            <button class="px-8 py-4 bg-[#0f111a] hover:bg-[#161925] border border-white/10 text-slate-300 rounded-lg font-semibold transition-all hover:border-white/20 flex items-center gap-2">
+              <i class="ri-github-fill text-xl"></i> View Source
+            </button>
           </div>
-          <div class="stat">
-            <div class="stat-value">0</div>
-            <div class="stat-label">Completed</div>
+          <div class="grid grid-cols-3 gap-8 pt-8 border-t border-white/5">
+            <div><div class="text-2xl font-bold font-mono text-white">42</div><div class="text-xs text-slate-500 uppercase tracking-wider mt-1">Modules</div></div>
+            <div><div class="text-2xl font-bold font-mono text-white">9</div><div class="text-xs text-slate-500 uppercase tracking-wider mt-1">Categories</div></div>
+            <div><div class="text-2xl font-bold font-mono text-white">WebGL</div><div class="text-xs text-slate-500 uppercase tracking-wider mt-1">Accelerated</div></div>
           </div>
+        </div>
+        <div class="relative hidden lg:block h-[500px]">
+          <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-cyan-500/20 blur-3xl rounded-full animate-pulse-slow"></div>
         </div>
       </div>
     </section>
 
-    <section class="categories">
-      <div class="container">
-        <div class="categories-grid">
-          
-          <!-- Category A: Linear Algebra -->
-          <article class="category-card" style="--category-color: var(--cat-a)">
-            <div class="category-header">
-              <div class="category-icon">📐</div>
-              <h2 class="category-title">Linear Algebra</h2>
-              <span class="category-id">CAT-A</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/a1-vector-operations.html" class="topic-link">
-                <span class="topic-id">A1</span> Vector Operations
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/a2-matrix-multiplication.html" class="topic-link">
-                <span class="topic-id">A2</span> Matrix Multiplication
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/a3-matrix-transformations.html" class="topic-link">
-                <span class="topic-id">A3</span> Matrix Transformations
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/a4-tensor-visualiser.html" class="topic-link">
-                <span class="topic-id">A4</span> Tensor Visualiser
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/a5-eigenvalues-eigenvectors.html" class="topic-link">
-                <span class="topic-id">A5</span> Eigenvalues & Eigenvectors
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/a6-basis-vectors.html" class="topic-link">
-                <span class="topic-id">A6</span> Basis & Change of Basis
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category B: Calculus -->
-          <article class="category-card" style="--category-color: var(--cat-b)">
-            <div class="category-header">
-              <div class="category-icon">∫</div>
-              <h2 class="category-title">Calculus Essentials</h2>
-              <span class="category-id">CAT-B</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/b1-derivative-slope.html" class="topic-link">
-                <span class="topic-id">B1</span> Derivative as Slope
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/b2-partial-derivatives.html" class="topic-link">
-                <span class="topic-id">B2</span> Partial Derivatives
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/b3-gradient-vector.html" class="topic-link">
-                <span class="topic-id">B3</span> The Gradient Vector
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/b4-chain-rule.html" class="topic-link">
-                <span class="topic-id">B4</span> Chain Rule Visualiser
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/b5-product-rule.html" class="topic-link">
-                <span class="topic-id">B5</span> Product Rule
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/b6-sum-rule.html" class="topic-link">
-                <span class="topic-id">B6</span> Sum Rule & Linearity
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category C: Neural Network Operations -->
-          <article class="category-card" style="--category-color: var(--cat-c)">
-            <div class="category-header">
-              <div class="category-icon">🧠</div>
-              <h2 class="category-title">Neural Network Ops</h2>
-              <span class="category-id">CAT-C</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/c1-forward-pass.html" class="topic-link">
-                <span class="topic-id">C1</span> Forward Pass Step-by-Step
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/c2-backpropagation.html" class="topic-link">
-                <span class="topic-id">C2</span> Backpropagation
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/c3-computational-graph.html" class="topic-link">
-                <span class="topic-id">C3</span> Computational Graph
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/c4-activation-functions.html" class="topic-link">
-                <span class="topic-id">C4</span> Activation Functions
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/c5-loss-functions.html" class="topic-link">
-                <span class="topic-id">C5</span> Loss Function Landscapes
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/c6-softmax-cross-entropy.html" class="topic-link">
-                <span class="topic-id">C6</span> Softmax & Cross-Entropy
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category D: Optimisation -->
-          <article class="category-card" style="--category-color: var(--cat-d)">
-            <div class="category-header">
-              <div class="category-icon">⚡</div>
-              <h2 class="category-title">Optimisation</h2>
-              <span class="category-id">CAT-D</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/d1-gradient-descent-variants.html" class="topic-link">
-                <span class="topic-id">D1</span> Gradient Descent Variants
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/d2-learning-rate.html" class="topic-link">
-                <span class="topic-id">D2</span> Learning Rate Effects
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/d3-batch-stochastic.html" class="topic-link">
-                <span class="topic-id">D3</span> Batch vs Stochastic
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/d4-regularisation.html" class="topic-link">
-                <span class="topic-id">D4</span> Regularisation Visualised
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category E: Architecture -->
-          <article class="category-card" style="--category-color: var(--cat-e)">
-            <div class="category-header">
-              <div class="category-icon">🏗️</div>
-              <h2 class="category-title">Architecture</h2>
-              <span class="category-id">CAT-E</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/e1-cnn-explorer.html" class="topic-link">
-                <span class="topic-id">E1</span> CNN Layer Explorer
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/e2-transformer-attention.html" class="topic-link">
-                <span class="topic-id">E2</span> Transformer Attention
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/e3-autoencoder-latent.html" class="topic-link">
-                <span class="topic-id">E3</span> Autoencoder Latent Space
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/e4-rnn-lstm.html" class="topic-link">
-                <span class="topic-id">E4</span> RNN/LSTM Unrolled
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category F: Training Dynamics -->
-          <article class="category-card" style="--category-color: var(--cat-f)">
-            <div class="category-header">
-              <div class="category-icon">📈</div>
-              <h2 class="category-title">Training Dynamics</h2>
-              <span class="category-id">CAT-F</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/f1-loss-landscape.html" class="topic-link">
-                <span class="topic-id">F1</span> Loss Landscape Terrain
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/f2-gradient-flow.html" class="topic-link">
-                <span class="topic-id">F2</span> Backprop Gradient Flow
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/f3-weight-init.html" class="topic-link">
-                <span class="topic-id">F3</span> Weight Initialisation
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/f4-overfitting.html" class="topic-link">
-                <span class="topic-id">F4</span> Overfitting Visualised
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category G: Interactive Playgrounds -->
-          <article class="category-card" style="--category-color: var(--cat-g)">
-            <div class="category-header">
-              <div class="category-icon">🎮</div>
-              <h2 class="category-title">Playgrounds</h2>
-              <span class="category-id">CAT-G</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/g1-perceptron.html" class="topic-link">
-                <span class="topic-id">G1</span> Perceptron Playground
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/g2-embedding-space.html" class="topic-link">
-                <span class="topic-id">G2</span> Embedding Space Explorer
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/g3-gan-training.html" class="topic-link">
-                <span class="topic-id">G3</span> GAN Training Dance
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/g4-decision-boundary.html" class="topic-link">
-                <span class="topic-id">G4</span> Decision Boundary Evolution
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category H: Advanced Concepts -->
-          <article class="category-card" style="--category-color: var(--cat-h)">
-            <div class="category-header">
-              <div class="category-icon">🔬</div>
-              <h2 class="category-title">Advanced Concepts</h2>
-              <span class="category-id">CAT-H</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/h1-style-transfer.html" class="topic-link">
-                <span class="topic-id">H1</span> Neural Style Transfer
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/h2-spiking-neural.html" class="topic-link">
-                <span class="topic-id">H2</span> Spiking Neural Network
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/h3-ensemble-voting.html" class="topic-link">
-                <span class="topic-id">H3</span> Ensemble Voting
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/h4-knowledge-distillation.html" class="topic-link">
-                <span class="topic-id">H4</span> Knowledge Distillation
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
-          <!-- Category I: Probability & Statistics -->
-          <article class="category-card" style="--category-color: var(--cat-i)">
-            <div class="category-header">
-              <div class="category-icon">🎲</div>
-              <h2 class="category-title">Probability & Stats</h2>
-              <span class="category-id">CAT-I</span>
-            </div>
-            <ul class="category-topics">
-              <li><a href="topics/i1-probability-distributions.html" class="topic-link">
-                <span class="topic-id">I1</span> Probability Distributions
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/i2-bayes-theorem.html" class="topic-link">
-                <span class="topic-id">I2</span> Bayes' Theorem
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/i3-maximum-likelihood.html" class="topic-link">
-                <span class="topic-id">I3</span> Maximum Likelihood
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-              <li><a href="topics/i4-information-theory.html" class="topic-link">
-                <span class="topic-id">I4</span> Information Theory
-                <span class="topic-status status-pending">○</span>
-              </a></li>
-            </ul>
-          </article>
-
+    <!-- Curriculum Grid -->
+    <section id="curriculum" class="max-w-7xl mx-auto px-6">
+      <div class="flex items-end justify-between mb-12">
+        <div>
+          <h2 class="text-3xl font-bold text-white mb-2">Curriculum Matrix</h2>
+          <p class="text-slate-400">Select a computational module to inspect.</p>
         </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- MODULE A: Linear Algebra -->
+        <article class="glass-panel rounded-xl p-6 cat-blue group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-sky-500/10 flex items-center justify-center border border-sky-500/20 text-sky-400"><i class="ri-ruler-2-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-A</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-sky-400 transition-colors">Linear Algebra</h3>
+          <p class="text-sm text-slate-400 mb-4">The engine of deep learning. Spaces, transforms, and tensors.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/a1-vector-operations.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-sky-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-sky-500/50">A1</span> Vector Operations</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/a2-matrix-multiplication.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-sky-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-sky-500/50">A2</span> Matrix Multiplication</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/a3-matrix-transformations.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-sky-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-sky-500/50">A3</span> Matrix Transformations</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/a4-tensor-visualiser.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-sky-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-sky-500/50">A4</span> Tensor Visualiser</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/a5-eigenvalues-eigenvectors.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-sky-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-sky-500/50">A5</span> Eigenvalues & Eigenvectors</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/a6-basis-vectors.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-sky-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-sky-500/50">A6</span> Basis & Change of Basis</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
+        <!-- MODULE B: Calculus -->
+        <article class="glass-panel rounded-xl p-6 cat-purple group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20 text-purple-400"><i class="ri-functions-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-B</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">Calculus Essentials</h3>
+          <p class="text-sm text-slate-400 mb-4">Understanding change. Gradients, derivatives, and backprop.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/b1-derivative-slope.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-purple-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-purple-500/50">B1</span> Derivative as Slope</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/b2-partial-derivatives.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-purple-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-purple-500/50">B2</span> Partial Derivatives</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/b3-gradient-vector.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-purple-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-purple-500/50">B3</span> The Gradient Vector</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/b4-chain-rule.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-purple-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-purple-500/50">B4</span> Chain Rule Visualiser</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/b5-product-rule.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-purple-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-purple-500/50">B5</span> Product Rule</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/b6-sum-rule.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-purple-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-purple-500/50">B6</span> Sum Rule & Linearity</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
+        <!-- MODULE C: Neural Network Operations -->
+        <article class="glass-panel rounded-xl p-6 cat-emerald group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-400"><i class="ri-cpu-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-C</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">Network Operations</h3>
+          <p class="text-sm text-slate-400 mb-4">The mechanics of learning. Activation, loss, and propagation.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/c1-forward-pass.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-emerald-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-emerald-500/50">C1</span> Forward Pass Step-by-Step</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/c2-backpropagation.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-emerald-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-emerald-500/50">C2</span> Backpropagation</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/c3-computational-graph.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-emerald-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-emerald-500/50">C3</span> Computational Graph</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/c4-activation-functions.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-emerald-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-emerald-500/50">C4</span> Activation Functions</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/c5-loss-functions.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-emerald-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-emerald-500/50">C5</span> Loss Function Landscapes</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/c6-softmax-cross-entropy.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-emerald-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-emerald-500/50">C6</span> Softmax & Cross-Entropy</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
+        <!-- MODULE D: Optimisation -->
+        <article class="glass-panel rounded-xl p-6 cat-amber group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-400"><i class="ri-flashlight-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-D</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-amber-400 transition-colors">Optimisation</h3>
+          <p class="text-sm text-slate-400 mb-4">Finding the minimum. Stochastic methods and hyperparams.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/d1-gradient-descent-variants.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-amber-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-amber-500/50">D1</span> Gradient Descent Variants</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/d2-learning-rate.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-amber-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-amber-500/50">D2</span> Learning Rate Effects</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/d3-batch-stochastic.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-amber-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-amber-500/50">D3</span> Batch vs Stochastic</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/d4-regularisation.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-amber-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-amber-500/50">D4</span> Regularisation Visualised</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
+        <!-- MODULE E: Architecture -->
+        <article class="glass-panel rounded-xl p-6 cat-rose group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-rose-500/10 flex items-center justify-center border border-rose-500/20 text-rose-400"><i class="ri-building-3-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-E</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-rose-400 transition-colors">Architecture</h3>
+          <p class="text-sm text-slate-400 mb-4">Structural patterns. CNNs, Transformers, and RNNs.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/e1-cnn-explorer.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-rose-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-rose-500/50">E1</span> CNN Layer Explorer</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/e2-transformer-attention.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-rose-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-rose-500/50">E2</span> Transformer Attention</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/e3-autoencoder-latent.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-rose-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-rose-500/50">E3</span> Autoencoder Latent Space</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/e4-rnn-lstm.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-rose-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-rose-500/50">E4</span> RNN/LSTM Unrolled</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
+        <!-- MODULE F: Training Dynamics -->
+        <article class="glass-panel rounded-xl p-6 cat-cyan group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 text-cyan-400"><i class="ri-line-chart-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-F</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">Training Dynamics</h3>
+          <p class="text-sm text-slate-400 mb-4">Observing convergence. Loss landscapes and gradient flow.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/f1-loss-landscape.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-cyan-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-cyan-500/50">F1</span> Loss Landscape Terrain</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/f2-gradient-flow.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-cyan-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-cyan-500/50">F2</span> Backprop Gradient Flow</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/f3-weight-init.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-cyan-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-cyan-500/50">F3</span> Weight Initialisation</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/f4-overfitting.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-cyan-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-cyan-500/50">F4</span> Overfitting Visualised</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
+        <!-- MODULE G: Playgrounds -->
+        <article class="glass-panel rounded-xl p-6 group relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div class="relative z-10">
+            <div class="flex justify-between items-start mb-4">
+              <div class="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 text-white"><i class="ri-gamepad-line text-2xl"></i></div>
+              <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-G</span>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-indigo-300 transition-colors">Playgrounds</h3>
+            <p class="text-sm text-slate-400 mb-4">Interactive experiments. Test your intuition in real-time.</p>
+            <ul class="space-y-1">
+              <li><a href="topics/g1-perceptron.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-white"><span class="flex items-center gap-3"><span class="font-mono text-xs text-white/50">G1</span> Perceptron Playground</span><i class="ri-arrow-right-line text-slate-600"></i></a></li>
+              <li><a href="topics/g2-embedding-space.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-white"><span class="flex items-center gap-3"><span class="font-mono text-xs text-white/50">G2</span> Embedding Space Explorer</span><i class="ri-arrow-right-line text-slate-600"></i></a></li>
+              <li><a href="topics/g3-gan-training.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-white"><span class="flex items-center gap-3"><span class="font-mono text-xs text-white/50">G3</span> GAN Training Dance</span><i class="ri-arrow-right-line text-slate-600"></i></a></li>
+              <li><a href="topics/g4-decision-boundary.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-white"><span class="flex items-center gap-3"><span class="font-mono text-xs text-white/50">G4</span> Decision Boundary Evolution</span><i class="ri-arrow-right-line text-slate-600"></i></a></li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- MODULE H: Advanced Concepts -->
+        <article class="glass-panel rounded-xl p-6 cat-pink group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-pink-500/10 flex items-center justify-center border border-pink-500/20 text-pink-400"><i class="ri-microscope-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-H</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">Advanced Concepts</h3>
+          <p class="text-sm text-slate-400 mb-4">Cutting-edge techniques. Style transfer and ensemble methods.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/h1-style-transfer.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-pink-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-pink-500/50">H1</span> Neural Style Transfer</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/h2-spiking-neural.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-pink-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-pink-500/50">H2</span> Spiking Neural Network</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/h3-ensemble-voting.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-pink-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-pink-500/50">H3</span> Ensemble Voting</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/h4-knowledge-distillation.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-pink-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-pink-500/50">H4</span> Knowledge Distillation</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
+        <!-- MODULE I: Probability & Statistics -->
+        <article class="glass-panel rounded-xl p-6 cat-orange group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20 text-orange-400"><i class="ri-dice-line text-2xl"></i></div>
+            <span class="font-mono text-xs text-slate-500 bg-white/5 px-2 py-1 rounded">MOD-I</span>
+          </div>
+          <h3 class="text-xl font-bold text-white mb-2 group-hover:text-orange-400 transition-colors">Probability & Stats</h3>
+          <p class="text-sm text-slate-400 mb-4">Foundations of uncertainty. Distributions and inference.</p>
+          <ul class="space-y-1">
+            <li><a href="topics/i1-probability-distributions.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-orange-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-orange-500/50">I1</span> Probability Distributions</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/i2-bayes-theorem.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-orange-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-orange-500/50">I2</span> Bayes' Theorem</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/i3-maximum-likelihood.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-orange-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-orange-500/50">I3</span> Maximum Likelihood</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+            <li><a href="topics/i4-information-theory.html" class="topic-link flex items-center justify-between text-sm p-2 rounded text-slate-300 hover:text-orange-300"><span class="flex items-center gap-3"><span class="font-mono text-xs text-orange-500/50">I4</span> Information Theory</span><i class="ri-checkbox-circle-line text-slate-600"></i></a></li>
+          </ul>
+        </article>
+
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
+  <footer class="border-t border-white/5 bg-[#030305] py-12">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="flex items-center gap-3">
+        <i class="ri-node-tree text-indigo-500 text-xl"></i>
+        <span class="font-semibold text-slate-300">Neural Pathways</span>
+      </div>
+      <p class="text-sm text-slate-600">© 2024 Learning ML through Visualization. Open Source.</p>
+      <div class="flex gap-4">
+        <a href="#" class="text-slate-500 hover:text-indigo-400 transition-colors"><i class="ri-twitter-x-line text-xl"></i></a>
+        <a href="#" class="text-slate-500 hover:text-white transition-colors"><i class="ri-github-line text-xl"></i></a>
+      </div>
     </div>
   </footer>
 
   <script>
-    // Animated neural network background
     const canvas = document.getElementById('neural-canvas');
     const ctx = canvas.getContext('2d');
-    
-    let nodes = [];
-    let connections = [];
-    let animationId;
-    
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      initNodes();
-    }
-    
-    function initNodes() {
-      nodes = [];
-      connections = [];
-      
-      const nodeCount = Math.floor((canvas.width * canvas.height) / 25000);
-      
-      for (let i = 0; i < nodeCount; i++) {
-        nodes.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: (Math.random() - 0.5) * 0.3,
-          radius: Math.random() * 2 + 1,
-          pulsePhase: Math.random() * Math.PI * 2
-        });
+    let width, height, nodes = [], signals = [];
+    const NODE_COUNT_FACTOR = 15000, CONNECTION_DISTANCE = 150, SIGNAL_SPEED = 2, SIGNAL_CHANCE = 0.01;
+
+    class Node {
+      constructor() {
+        this.x = Math.random() * width; this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.2; this.vy = (Math.random() - 0.5) * 0.2;
+        this.radius = Math.random() * 1.5 + 1; this.baseColor = 'rgba(99, 102, 241, 0.5)';
+      }
+      update() {
+        this.x += this.vx; this.y += this.vy;
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
+      }
+      draw() {
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.baseColor; ctx.fill();
       }
     }
-    
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Update and draw connections
-      const maxDist = 150;
-      
+
+    class Signal {
+      constructor(startNode, endNode) {
+        this.start = startNode; this.end = endNode; this.progress = 0; this.dead = false;
+        this.color = Math.random() > 0.5 ? '#38bdf8' : '#a855f7';
+      }
+      update() {
+        this.progress += SIGNAL_SPEED / Math.hypot(this.end.x - this.start.x, this.end.y - this.start.y);
+        if (this.progress >= 1) this.dead = true;
+      }
+      draw() {
+        if (this.dead) return;
+        const x = this.start.x + (this.end.x - this.start.x) * this.progress;
+        const y = this.start.y + (this.end.y - this.start.y) * this.progress;
+        ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = this.color; ctx.fill();
+        ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+      }
+    }
+
+    function init() { resize(); createNodes(); animate(); }
+    function resize() { width = window.innerWidth; height = window.innerHeight; canvas.width = width; canvas.height = height; }
+    function createNodes() { nodes = []; const count = Math.floor((width * height) / NODE_COUNT_FACTOR); for (let i = 0; i < count; i++) nodes.push(new Node()); }
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height); ctx.shadowBlur = 0;
+      nodes.forEach(node => { node.update(); node.draw(); });
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
-          const dx = nodes[i].x - nodes[j].x;
-          const dy = nodes[i].y - nodes[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          
-          if (dist < maxDist) {
-            const opacity = (1 - dist / maxDist) * 0.5;
-            ctx.strokeStyle = `rgba(139, 92, 246, ${opacity})`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(nodes[i].x, nodes[i].y);
-            ctx.lineTo(nodes[j].x, nodes[j].y);
-            ctx.stroke();
+          const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < CONNECTION_DISTANCE) {
+            ctx.beginPath(); ctx.moveTo(nodes[i].x, nodes[i].y); ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.strokeStyle = `rgba(50, 60, 90, ${(1 - dist / CONNECTION_DISTANCE) * 0.3})`; ctx.lineWidth = 1; ctx.stroke();
+            if (Math.random() < SIGNAL_CHANCE * 0.1) signals.push(new Signal(nodes[i], nodes[j]));
           }
         }
       }
-      
-      // Update and draw nodes
-      const time = Date.now() * 0.001;
-      
-      for (const node of nodes) {
-        // Update position
-        node.x += node.vx;
-        node.y += node.vy;
-        
-        // Bounce off edges
-        if (node.x < 0 || node.x > canvas.width) node.vx *= -1;
-        if (node.y < 0 || node.y > canvas.height) node.vy *= -1;
-        
-        // Draw node with pulse
-        const pulse = Math.sin(time * 2 + node.pulsePhase) * 0.3 + 0.7;
-        const radius = node.radius * pulse;
-        
-        ctx.fillStyle = `rgba(139, 92, 246, ${0.6 * pulse})`;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      
-      animationId = requestAnimationFrame(draw);
+      ctx.globalCompositeOperation = 'screen';
+      for (let i = signals.length - 1; i >= 0; i--) { signals[i].update(); signals[i].draw(); if (signals[i].dead) signals.splice(i, 1); }
+      ctx.globalCompositeOperation = 'source-over';
+      requestAnimationFrame(animate);
     }
-    
-    window.addEventListener('resize', resize);
-    resize();
-    draw();
+
+    window.addEventListener('resize', () => { resize(); createNodes(); });
+    init();
   </script>
 </body>
 </html>

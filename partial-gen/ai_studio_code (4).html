@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B5 - Product Rule Visualizer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.95);
+            --text-main: #f8fafc;
+            --u-color: #3b82f6; /* Blue */
+            --v-color: #eab308; /* Yellow */
+            --term1-color: #ef4444; /* Red: v * du */
+            --term2-color: #22c55e; /* Green: u * dv */
+            --corner-color: #94a3b8; /* Gray */
+        }
+
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Roboto, monospace; background: var(--bg-color); color: var(--text-main); }
+
+        /* Layout */
+        #container { display: flex; height: 100vh; width: 100vw; }
+        #canvas-container { flex-grow: 1; position: relative; }
+        
+        /* Sidebar */
+        #sidebar {
+            width: 340px;
+            background: var(--panel-bg);
+            border-left: 1px solid #334155;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        h1 { margin: 0; font-size: 20px; color: var(--text-main); border-bottom: 1px solid #475569; padding-bottom: 10px; }
+        h2 { margin: 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Controls */
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 13px; color: #cbd5e1; display: flex; justify-content: space-between; }
+        
+        input[type="range"] { width: 100%; accent-color: var(--u-color); cursor: pointer; }
+        select { 
+            background: #1e293b; color: white; border: 1px solid #475569; 
+            padding: 8px; border-radius: 4px; width: 100%; cursor: pointer;
+        }
+
+        /* Formula Display */
+        #formula-box {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            border: 1px solid #334155;
+        }
+
+        .math-term { padding: 2px 4px; border-radius: 3px; transition: all 0.2s; display: inline-block; }
+        .t-u { color: var(--u-color); }
+        .t-v { color: var(--v-color); }
+        .t-term1 { color: var(--term1-color); font-weight: bold; }
+        .t-term2 { color: var(--term2-color); font-weight: bold; }
+        .t-corner { color: var(--corner-color); }
+
+        .highlight-term1 { background: rgba(239, 68, 68, 0.2); }
+        .highlight-term2 { background: rgba(34, 197, 94, 0.2); }
+        .highlight-corner { background: rgba(148, 163, 184, 0.2); }
+
+        /* Floating Labels */
+        .label-text {
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* Mini Graph Canvas */
+        #mini-graph {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            width: 100%;
+            height: 120px;
+        }
+
+        .btn-anim {
+            background: var(--u-color);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-anim:hover { background: #2563eb; }
+
+    </style>
+    <!-- Import Maps -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@tweenjs/tween.js": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+<div id="container">
+    <div id="canvas-container"></div>
+    
+    <div id="sidebar">
+        <h1>Product Rule Visualizer</h1>
+        <p style="font-size: 13px; color: #94a3b8; margin-top: -10px;">
+            Area = f(x) · g(x). See how Area changes as x changes.
+        </p>
+
+        <!-- Function Selectors -->
+        <div class="control-group">
+            <h2>Functions</h2>
+            <select id="func-select">
+                <option value="simple">Simple: x · (x + 1)</option>
+                <option value="squares">Squares: x² · (0.5x + 2)</option>
+                <option value="trig">Trig: (sin(x)+2) · (x + 1)</option>
+            </select>
+        </div>
+
+        <!-- Sliders -->
+        <div class="control-group">
+            <label>Current x: <span id="val-x">1.00</span></label>
+            <input type="range" id="slider-x" min="0.5" max="3.0" step="0.01" value="1.5">
+        </div>
+
+        <div class="control-group">
+            <label>Change Δx: <span id="val-dx">0.50</span></label>
+            <input type="range" id="slider-dx" min="0.00" max="1.0" step="0.01" value="0.5">
+        </div>
+
+        <button class="btn-anim" id="anim-limit-btn">Animate Δx → 0</button>
+
+        <!-- Formula Breakdown -->
+        <div id="formula-box">
+            <div>Area = <span class="t-u">f</span> · <span class="t-v">g</span></div>
+            <hr style="border-color: #334155; opacity: 0.5;">
+            <div>ΔArea = </div>
+            <div id="term-vdu" class="math-term t-term1">g(x)·Δf</div> + 
+            <div id="term-udv" class="math-term t-term2">f(x)·Δg</div> + 
+            <div id="term-corn" class="math-term t-corner">Δf·Δg</div>
+            <div style="margin-top: 10px; font-size: 12px; color: #94a3b8;">
+                Values:<br>
+                <span style="color:var(--term1-color)">■</span> <span id="val-term1">0.00</span><br>
+                <span style="color:var(--term2-color)">■</span> <span id="val-term2">0.00</span><br>
+                <span style="color:var(--corner-color)">■</span> <span id="val-corner">0.00</span>
+            </div>
+        </div>
+
+        <!-- Mini Graph -->
+        <div class="control-group">
+            <h2>Graph View</h2>
+            <canvas id="mini-graph"></canvas>
+            <div style="font-size: 11px; color: #64748b; text-align: center;">
+                Blue: f(x) | Yellow: g(x) | White: f(x)g(x)
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    import TWEEN from '@tweenjs/tween.js';
+
+    // --- Math Definitions ---
+    const PRESETS = {
+        'simple': {
+            f: (x) => x,
+            g: (x) => x + 1,
+            fLabel: 'x',
+            gLabel: 'x+1'
+        },
+        'squares': {
+            f: (x) => x * x * 0.5 + 0.5,
+            g: (x) => 0.5 * x + 1.5,
+            fLabel: '0.5x² + 0.5',
+            gLabel: '0.5x + 1.5'
+        },
+        'trig': {
+            f: (x) => Math.sin(x) + 2,
+            g: (x) => x * 0.5 + 1,
+            fLabel: 'sin(x)+2',
+            gLabel: '0.5x+1'
+        }
+    };
+
+    // --- State ---
+    const state = {
+        x: 1.5,
+        dx: 0.5,
+        currentPreset: PRESETS['simple']
+    };
+
+    // --- Three.js Setup ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+
+    // Orthographic Camera for precise 2D geometry look
+    const aspect = container.clientWidth / container.clientHeight;
+    const frustumSize = 10;
+    const camera = new THREE.OrthographicCamera(
+        frustumSize * aspect / -2, frustumSize * aspect / 2,
+        frustumSize / 2, frustumSize / -2,
+        1, 1000
+    );
+    camera.position.set(2, 2, 10); // Offset slightly
+    camera.lookAt(2, 2, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(container.clientWidth, container.clientHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableRotate = false; // Lock to 2D view mostly
+    controls.enableZoom = true;
+    controls.minZoom = 0.5;
+    controls.maxZoom = 2;
+    controls.target.set(2, 2, 0);
+
+    // --- Grid ---
+    const gridHelper = new THREE.GridHelper(20, 20, 0x334155, 0x1e293b);
+    gridHelper.rotation.x = Math.PI / 2;
+    gridHelper.position.set(5, 5, -0.1);
+    scene.add(gridHelper);
+
+    // --- Geometry Objects ---
+    // We need 4 Rectangles: Base, Right Strip, Top Strip, Corner
+    
+    function createRect(color, opacity = 1.0, labelText = "") {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        // Pivot point at bottom-left corner for easier scaling
+        geometry.translate(0.5, 0.5, 0); 
+        
+        const material = new THREE.MeshBasicMaterial({ 
+            color: color, 
+            transparent: true, 
+            opacity: opacity,
+            side: THREE.DoubleSide
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        
+        // Add border
+        const edges = new THREE.EdgesGeometry(geometry);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent: true }));
+        mesh.add(line);
+
+        // Add Label
+        const div = document.createElement('div');
+        div.className = 'label-text';
+        div.textContent = labelText;
+        const label = new CSS2DObject(div);
+        mesh.add(label);
+
+        scene.add(mesh);
+        return { mesh, label, line };
+    }
+
+    const rectBase = createRect(0x3b82f6, 0.8, "f(x)·g(x)"); // Blue
+    const rectRight = createRect(0xef4444, 0.6, "g·Δf");     // Red
+    const rectTop = createRect(0x22c55e, 0.6, "f·Δg");       // Green
+    const rectCorner = createRect(0x94a3b8, 0.4, "");        // Gray
+
+    // Axis Lines
+    const axesHelper = new THREE.AxesHelper(10);
+    scene.add(axesHelper);
+
+    // --- Mini Graph (Canvas 2D) ---
+    const graphCanvas = document.getElementById('mini-graph');
+    const ctx = graphCanvas.getContext('2d');
+
+    function drawGraph() {
+        const w = graphCanvas.width = graphCanvas.clientWidth;
+        const h = graphCanvas.height = graphCanvas.clientHeight;
+        const f = state.currentPreset.f;
+        const g = state.currentPreset.g;
+
+        // Clear
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, w, h);
+
+        // Scale
+        const scaleX = w / 4; // 0 to 4 domain
+        const scaleY = h / 10; // 0 to 10 range roughly
+
+        function plot(func, color) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            for(let ix = 0; ix < w; ix++) {
+                const xVal = (ix / scaleX);
+                const yVal = func(xVal);
+                const iy = h - (yVal * scaleY);
+                if (ix === 0) ctx.moveTo(ix, iy);
+                else ctx.lineTo(ix, iy);
+            }
+            ctx.stroke();
+        }
+
+        plot(f, '#3b82f6'); // f(x)
+        plot(g, '#eab308'); // g(x)
+        plot(x => f(x)*g(x), '#ffffff'); // product
+
+        // Draw current X line
+        const lineX = state.x * scaleX;
+        ctx.beginPath();
+        ctx.strokeStyle = '#fff';
+        ctx.setLineDash([5, 5]);
+        ctx.moveTo(lineX, 0);
+        ctx.lineTo(lineX, h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // --- Update Logic ---
+
+    function updateVisualization() {
+        const f = state.currentPreset.f;
+        const g = state.currentPreset.g;
+        
+        // 1. Calculate dimensions
+        const u = f(state.x);         // Width
+        const v = g(state.x);         // Height
+        
+        const u_next = f(state.x + state.dx);
+        const v_next = g(state.x + state.dx);
+        
+        const du = u_next - u;
+        const dv = v_next - v;
+
+        // 2. Update Base Rectangle (u * v)
+        rectBase.mesh.scale.set(u, v, 1);
+        rectBase.mesh.position.set(0, 0, 0);
+        rectBase.label.position.set(0.5, 0.5, 0); // Center label relative to geometry 0..1
+        rectBase.label.element.textContent = `Area: ${(u*v).toFixed(2)}`;
+
+        // 3. Update Right Strip (v * du) - Corresponds to g(x) * f'(x)
+        // Positioned at x=u, y=0. Width=du, Height=v
+        rectRight.mesh.scale.set(du, v, 1);
+        rectRight.mesh.position.set(u, 0, 0);
+        rectRight.label.position.set(0.5, 0.5, 0);
+        rectRight.label.element.textContent = du > 0.1 ? "g·Δf" : "";
+        rectRight.mesh.visible = Math.abs(du) > 0.001;
+
+        // 4. Update Top Strip (u * dv) - Corresponds to f(x) * g'(x)
+        // Positioned at x=0, y=v. Width=u, Height=dv
+        rectTop.mesh.scale.set(u, dv, 1);
+        rectTop.mesh.position.set(0, v, 0);
+        rectTop.label.position.set(0.5, 0.5, 0);
+        rectTop.label.element.textContent = dv > 0.1 ? "f·Δg" : "";
+        rectTop.mesh.visible = Math.abs(dv) > 0.001;
+
+        // 5. Update Corner (du * dv)
+        // Positioned at x=u, y=v. Width=du, Height=dv
+        rectCorner.mesh.scale.set(du, dv, 1);
+        rectCorner.mesh.position.set(u, v, 0);
+        rectCorner.label.position.set(0.5, 0.5, 0); // Center
+        // Only show label if big enough
+        rectCorner.label.element.textContent = (state.dx > 0.2) ? "Δf·Δg" : "";
+        rectCorner.mesh.visible = (Math.abs(du) > 0.001 && Math.abs(dv) > 0.001);
+
+        // 6. Update HTML UI
+        document.getElementById('val-x').textContent = state.x.toFixed(2);
+        document.getElementById('val-dx').textContent = state.dx.toFixed(2);
+        
+        const term1 = v * du;
+        const term2 = u * dv;
+        const corner = du * dv;
+        
+        document.getElementById('val-term1').textContent = term1.toFixed(3);
+        document.getElementById('val-term2').textContent = term2.toFixed(3);
+        document.getElementById('val-corner').textContent = corner.toFixed(3);
+
+        // Highlight logic
+        const t1Elem = document.getElementById('term-vdu');
+        const t2Elem = document.getElementById('term-udv');
+        const cElem = document.getElementById('term-corn');
+
+        // Simple highlight based on size
+        t1Elem.className = `math-term t-term1 ${Math.abs(term1) > 0.01 ? 'highlight-term1' : ''}`;
+        t2Elem.className = `math-term t-term2 ${Math.abs(term2) > 0.01 ? 'highlight-term2' : ''}`;
+        // Corner fades as dx gets small
+        cElem.style.opacity = state.dx < 0.1 ? 0.3 : 1.0;
+        cElem.className = `math-term t-corner ${Math.abs(corner) > 0.01 ? 'highlight-corner' : ''}`;
+
+        drawGraph();
+    }
+
+    // --- Interaction ---
+    
+    document.getElementById('slider-x').addEventListener('input', (e) => {
+        state.x = parseFloat(e.target.value);
+        updateVisualization();
+    });
+
+    document.getElementById('slider-dx').addEventListener('input', (e) => {
+        state.dx = parseFloat(e.target.value);
+        updateVisualization();
+    });
+
+    document.getElementById('func-select').addEventListener('change', (e) => {
+        state.currentPreset = PRESETS[e.target.value];
+        updateVisualization();
+    });
+
+    document.getElementById('anim-limit-btn').addEventListener('click', () => {
+        const start = { dx: state.dx };
+        const end = { dx: 0.01 }; // Don't go to exactly 0 to keep rects visible but tiny
+        
+        new TWEEN.Tween(start)
+            .to(end, 2000)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .onUpdate(() => {
+                state.dx = start.dx;
+                document.getElementById('slider-dx').value = state.dx;
+                updateVisualization();
+            })
+            .start();
+    });
+
+    // --- Animation Loop ---
+    
+    function animate() {
+        requestAnimationFrame(animate);
+        TWEEN.update();
+        controls.update();
+        renderer.render(scene, camera);
+        labelRenderer.render(scene, camera);
+    }
+
+    // Init
+    window.addEventListener('resize', () => {
+        const aspect = container.clientWidth / container.clientHeight;
+        camera.left = frustumSize * aspect / -2;
+        camera.right = frustumSize * aspect / 2;
+        camera.top = frustumSize / 2;
+        camera.bottom = frustumSize / -2;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        labelRenderer.setSize(container.clientWidth, container.clientHeight);
+        drawGraph();
+    });
+
+    updateVisualization();
+    animate();
+
+</script>
+</body>
+</html>

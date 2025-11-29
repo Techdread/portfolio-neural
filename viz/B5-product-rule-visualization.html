@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B5 - Product Rule Visualizer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.95);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --f-color: #3b82f6;
+            --g-color: #eab308;
+            --term1-color: #ef4444;
+            --term2-color: #22c55e;
+            --corner-color: #64748b;
+            --accent: #8b5cf6;
+            --border-color: #334155;
+        }
+
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg-color); 
+            color: var(--text-main); 
+        }
+
+        /* Layout */
+        #container { display: flex; height: 100vh; width: 100vw; }
+        #canvas-container { flex-grow: 1; position: relative; }
+        
+        /* Header overlay */
+        #header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 340px;
+            padding: 16px 20px;
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.95), transparent);
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        #header h1 {
+            margin: 0;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #header h1 .tag {
+            background: var(--accent);
+            color: white;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        #header p {
+            margin: 6px 0 0 0;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        
+        .keyboard-hints {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+        
+        .keyboard-hints kbd {
+            background: #334155;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin: 0 2px;
+        }
+        
+        /* Sidebar */
+        #sidebar {
+            width: 340px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        h2 { 
+            margin: 0; 
+            font-size: 12px; 
+            color: var(--text-dim); 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Controls */
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        
+        label { 
+            font-size: 13px; 
+            color: #cbd5e1; 
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        label span.value {
+            font-family: 'Courier New', monospace;
+            color: var(--accent);
+            font-weight: 600;
+        }
+        
+        input[type="range"] { 
+            width: 100%; 
+            accent-color: var(--accent); 
+            cursor: pointer; 
+        }
+        
+        select { 
+            background: #1e293b; 
+            color: white; 
+            border: 1px solid var(--border-color); 
+            padding: 10px 12px; 
+            border-radius: 6px; 
+            width: 100%; 
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        select:hover { border-color: #475569; }
+
+        /* Formula Display */
+        #formula-box {
+            background: #1e293b;
+            padding: 14px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            border: 1px solid var(--border-color);
+        }
+        
+        #formula-box .main-formula {
+            font-size: 15px;
+            text-align: center;
+            padding: 8px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .t-f { color: var(--f-color); }
+        .t-g { color: var(--g-color); }
+        .t-term1 { color: var(--term1-color); font-weight: bold; }
+        .t-term2 { color: var(--term2-color); font-weight: bold; }
+        .t-corner { color: var(--corner-color); }
+        .t-result { color: var(--accent); font-weight: bold; }
+
+        .term-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+        }
+        
+        .term-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        
+        .term-label { flex: 1; }
+        .term-value { 
+            font-weight: 600; 
+            min-width: 60px; 
+            text-align: right; 
+        }
+
+        /* Hint Box */
+        .hint-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: #fbbf24;
+            line-height: 1.5;
+        }
+        
+        .hint-box .hint-icon { margin-right: 6px; }
+
+        /* ML Insight */
+        .ml-insight {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: #a78bfa;
+            line-height: 1.5;
+        }
+        
+        .ml-insight h3 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #c4b5fd;
+        }
+
+        /* Verification Box */
+        #verification-box {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        #verification-box h4 {
+            margin: 0 0 8px 0;
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        /* Mini Graph Canvas */
+        #mini-graph-container {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+        }
+        
+        #mini-graph {
+            width: 100%;
+            height: 100px;
+            display: block;
+        }
+        
+        .graph-legend {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 6px;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+        
+        .graph-legend span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .graph-legend .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* Buttons */
+        .btn {
+            border: none;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+        }
+        
+        .btn-primary:hover { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+        
+        .btn-secondary {
+            background: #334155;
+            border: 1px solid #475569;
+        }
+        
+        .btn-secondary:hover { background: #475569; }
+
+        /* Floating Labels in 3D */
+        .label-text {
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+            pointer-events: none;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.6);
+            padding: 3px 6px;
+            border-radius: 3px;
+        }
+        
+        .label-axis {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        /* Status Overlay */
+        #status-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 360px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        #status-overlay.visible { opacity: 1; }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 4px 0;
+        }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@tweenjs/tween.js": "https://unpkg.com/@tweenjs/tween.js@23.1.1/dist/tween.esm.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+<div id="container">
+    <div id="canvas-container">
+        <!-- Header Overlay -->
+        <div id="header">
+            <h1><span class="tag">B5</span> Product Rule Visualizer</h1>
+            <p>Area = f(x) · g(x) — See how the area changes when both dimensions change</p>
+            <div class="keyboard-hints">
+                <kbd>←</kbd><kbd>→</kbd> Adjust x
+                <kbd>↑</kbd><kbd>↓</kbd> Adjust Δx
+                <kbd>Space</kbd> Animate limit
+                <kbd>R</kbd> Reset
+            </div>
+        </div>
+        
+        <!-- Status Overlay -->
+        <div id="status-overlay">
+            <span id="status-text">Ready</span>
+        </div>
+    </div>
+    
+    <div id="sidebar">
+        <!-- Function Selector -->
+        <div class="control-group">
+            <h2>Functions</h2>
+            <select id="func-select">
+                <option value="simple">Simple: f=x, g=x+1</option>
+                <option value="quadratic">Quadratic: f=x², g=x+2</option>
+                <option value="trig">Trig: f=sin(x)+2, g=x+1</option>
+                <option value="gate">🧠 ML Gate: f=σ(x), g=tanh(x)</option>
+            </select>
+        </div>
+
+        <!-- Sliders -->
+        <div class="control-group">
+            <label>Position x: <span class="value" id="val-x">1.50</span></label>
+            <input type="range" id="slider-x" min="0.5" max="3.0" step="0.01" value="1.5">
+        </div>
+
+        <div class="control-group">
+            <label>Change Δx: <span class="value" id="val-dx">0.50</span></label>
+            <input type="range" id="slider-dx" min="0.01" max="1.0" step="0.01" value="0.5">
+        </div>
+
+        <button class="btn btn-primary" id="anim-limit-btn">
+            ▶ Animate Δx → 0
+        </button>
+
+        <hr>
+
+        <!-- Formula Display -->
+        <div id="formula-box">
+            <div class="main-formula">
+                d/dx[<span class="t-f">f</span>·<span class="t-g">g</span>] = 
+                <span class="t-f">f'</span>·<span class="t-g">g</span> + 
+                <span class="t-f">f</span>·<span class="t-g">g'</span>
+            </div>
+            
+            <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 8px;">
+                <div>Δf = f(x+Δx) − f(x) = <span id="delta-f-calc">?</span></div>
+                <div>Δg = g(x+Δx) − g(x) = <span id="delta-g-calc">?</span></div>
+            </div>
+            
+            <hr>
+            
+            <div style="margin: 8px 0; font-size: 12px;">ΔArea breakdown:</div>
+            
+            <div class="term-row">
+                <div class="term-color" style="background: var(--term1-color)"></div>
+                <span class="term-label"><span class="t-g">g(x)</span> · Δf</span>
+                <span class="term-value t-term1" id="val-term1">0.000</span>
+            </div>
+            
+            <div class="term-row">
+                <div class="term-color" style="background: var(--term2-color)"></div>
+                <span class="term-label"><span class="t-f">f(x)</span> · Δg</span>
+                <span class="term-value t-term2" id="val-term2">0.000</span>
+            </div>
+            
+            <div class="term-row" id="corner-row">
+                <div class="term-color" style="background: var(--corner-color)"></div>
+                <span class="term-label">Δf · Δg <span style="font-size:10px;color:#64748b">(vanishes)</span></span>
+                <span class="term-value t-corner" id="val-corner">0.000</span>
+            </div>
+            
+            <hr>
+            
+            <div class="term-row" style="font-size: 14px;">
+                <span class="term-label">Total ΔArea:</span>
+                <span class="term-value t-result" id="val-total">0.000</span>
+            </div>
+            
+            <div class="term-row" style="font-size: 14px;">
+                <span class="term-label">dA/dx ≈ ΔA/Δx:</span>
+                <span class="term-value t-result" id="val-derivative">0.000</span>
+            </div>
+        </div>
+
+        <!-- Verification -->
+        <div id="verification-box">
+            <h4>✓ Verification</h4>
+            <div id="verification-content">
+                <div>Product Rule: <span class="t-result" id="verify-product">—</span></div>
+                <div>Numerical:    <span style="color: #60a5fa" id="verify-numerical">—</span></div>
+                <div id="verify-match" style="margin-top: 4px; color: #4ade80">—</div>
+            </div>
+        </div>
+
+        <!-- Hint Box -->
+        <div class="hint-box">
+            <span class="hint-icon">💡</span>
+            <span id="hint-text">The rectangle's area is f(x)·g(x). When x changes, BOTH f and g change, creating three pieces of new area. As Δx→0, the corner piece vanishes!</span>
+        </div>
+
+        <!-- Mini Graph -->
+        <div class="control-group">
+            <h2>Function Graphs</h2>
+            <div id="mini-graph-container">
+                <canvas id="mini-graph"></canvas>
+                <div class="graph-legend">
+                    <span><div class="dot" style="background: var(--f-color)"></div> f(x)</span>
+                    <span><div class="dot" style="background: var(--g-color)"></div> g(x)</span>
+                    <span><div class="dot" style="background: white"></div> f·g</span>
+                    <span><div class="dot" style="background: #f472b6"></div> tangent</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Insight (hidden by default) -->
+        <div class="ml-insight" id="ml-insight" style="display: none;">
+            <h3>🤖 ML Connection</h3>
+            <p>The product rule appears whenever two quantities multiply in neural networks:</p>
+            <ul style="margin: 8px 0; padding-left: 20px;">
+                <li><b>Attention:</b> scores × values</li>
+                <li><b>LSTM/GRU:</b> gate × candidate</li>
+                <li><b>Dropout:</b> mask × activations</li>
+            </ul>
+            <p>Backprop through a product needs BOTH terms!</p>
+        </div>
+
+        <button class="btn btn-secondary" onclick="resetAll()">⟳ Reset All</button>
+    </div>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    import TWEEN from '@tweenjs/tween.js';
+
+    // --- Function Presets ---
+    const PRESETS = {
+        'simple': {
+            f: (x) => x,
+            g: (x) => x + 1,
+            df: (x) => 1,
+            dg: (x) => 1,
+            fLabel: 'x',
+            gLabel: 'x+1',
+            fPrime: '1',
+            gPrime: '1',
+            hint: "With f(x)=x and g(x)=x+1, the product is x²+x. Its derivative should be 2x+1. Does f'g + fg' = 1·(x+1) + x·1 = 2x+1? ✓"
+        },
+        'quadratic': {
+            f: (x) => x * x,
+            g: (x) => x + 2,
+            df: (x) => 2 * x,
+            dg: (x) => 1,
+            fLabel: 'x²',
+            gLabel: 'x+2',
+            fPrime: '2x',
+            gPrime: '1',
+            hint: "f(x)=x² grows quadratically while g(x)=x+2 grows linearly. The red strip (g·Δf) grows faster because f' = 2x increases with x."
+        },
+        'trig': {
+            f: (x) => Math.sin(x) + 2,
+            g: (x) => x + 1,
+            df: (x) => Math.cos(x),
+            dg: (x) => 1,
+            fLabel: 'sin(x)+2',
+            gLabel: 'x+1',
+            fPrime: 'cos(x)',
+            gPrime: '1',
+            hint: "With trigonometric functions, the derivative f'=cos(x) oscillates! Watch the red strip shrink and grow as x changes."
+        },
+        'gate': {
+            f: (x) => 1 / (1 + Math.exp(-x)),  // sigmoid
+            g: (x) => Math.tanh(x) + 1.5,       // tanh shifted up
+            df: (x) => {
+                const s = 1 / (1 + Math.exp(-x));
+                return s * (1 - s);
+            },
+            dg: (x) => 1 - Math.tanh(x) ** 2,
+            fLabel: 'σ(x)',
+            gLabel: 'tanh(x)+1.5',
+            fPrime: 'σ(1-σ)',
+            gPrime: '1-tanh²',
+            hint: "🧠 This mimics LSTM gating: gate σ(x) × candidate tanh(x). Backprop needs ∂/∂x = σ'·tanh + σ·tanh'. Both terms matter!",
+            showML: true
+        }
+    };
+
+    const HINTS = {
+        animating: "Watch the gray corner shrink! It's Δf×Δg — the product of TWO small things vanishes fastest.",
+        limit: "In the limit as Δx→0: d(fg)/dx = f'g + fg'. The corner term disappears entirely!",
+        default: "The rectangle's area is f(x)·g(x). When x changes, BOTH f and g change, creating three pieces of new area."
+    };
+
+    // --- State ---
+    const state = {
+        x: 1.5,
+        dx: 0.5,
+        currentPresetId: 'simple',
+        currentPreset: PRESETS['simple'],
+        isAnimating: false
+    };
+
+    // --- Three.js Setup ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+
+    // Orthographic Camera
+    const aspect = container.clientWidth / container.clientHeight;
+    const frustumSize = 10;
+    const camera = new THREE.OrthographicCamera(
+        frustumSize * aspect / -2, frustumSize * aspect / 2,
+        frustumSize / 2, frustumSize / -2,
+        1, 1000
+    );
+    camera.position.set(2.5, 2.5, 10);
+    camera.lookAt(2.5, 2.5, 0);
+
+    // Renderers
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(container.clientWidth, container.clientHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableRotate = false;
+    controls.enableZoom = true;
+    controls.minZoom = 0.5;
+    controls.maxZoom = 3;
+    controls.target.set(2.5, 2.5, 0);
+
+    // --- Grid & Axes ---
+    const gridHelper = new THREE.GridHelper(20, 20, 0x334155, 0x1e293b);
+    gridHelper.rotation.x = Math.PI / 2;
+    gridHelper.position.set(5, 5, -0.1);
+    scene.add(gridHelper);
+
+    // Axis lines
+    const axisXGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(6, 0, 0)
+    ]);
+    const axisYGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 6, 0)
+    ]);
+    
+    const axisX = new THREE.Line(axisXGeo, new THREE.LineBasicMaterial({ color: 0x64748b }));
+    const axisY = new THREE.Line(axisYGeo, new THREE.LineBasicMaterial({ color: 0x64748b }));
+    scene.add(axisX, axisY);
+
+    // Axis labels
+    function createAxisLabel(text, position, color) {
+        const div = document.createElement('div');
+        div.className = 'label-text label-axis';
+        div.textContent = text;
+        div.style.color = color;
+        const label = new CSS2DObject(div);
+        label.position.copy(position);
+        scene.add(label);
+        return label;
+    }
+
+    const xAxisLabel = createAxisLabel('f(x) →', new THREE.Vector3(5.5, -0.4, 0), '#3b82f6');
+    const yAxisLabel = createAxisLabel('g(x) ↑', new THREE.Vector3(-0.4, 5.5, 0), '#eab308');
+
+    // --- Rectangle Objects ---
+    function createRect(color, opacity = 1.0) {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        geometry.translate(0.5, 0.5, 0);
+        
+        const material = new THREE.MeshBasicMaterial({ 
+            color, 
+            transparent: true, 
+            opacity,
+            side: THREE.DoubleSide
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        
+        // Border
+        const edges = new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0));
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ 
+            color: 0xffffff, 
+            opacity: 0.4, 
+            transparent: true 
+        }));
+        mesh.add(line);
+
+        // Label
+        const div = document.createElement('div');
+        div.className = 'label-text';
+        const label = new CSS2DObject(div);
+        label.position.set(0.5, 0.5, 0);
+        mesh.add(label);
+
+        scene.add(mesh);
+        return { mesh, label, line, edges };
+    }
+
+    const rectBase = createRect(0x3b82f6, 0.7);
+    const rectRight = createRect(0xef4444, 0.75);
+    const rectTop = createRect(0x22c55e, 0.75);
+    const rectCorner = createRect(0x64748b, 0.5);
+
+    // Dimension lines
+    function createDimensionLine(color) {
+        const geo = new THREE.BufferGeometry();
+        const mat = new THREE.LineBasicMaterial({ color, linewidth: 2 });
+        const line = new THREE.Line(geo, mat);
+        
+        const div = document.createElement('div');
+        div.className = 'label-text';
+        div.style.color = color === 0x3b82f6 ? '#3b82f6' : '#eab308';
+        const label = new CSS2DObject(div);
+        line.add(label);
+        
+        scene.add(line);
+        return { line, label };
+    }
+
+    const dimF = createDimensionLine(0x3b82f6);
+    const dimG = createDimensionLine(0xeab308);
+    const dimDeltaF = createDimensionLine(0xef4444);
+    const dimDeltaG = createDimensionLine(0x22c55e);
+
+    // --- Mini Graph ---
+    const graphCanvas = document.getElementById('mini-graph');
+    const ctx = graphCanvas.getContext('2d');
+
+    function drawGraph() {
+        const w = graphCanvas.width = graphCanvas.clientWidth * 2;
+        const h = graphCanvas.height = graphCanvas.clientHeight * 2;
+        ctx.scale(2, 2);
+        
+        const actualW = w / 2;
+        const actualH = h / 2;
+        
+        const f = state.currentPreset.f;
+        const g = state.currentPreset.g;
+        const df = state.currentPreset.df;
+        const dg = state.currentPreset.dg;
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, actualW, actualH);
+
+        const scaleX = actualW / 4;
+        const scaleY = actualH / 6;
+        const offsetY = actualH - 10;
+
+        function toCanvas(xVal, yVal) {
+            return [xVal * scaleX, offsetY - yVal * scaleY];
+        }
+
+        function plot(func, color, lineWidth = 1.5) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            for (let ix = 0; ix < actualW; ix++) {
+                const xVal = ix / scaleX;
+                const yVal = func(xVal);
+                const [cx, cy] = toCanvas(xVal, yVal);
+                if (ix === 0) ctx.moveTo(cx, cy);
+                else ctx.lineTo(cx, cy);
+            }
+            ctx.stroke();
+        }
+
+        // Plot functions
+        plot(f, '#3b82f6');
+        plot(g, '#eab308');
+        plot(x => f(x) * g(x), '#ffffff', 2);
+
+        // Current x vertical line
+        const [lineX] = toCanvas(state.x, 0);
+        ctx.beginPath();
+        ctx.strokeStyle = '#94a3b8';
+        ctx.setLineDash([3, 3]);
+        ctx.moveTo(lineX, 0);
+        ctx.lineTo(lineX, actualH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Tangent line at current x
+        const x = state.x;
+        const y = f(x) * g(x);
+        const derivative = df(x) * g(x) + f(x) * dg(x);
+        
+        const tangentLen = 0.6;
+        const [tx1, ty1] = toCanvas(x - tangentLen, y - derivative * tangentLen);
+        const [tx2, ty2] = toCanvas(x + tangentLen, y + derivative * tangentLen);
+        
+        ctx.beginPath();
+        ctx.strokeStyle = '#f472b6';
+        ctx.lineWidth = 2;
+        ctx.moveTo(tx1, ty1);
+        ctx.lineTo(tx2, ty2);
+        ctx.stroke();
+
+        // Point marker
+        const [px, py] = toCanvas(x, y);
+        ctx.beginPath();
+        ctx.fillStyle = '#ffffff';
+        ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Slope label
+        ctx.fillStyle = '#f472b6';
+        ctx.font = '10px monospace';
+        ctx.fillText(`slope=${derivative.toFixed(2)}`, tx2 + 5, ty2);
+    }
+
+    // --- Update Logic ---
+    function updateVisualization() {
+        const { f, g, df, dg, fLabel, gLabel, fPrime, gPrime } = state.currentPreset;
+        const x = state.x;
+        const dx = state.dx;
+        
+        // Calculate values
+        const fVal = f(x);
+        const gVal = g(x);
+        const fNext = f(x + dx);
+        const gNext = g(x + dx);
+        const deltaF = fNext - fVal;
+        const deltaG = gNext - gVal;
+        
+        // Terms
+        const term1 = gVal * deltaF;    // g · Δf (red)
+        const term2 = fVal * deltaG;    // f · Δg (green)
+        const corner = deltaF * deltaG; // Δf · Δg (gray)
+        const total = term1 + term2 + corner;
+        
+        // Approximate derivative
+        const approxDeriv = total / dx;
+        
+        // Exact derivative via product rule
+        const exactDeriv = df(x) * gVal + fVal * dg(x);
+
+        // --- Update 3D Rectangles ---
+        
+        // Base rectangle
+        rectBase.mesh.scale.set(fVal, gVal, 1);
+        rectBase.mesh.position.set(0, 0, 0);
+        rectBase.label.element.innerHTML = `<div style="text-align:center">
+            <div style="font-size:10px;opacity:0.7">${fLabel} · ${gLabel}</div>
+            <div>${(fVal * gVal).toFixed(2)}</div>
+        </div>`;
+
+        // Right strip (g · Δf) - Red
+        rectRight.mesh.scale.set(Math.max(0.001, deltaF), gVal, 1);
+        rectRight.mesh.position.set(fVal, 0, 0.01);
+        rectRight.mesh.visible = Math.abs(deltaF) > 0.005;
+        rectRight.label.element.innerHTML = deltaF > 0.08 ? 
+            `<div style="color:#ef4444">g·Δf<br>${term1.toFixed(3)}</div>` : '';
+
+        // Top strip (f · Δg) - Green
+        rectTop.mesh.scale.set(fVal, Math.max(0.001, deltaG), 1);
+        rectTop.mesh.position.set(0, gVal, 0.01);
+        rectTop.mesh.visible = Math.abs(deltaG) > 0.005;
+        rectTop.label.element.innerHTML = deltaG > 0.08 ? 
+            `<div style="color:#22c55e">f·Δg<br>${term2.toFixed(3)}</div>` : '';
+
+        // Corner (Δf · Δg) - Gray
+        rectCorner.mesh.scale.set(Math.max(0.001, deltaF), Math.max(0.001, deltaG), 1);
+        rectCorner.mesh.position.set(fVal, gVal, 0.02);
+        rectCorner.mesh.visible = (Math.abs(deltaF) > 0.005 && Math.abs(deltaG) > 0.005);
+        rectCorner.label.element.innerHTML = (dx > 0.15 && deltaF > 0.05 && deltaG > 0.05) ? 
+            `<div style="color:#64748b;font-size:10px">Δf·Δg</div>` : '';
+        rectCorner.mesh.material.opacity = Math.min(0.6, dx);
+
+        // --- Update dimension lines ---
+        
+        // f(x) dimension (bottom)
+        dimF.line.geometry.setFromPoints([
+            new THREE.Vector3(0, -0.2, 0),
+            new THREE.Vector3(fVal, -0.2, 0)
+        ]);
+        dimF.label.position.set(fVal / 2, -0.2, 0);
+        dimF.label.element.textContent = `f(x)=${fVal.toFixed(2)}`;
+
+        // g(x) dimension (left)
+        dimG.line.geometry.setFromPoints([
+            new THREE.Vector3(-0.2, 0, 0),
+            new THREE.Vector3(-0.2, gVal, 0)
+        ]);
+        dimG.label.position.set(-0.2, gVal / 2, 0);
+        dimG.label.element.textContent = `g(x)=${gVal.toFixed(2)}`;
+
+        // Δf dimension (bottom right)
+        if (deltaF > 0.03) {
+            dimDeltaF.line.geometry.setFromPoints([
+                new THREE.Vector3(fVal, -0.4, 0),
+                new THREE.Vector3(fVal + deltaF, -0.4, 0)
+            ]);
+            dimDeltaF.label.position.set(fVal + deltaF / 2, -0.4, 0);
+            dimDeltaF.label.element.textContent = `Δf=${deltaF.toFixed(2)}`;
+            dimDeltaF.line.visible = true;
+        } else {
+            dimDeltaF.line.visible = false;
+            dimDeltaF.label.element.textContent = '';
+        }
+
+        // Δg dimension (top left)
+        if (deltaG > 0.03) {
+            dimDeltaG.line.geometry.setFromPoints([
+                new THREE.Vector3(-0.4, gVal, 0),
+                new THREE.Vector3(-0.4, gVal + deltaG, 0)
+            ]);
+            dimDeltaG.label.position.set(-0.4, gVal + deltaG / 2, 0);
+            dimDeltaG.label.element.textContent = `Δg=${deltaG.toFixed(2)}`;
+            dimDeltaG.line.visible = true;
+        } else {
+            dimDeltaG.line.visible = false;
+            dimDeltaG.label.element.textContent = '';
+        }
+
+        // --- Update HTML UI ---
+        document.getElementById('val-x').textContent = x.toFixed(2);
+        document.getElementById('val-dx').textContent = dx.toFixed(2);
+        
+        document.getElementById('delta-f-calc').textContent = 
+            `${fNext.toFixed(2)} − ${fVal.toFixed(2)} = ${deltaF.toFixed(3)}`;
+        document.getElementById('delta-g-calc').textContent = 
+            `${gNext.toFixed(2)} − ${gVal.toFixed(2)} = ${deltaG.toFixed(3)}`;
+        
+        document.getElementById('val-term1').textContent = term1.toFixed(3);
+        document.getElementById('val-term2').textContent = term2.toFixed(3);
+        document.getElementById('val-corner').textContent = corner.toFixed(4);
+        document.getElementById('val-total').textContent = total.toFixed(3);
+        document.getElementById('val-derivative').textContent = approxDeriv.toFixed(3);
+
+        // Corner row styling
+        const cornerRow = document.getElementById('corner-row');
+        cornerRow.style.opacity = dx < 0.1 ? 0.4 : 1;
+
+        // Verification
+        document.getElementById('verify-product').textContent = exactDeriv.toFixed(6);
+        document.getElementById('verify-numerical').textContent = approxDeriv.toFixed(6);
+        
+        const match = Math.abs(exactDeriv - approxDeriv) < 0.1;
+        const verifyMatch = document.getElementById('verify-match');
+        if (dx < 0.05) {
+            verifyMatch.textContent = '✓ Converging to product rule!';
+            verifyMatch.style.color = '#4ade80';
+        } else {
+            verifyMatch.textContent = `Difference: ${Math.abs(exactDeriv - approxDeriv).toFixed(4)}`;
+            verifyMatch.style.color = '#94a3b8';
+        }
+
+        drawGraph();
+    }
+
+    // --- Status & Hints ---
+    function setStatus(text, duration = 0) {
+        const overlay = document.getElementById('status-overlay');
+        document.getElementById('status-text').textContent = text;
+        overlay.classList.add('visible');
+        
+        if (duration > 0) {
+            setTimeout(() => overlay.classList.remove('visible'), duration);
+        }
+    }
+
+    function hideStatus() {
+        document.getElementById('status-overlay').classList.remove('visible');
+    }
+
+    function setHint(text) {
+        document.getElementById('hint-text').textContent = text;
+    }
+
+    // --- Event Listeners ---
+    document.getElementById('slider-x').addEventListener('input', (e) => {
+        state.x = parseFloat(e.target.value);
+        updateVisualization();
+    });
+
+    document.getElementById('slider-dx').addEventListener('input', (e) => {
+        state.dx = parseFloat(e.target.value);
+        updateVisualization();
+    });
+
+    document.getElementById('func-select').addEventListener('change', (e) => {
+        state.currentPresetId = e.target.value;
+        state.currentPreset = PRESETS[e.target.value];
+        setHint(state.currentPreset.hint);
+        
+        // Show/hide ML insight
+        document.getElementById('ml-insight').style.display = 
+            state.currentPreset.showML ? 'block' : 'none';
+        
+        updateVisualization();
+    });
+
+    document.getElementById('anim-limit-btn').addEventListener('click', () => {
+        if (state.isAnimating) return;
+        state.isAnimating = true;
+        
+        const btn = document.getElementById('anim-limit-btn');
+        btn.textContent = '⏸ Animating...';
+        btn.disabled = true;
+        
+        setHint(HINTS.animating);
+        setStatus("Watch the corner term vanish as Δx approaches zero...");
+        
+        const start = { dx: state.dx };
+        const end = { dx: 0.02 };
+        
+        new TWEEN.Tween(start)
+            .to(end, 3000)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .onUpdate(() => {
+                state.dx = start.dx;
+                document.getElementById('slider-dx').value = state.dx;
+                updateVisualization();
+            })
+            .onComplete(() => {
+                state.isAnimating = false;
+                btn.textContent = '▶ Animate Δx → 0';
+                btn.disabled = false;
+                
+                setHint(HINTS.limit);
+                setStatus("The corner term has vanished! What remains is exactly f'g + fg'", 5000);
+            })
+            .start();
+    });
+
+    // Keyboard controls
+    window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        
+        let handled = false;
+        
+        switch(e.key) {
+            case 'ArrowRight':
+                state.x = Math.min(3.0, state.x + 0.05);
+                document.getElementById('slider-x').value = state.x;
+                handled = true;
+                break;
+            case 'ArrowLeft':
+                state.x = Math.max(0.5, state.x - 0.05);
+                document.getElementById('slider-x').value = state.x;
+                handled = true;
+                break;
+            case 'ArrowUp':
+                state.dx = Math.min(1.0, state.dx + 0.02);
+                document.getElementById('slider-dx').value = state.dx;
+                handled = true;
+                break;
+            case 'ArrowDown':
+                state.dx = Math.max(0.02, state.dx - 0.02);
+                document.getElementById('slider-dx').value = state.dx;
+                handled = true;
+                break;
+            case ' ':
+                e.preventDefault();
+                document.getElementById('anim-limit-btn').click();
+                handled = true;
+                break;
+            case 'r':
+            case 'R':
+                resetAll();
+                handled = true;
+                break;
+        }
+        
+        if (handled) {
+            e.preventDefault();
+            updateVisualization();
+        }
+    });
+
+    // Reset function
+    window.resetAll = function() {
+        state.x = 1.5;
+        state.dx = 0.5;
+        document.getElementById('slider-x').value = state.x;
+        document.getElementById('slider-dx').value = state.dx;
+        setHint(state.currentPreset.hint);
+        hideStatus();
+        updateVisualization();
+    };
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+        const aspect = container.clientWidth / container.clientHeight;
+        camera.left = frustumSize * aspect / -2;
+        camera.right = frustumSize * aspect / 2;
+        camera.top = frustumSize / 2;
+        camera.bottom = frustumSize / -2;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        labelRenderer.setSize(container.clientWidth, container.clientHeight);
+        drawGraph();
+    });
+
+    // --- Animation Loop ---
+    function animate() {
+        requestAnimationFrame(animate);
+        TWEEN.update();
+        controls.update();
+        renderer.render(scene, camera);
+        labelRenderer.render(scene, camera);
+    }
+
+    // Initialize
+    setHint(state.currentPreset.hint);
+    updateVisualization();
+    animate();
+</script>
+</body>
+</html>
