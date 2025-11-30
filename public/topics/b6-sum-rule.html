@@ -10,6 +10,142 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +173,214 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-b">Calculus</a>
-        <span>›</span>
-        <span>B6</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-b)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-b)">B6</span>
-          <span class="topic-category">Calculus Essentials</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../../viz/B6-sum-rule-linearity.html" title="Sum Rule and Linearity Interactive Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Sum Rule & Linearity</h1>
-        <p class="topic-description">Derivatives distributing over addition. Simple but foundational.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-b">Calculus</a>
+          <span>›</span>
+          <span>B6</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-b)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-b)">B6</span>
+            <span class="topic-category">Calculus Essentials</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Sum Rule & Linearity</h1>
+          <p class="topic-description">Derivatives distributing over addition. Simple but foundational.</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+          <section class="content-section">
+            <h2>1. Adding Functions: Stacking Heights</h2>
+            <p>Before diving into rules, let's be clear about what it means to add functions.</p>
+            <p>When we write <strong>h(x) = f(x) + g(x)</strong>, we're saying: "At every x, add the height of f to the height of g."</p>
+            <p>For example, if f(x) = x² and g(x) = sin(x), then:</p>
+            <div class="formula-box">h(x) = x² + sin(x)</div>
+            <p>At x = 2: h(2) = 4 + sin(2) ≈ 4.91</p>
+            <p>The graph of h is literally the graphs of f and g stacked on top of each other. Every point on h is the sum of the corresponding points on f and g.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>2. The Sum Rule</h2>
+            <p>Here's the good news: <strong>differentiating sums is exactly as simple as you'd hope.</strong></p>
+            <h3>The Rule</h3>
+            <p>For h(x) = f(x) + g(x):</p>
+            <div class="formula-box"><strong>h'(x) = f'(x) + g'(x)</strong></div>
+            <p>Or more compactly: <strong>(f + g)' = f' + g'</strong></p>
+            <p>That's it. Differentiate each piece, then add the results.</p>
+            <h3>The Intuition: Slopes Add Up</h3>
+            <p>Think about what a derivative measures — the rate of change, or slope.</p>
+            <p>If you're walking along h(x) = f(x) + g(x), your height is changing for two reasons:</p>
+            <ul>
+              <li>f is changing at rate f'(x)</li>
+              <li>g is changing at rate g'(x)</li>
+            </ul>
+            <p>Your total rate of change is simply the sum of these individual rates.</p>
+            <p><strong>Concrete example:</strong> Imagine f is increasing at 2 units per second, and g is increasing at 3 units per second. How fast is h = f + g increasing? Obviously 5 units per second. The rates just add.</p>
+            <h3>Quick Example</h3>
+            <p>Differentiate h(x) = x³ + eˣ</p>
+            <ul>
+              <li>d/dx[x³] = 3x²</li>
+              <li>d/dx[eˣ] = eˣ</li>
+            </ul>
+            <p>Therefore: <strong>h'(x) = 3x² + eˣ</strong></p>
+            <p>No tricks, no complications. Just differentiate and add.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>3. The Constant Multiple Rule</h2>
+            <p>What if you scale a function by a constant?</p>
+            <h3>The Rule</h3>
+            <p>For h(x) = c · f(x), where c is a constant:</p>
+            <div class="formula-box"><strong>h'(x) = c · f'(x)</strong></div>
+            <p>Or: <strong>(cf)' = c · f'</strong></p>
+            <p>Constants "pass through" the derivative unchanged.</p>
+            <h3>The Intuition: Scaling Steepness</h3>
+            <p>If you double a function, you double its steepness everywhere.</p>
+            <p>Think of it graphically: h(x) = 2f(x) stretches f vertically by a factor of 2. Every slope gets twice as steep. A slope of 3 becomes 6. A slope of -1 becomes -2.</p>
+            <p><strong>Example:</strong> If f(x) = sin(x), then f'(x) = cos(x).</p>
+            <p>For h(x) = 5·sin(x): <strong>h'(x) = 5·cos(x)</strong></p>
+            <h3>Special Case: Negatives</h3>
+            <p>What about h(x) = -f(x)? This is just c = -1:</p>
+            <div class="formula-box"><strong>(-f)' = -f'</strong></div>
+            <p>Negating a function negates its derivative. Uphill becomes downhill, downhill becomes uphill.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>4. The Difference Rule</h2>
+            <p>With the sum rule and the constant multiple rule, we get the difference rule for free:</p>
+            <div class="formula-box"><strong>(f - g)' = f' - g'</strong></div>
+            <p>Why? Because f - g is really f + (-1)·g:</p>
+            <p>(f - g)' = (f + (-1)·g)' = f' + (-1)·g' = f' - g'</p>
+            <p><strong>Example:</strong> Differentiate h(x) = x⁴ - cos(x)</p>
+            <ul>
+              <li>d/dx[x⁴] = 4x³</li>
+              <li>d/dx[cos(x)] = -sin(x)</li>
+            </ul>
+            <p>Therefore: h'(x) = 4x³ - (-sin(x)) = <strong>4x³ + sin(x)</strong></p>
+          </section>
+
+          <section class="content-section">
+            <h2>5. Linearity: The Big Picture</h2>
+            <p>The sum rule and constant multiple rule combine into one powerful property called <strong>linearity</strong>.</p>
+            <h3>The Linear Combination Rule</h3>
+            <p>For any constants a and b:</p>
+            <div class="formula-box"><strong>d/dx[a·f(x) + b·g(x)] = a·f'(x) + b·g'(x)</strong></div>
+            <p>This extends to any number of terms:</p>
+            <div class="formula-box"><strong>d/dx[a₁f₁ + a₂f₂ + ... + aₙfₙ] = a₁f₁' + a₂f₂' + ... + aₙfₙ'</strong></div>
+            <h3>What "Linear Operator" Means</h3>
+            <p>Mathematicians say the derivative is a <strong>linear operator</strong>. This means it satisfies two properties:</p>
+            <ol>
+              <li><strong>Additivity:</strong> (f + g)' = f' + g'</li>
+              <li><strong>Homogeneity:</strong> (cf)' = c · f'</li>
+            </ol>
+            <p>Any operation satisfying both is linear. The derivative behaves "nicely" — it respects the structure of addition and scaling.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>6. Why This is Wonderful</h2>
+            <p>Linearity is what makes differentiation tractable. Here's the practical payoff:</p>
+            <h3>Break It Down, Build It Up</h3>
+            <p>You can decompose any polynomial (or sum of functions) into pieces:</p>
+            <p>h(x) = 3x⁴ - 2x² + 7x - 5</p>
+            <p>Differentiate each term separately:</p>
+            <ul>
+              <li>d/dx[3x⁴] = 12x³</li>
+              <li>d/dx[-2x²] = -4x</li>
+              <li>d/dx[7x] = 7</li>
+              <li>d/dx[-5] = 0</li>
+            </ul>
+            <p>Combine: <strong>h'(x) = 12x³ - 4x + 7</strong></p>
+            <p>No matter how long the sum, you just handle each piece independently.</p>
+            <h3>Constants Vanish</h3>
+            <p>Notice that d/dx[-5] = 0. The derivative of any constant is zero — constants don't change, so their rate of change is zero.</p>
+          </section>
+
+          <section class="content-section highlight-section">
+            <h2>7. Why This Matters for ML/AI</h2>
+            <p>Linearity isn't just convenient for homework — it's fundamental to how neural networks learn.</p>
+            <h3>Neural Networks Are Sums</h3>
+            <p>A basic neuron computes:</p>
+            <div class="formula-box"><strong>output = w₁x₁ + w₂x₂ + ... + wₙxₙ + b</strong></div>
+            <p>This is a weighted sum — exactly the kind of expression where linearity shines. When computing gradients, each term contributes independently.</p>
+            <h3>Gradients Distribute Over Addition</h3>
+            <p>During backpropagation, when you hit an addition node:</p>
+            <div class="formula-box">z = x + y</div>
+            <p>The gradient flows through unchanged to both inputs:</p>
+            <div class="formula-box">∂L/∂x = ∂L/∂z<br>∂L/∂y = ∂L/∂z</div>
+            <p>This is the sum rule in action. The upstream gradient copies directly to both branches. No transformation, no scaling — addition just passes gradients through.</p>
+            <h3>Sum Nodes Are "Free" in Backprop</h3>
+            <p>Computationally, sum nodes are trivial during backpropagation. Compare:</p>
+            <ul>
+              <li><strong>Multiplication:</strong> Requires the product rule — gradient depends on <em>both</em> inputs</li>
+              <li><strong>Addition:</strong> Gradient just copies through — no computation needed</li>
+            </ul>
+            <h3>Residual Connections: The Secret Weapon</h3>
+            <p>ResNets (Residual Networks) revolutionized deep learning with a simple idea:</p>
+            <div class="formula-box"><strong>output = F(x) + x</strong></div>
+            <p>Instead of learning a transformation F(x), learn a <em>residual</em> F(x) and add it to the input.</p>
+            <p>Why does this help? Linearity. The gradient with respect to x flows through two paths:</p>
+            <ol>
+              <li>Through F(x) — may be complex, may vanish</li>
+              <li>Through the direct connection (+x) — <strong>always passes through unchanged</strong></li>
+            </ol>
+            <p>That "+x" creates a gradient superhighway. Even if F's gradients vanish, the identity path preserves gradient flow. This is why ResNets can train hundreds of layers deep while plain networks fail at 20 layers.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>Summary</h2>
+            <p><strong>Sum Rule:</strong> (f + g)' = f' + g' — differentiate and add.</p>
+            <p><strong>Constant Multiple Rule:</strong> (cf)' = c · f' — constants pass through.</p>
+            <p><strong>Difference Rule:</strong> (f - g)' = f' - g' — follows from above.</p>
+            <p><strong>Linearity:</strong> d/dx[af + bg] = af' + bg' — the derivative respects linear combinations.</p>
+            <p><strong>Why it matters:</strong></p>
+            <ul>
+              <li>Break complex functions into simple pieces</li>
+              <li>Differentiate each piece independently</li>
+              <li>Combine the results</li>
+            </ul>
+            <p><strong>In ML:</strong> Gradients distribute over sums effortlessly. Addition nodes in neural networks pass gradients through unchanged. Residual connections exploit this to enable training of extremely deep networks.</p>
+          </section>
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="b5-product-rule.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← B5: Product Rule</span>
+          </a>
+          <a href="c1-forward-pass.html" class="nav-link next">
+            <span class="nav-label">Next Category</span>
+            <span class="nav-title">C1: Forward Pass →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="b5-product-rule.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← B5: Product Rule</span>
-        </a>
-        <a href="c1-forward-pass.html" class="nav-link next">
-          <span class="nav-label">Next Category</span>
-          <span class="nav-title">C1: Forward Pass →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>

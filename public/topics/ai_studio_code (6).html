@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A1: Vector Operations — Neural Pathways</title>
+  <meta name="description" content="Visualise vector addition, subtraction, scaling, and dot products in 2D/3D.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* --- Specific Layout Overrides for Split Screen --- */
+    
+    /* 1. Reset standard container constraints for this specific page */
+    .topic-page .container {
+      max-width: 100%;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* 2. Desktop Layout (Split Screen) */
+    @media (min-width: 1024px) {
+      /* Hide standard header/footer scroll behavior, make main container fill height */
+      body {
+        height: 100vh;
+        overflow: hidden; /* Prevent body scroll, handle inside panels */
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Keep the main header fixed at top */
+      .header {
+        flex: 0 0 auto;
+      }
+
+      /* The main area takes remaining height */
+      .topic-page {
+        flex: 1 1 auto;
+        height: 0; /* Force flex calculation */
+        position: relative;
+      }
+
+      .split-layout {
+        display: grid;
+        grid-template-columns: 45% 55%; /* Text takes 45%, Viz takes 55% */
+        height: 100%;
+        width: 100%;
+      }
+
+      /* Left Side: Scrollable Text */
+      .text-panel {
+        height: 100%;
+        overflow-y: auto;
+        padding: 2rem 3rem;
+        border-right: 1px solid var(--border-color, #e5e7eb);
+        background: var(--bg-color, #fff);
+      }
+
+      /* Right Side: Fixed Visualization */
+      .viz-panel {
+        height: 100%;
+        background: #f8fafc; /* Slight contrast background */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        position: relative;
+      }
+
+      /* The 4:3 Aspect Ratio Enforcer */
+      .viz-wrapper {
+        width: 100%;
+        max-width: 100%;
+        /* Logic: Try to be wide, but don't exceed height based on ratio */
+        aspect-ratio: 4 / 3;
+        max-height: 100%; 
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        overflow: hidden;
+        background: white;
+        border: 1px solid var(--border-color, #e5e7eb);
+      }
+
+      .viz-wrapper iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+      }
+    }
+
+    /* 3. Mobile Layout (Standard Stack) */
+    @media (max-width: 1023px) {
+      .split-layout {
+        display: flex;
+        flex-direction: column-reverse; /* Put text below viz */
+      }
+      
+      .viz-panel {
+        height: 60vh; /* Give it plenty of space on mobile */
+        padding: 1rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .viz-wrapper {
+        width: 100%;
+        height: 100%;
+      }
+
+      .viz-wrapper iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      .text-panel {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  <header class="header">
+    <div class="container" style="padding: 0 1.5rem;">
+      <a href="../index.html" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="12" cy="36" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="24" cy="18" r="4" fill="currentColor"/>
+            <circle cx="24" cy="30" r="4" fill="currentColor"/>
+            <circle cx="36" cy="24" r="5" fill="currentColor"/>
+            <line x1="16" y1="12" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="16" y1="36" x2="20" y2="30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="18" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="30" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Neural Pathways</h1>
+          <span>Interactive ML Visualizations</span>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main class="topic-page">
+    <div class="container split-layout">
+      
+      <!-- LEFT PANEL: Scrolling Content -->
+      <div class="text-panel">
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-a">Linear Algebra</a>
+          <span>›</span>
+          <span>A1</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-a)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-a)">A1</span>
+            <span class="topic-category">Linear Algebra Fundamentals</span>
+          </div>
+          <h1>Vector Operations</h1>
+          <p class="topic-description">Visualise addition, subtraction, scaling, and dot products in 2D/3D. See the dot product as a measure of similarity and angle between vectors.</p>
+        </header>
+
+        <div class="content-layout content-layout--single">
+          <article class="educational-content">
+            
+            <h2>Intuitive Introduction — What Even Is a Vector?</h2>
+            
+            <p>Forget the abstract mathematics for a moment. A vector is simply <strong>a quantity that has both a size and a direction</strong>. That's it.</p>
+            
+            <p>Think about the difference between these two statements:</p>
+            <ul>
+              <li>"I walked 5 kilometres" — this is a <em>scalar</em> (just a number)</li>
+              <li>"I walked 5 kilometres north" — this is a <em>vector</em> (number + direction)</li>
+            </ul>
+            
+            <p>As a developer, you can think of a vector as an array of numbers like <code>[3, 4]</code> or <code>[1, 2, 5]</code>. But here's the key insight: those numbers aren't just arbitrary values sitting in memory. They represent <em>coordinates</em> that define an arrow pointing from the origin to that position.</p>
+            
+            <p>The vector <code>[3, 4]</code> means: "Go 3 units in the x-direction, then 4 units in the y-direction." The arrow from <code>[0, 0]</code> to <code>[3, 4]</code> <em>is</em> the vector.</p>
+            
+            <p><strong>Real-world vector examples:</strong></p>
+            <ul>
+              <li><strong>Velocity</strong>: A car moving at 60 km/h <em>eastward</em> (speed + direction)</li>
+              <li><strong>Force</strong>: Pushing a box with 10 newtons of force <em>to the right</em></li>
+              <li><strong>Displacement</strong>: Your destination is 500 metres away, <em>bearing northeast</em></li>
+            </ul>
+            
+            <p>Every vector has two properties:</p>
+            <ol>
+              <li><strong>Magnitude</strong> (length): How "big" is it? For <code>[3, 4]</code>, the magnitude is 5 (using the Pythagorean theorem: √(3² + 4²) = 5)</li>
+              <li><strong>Direction</strong>: Where does it point?</li>
+            </ol>
+            
+            <p>When you look at the visualization on the right, notice how the arrow's length corresponds to the magnitude, and the arrow's angle shows the direction.</p>
+
+            <hr>
+            
+            <h2>Vector Addition & Subtraction — Combining Movements</h2>
+            
+            <h3>Addition: The "Tip-to-Tail" Method</h3>
+            
+            <p>Imagine you're giving someone directions: "Walk 3 blocks east, then walk 4 blocks north." Where do they end up? Vector addition answers exactly this question.</p>
+            
+            <p>To add two vectors <strong>a</strong> and <strong>b</strong>:</p>
+            <ol>
+              <li>Place the tail (start) of <strong>b</strong> at the tip (end) of <strong>a</strong></li>
+              <li>Draw a new vector from the tail of <strong>a</strong> to the tip of <strong>b</strong></li>
+              <li>That new vector is your result: <strong>a</strong> + <strong>b</strong></li>
+            </ol>
+            
+            <p><strong>Worked example:</strong></p>
+<pre><code>a = [3, 1]  // 3 right, 1 up
+b = [1, 3]  // 1 right, 3 up
+
+a + b = [3+1, 1+3] = [4, 4]  // 4 right, 4 up total</code></pre>
+            
+            <p>In code terms, vector addition is just element-wise addition:</p>
+<pre><code class="language-javascript">const add = (a, b) => a.map((val, i) => val + b[i]);</code></pre>
+            
+            <p>The beautiful thing is that <strong>order doesn't matter</strong>. Adding <strong>a</strong> then <strong>b</strong> gets you to the same place as adding <strong>b</strong> then <strong>a</strong>. Drag the vectors in the visualization to see this for yourself.</p>
+            
+            <h3>Subtraction: Finding the Difference</h3>
+            
+            <p>Vector subtraction answers a different question: "What's the displacement <em>from</em> point A <em>to</em> point B?"</p>
+            
+            <p><strong>a</strong> - <strong>b</strong> gives you the vector you'd need to add to <strong>b</strong> to reach <strong>a</strong>.</p>
+            
+<pre><code>a = [5, 3]
+b = [2, 1]
+
+a - b = [5-2, 3-1] = [3, 2]</code></pre>
+            
+            <p>Think of it this way: if you're at position <strong>b</strong> and want to get to position <strong>a</strong>, you need to travel by vector (<strong>a</strong> - <strong>b</strong>).</p>
+
+            <hr>
+            
+            <h2>Scalar Multiplication — Stretching and Shrinking</h2>
+            
+            <p>A <strong>scalar</strong> is just a fancy word for a regular number (not a vector). When you multiply a vector by a scalar, you're scaling its magnitude without changing its direction (usually).</p>
+            
+<pre><code>v = [2, 3]
+
+2 * v = [4, 6]     // twice as long, same direction
+0.5 * v = [1, 1.5] // half as long, same direction</code></pre>
+            
+            <p><strong>Key insights:</strong></p>
+            <ul>
+              <li>Scalar &gt; 1: The vector stretches (gets longer)</li>
+              <li>Scalar between 0 and 1: The vector shrinks</li>
+              <li>Scalar = 0: The vector becomes <code>[0, 0]</code> (the zero vector)</li>
+              <li><strong>Negative scalar</strong>: The vector flips direction <em>and</em> scales</li>
+            </ul>
+            
+            <p>In code:</p>
+<pre><code class="language-javascript">const scale = (scalar, v) => v.map(val => scalar * val);</code></pre>
+            
+            <p>Watch the visualization as you adjust the scalar slider. Notice how the arrow stretches, shrinks, and flips.</p>
+
+            <hr>
+            
+            <h2>The Dot Product — Measuring Alignment</h2>
+            
+            <p>The dot product is where vectors become genuinely powerful for AI/ML. It's a way of multiplying two vectors to get a single number (a scalar) that tells you <strong>how much do these vectors point in the same direction?</strong></p>
+            
+            <h3>Interpretation 1: The Algebraic Formula</h3>
+            
+            <p>The dot product is computationally simple. Multiply corresponding components and sum the results:</p>
+            
+<pre><code>a = [2, 3]
+b = [4, 1]
+
+a · b = (2×4) + (3×1) = 8 + 3 = 11</code></pre>
+
+            <h3>Interpretation 3: Similarity Measure</h3>
+            
+            <p>This is the interpretation that makes the dot product indispensable for AI:</p>
+            <ul>
+              <li><strong>Positive dot product</strong>: Vectors point in <em>similar</em> directions</li>
+              <li><strong>Zero dot product</strong>: Vectors are <em>perpendicular</em> (90°)</li>
+              <li><strong>Negative dot product</strong>: Vectors point in <em>opposite</em> directions</li>
+            </ul>
+            
+            <p>Play with the visualization—drag the vectors and watch how the dot product changes as they align or oppose each other.</p>
+
+            <hr>
+            
+            <h2>Why This Matters for ML/AI</h2>
+            
+            <h3>1. Neurons Compute Dot Products</h3>
+            <p>A single neuron does exactly one thing: it computes the dot product of its inputs and weights, then applies an activation function.</p>
+            
+            <h3>2. Embeddings and Similarity</h3>
+            <p>Modern AI systems convert words, images, and concepts into vectors called <strong>embeddings</strong>. We measure if two words are related using dot product (or cosine similarity).</p>
+            
+            <hr>
+            
+            <h2>Common Pitfalls</h2>
+            
+            <h3>1. Confusing Points and Vectors</h3>
+            <p>A point <code>(3, 4)</code> is a location. A vector <code>[3, 4]</code> is a displacement. They look identical but mean different things.</p>
+            
+            <h3>2. Forgetting That Dot Products Return Scalars</h3>
+<pre><code class="language-javascript">const result = dot([1,2], [3,4]);  // result = 11 (a single number)</code></pre>
+
+            <hr>
+            
+            <h2>Wrapping Up</h2>
+            <p>You've now learned the core vector operations that power modern AI. These aren't just mathematical curiosities; they are the fundamental computations happening billions of times in every neural network.</p>
+
+          </article>
+
+          <nav class="topic-nav">
+            <div></div>
+            <a href="a2-matrix-multiplication.html" class="nav-link next">
+              <span class="nav-label">Next</span>
+              <span class="nav-title">A2: Matrix Multiplication →</span>
+            </a>
+          </nav>
+          
+          <footer class="footer" style="padding-left: 0; padding-right: 0;">
+            <p>Neural Pathways — Learning ML through visualization</p>
+          </footer>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: Fixed Visualization -->
+      <div class="viz-panel">
+        <div class="viz-wrapper">
+          <iframe src="../../viz/a1-vector-operations.html" title="Interactive Vector Operations Visualizer" loading="lazy"></iframe>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <a href="../index.html" class="back-home" title="Back to Home">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  </a>
+
+</body>
+</html>

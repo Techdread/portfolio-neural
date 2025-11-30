@@ -10,6 +10,142 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +173,172 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-b">Calculus</a>
-        <span>›</span>
-        <span>B3</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-b)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-b)">B3</span>
-          <span class="topic-category">Calculus Essentials</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../../viz/B3-gradient-vector-visualization.html" title="Gradient Vector Interactive Visualization" loading="lazy"></iframe>
         </div>
-        <h1>The Gradient Vector</h1>
-        <p class="topic-description">Arrow pointing uphill on 2D surface in 3D view. Show why negative gradient = steepest descent.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-b">Calculus</a>
+          <span>›</span>
+          <span>B3</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-b)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-b)">B3</span>
+            <span class="topic-category">Calculus Essentials</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>The Gradient Vector</h1>
+          <p class="topic-description">Arrow pointing uphill on 2D surface in 3D view. Show why negative gradient = steepest descent.</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+          <section class="content-section">
+            <h2>1. From Individual Partials to a Vector</h2>
+            <p>In the last section, we learned how to measure slope in individual directions. The partial derivative ∂f/∂x tells you how steep the surface is in the x-direction; ∂f/∂y tells you the steepness in the y-direction. Each gives you valuable information, but separately they're like having half a map.</p>
+            <p>Here's the natural next question: what if we want to know the steepest direction overall—not just along the x-axis or y-axis, but in <em>any</em> direction?</p>
+            <p>That object is the <strong>gradient vector</strong>, and it's one of the most important concepts in all of machine learning.</p>
+            <p>The idea is simple: take all your partial derivatives and package them as the components of a vector. For a function f(x, y), the gradient is:</p>
+            <div class="formula-box"><strong>∇f = (∂f/∂x, ∂f/∂y)</strong></div>
+            <p>That's it. The gradient is just a vector whose components are the partial derivatives. Together, they encode everything about how the function changes in any direction from the current point.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>2. Gradient Notation</h2>
+            <p>You'll see the gradient written several ways:</p>
+            <ul>
+              <li><strong>∇f</strong> — The most common notation. The symbol ∇ is called "nabla" or "del." Read ∇f as "del f" or "the gradient of f."</li>
+              <li><strong>grad(f)</strong> — Spelled out explicitly. Some textbooks prefer this for clarity.</li>
+              <li><strong>∇f(x, y)</strong> — Emphasizes that the gradient depends on where you are.</li>
+            </ul>
+            <p>For a function of two variables: <strong>∇f = (∂f/∂x, ∂f/∂y)</strong></p>
+            <p>For a function of n variables: <strong>∇f = (∂f/∂x₁, ∂f/∂x₂, ..., ∂f/∂xₙ)</strong></p>
+            <p>The pattern is always the same: one component for each input variable, each component being the partial derivative with respect to that variable.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>3. The Key Property: Direction of Steepest Increase</h2>
+            <p>Here's the remarkable fact that makes the gradient so powerful:</p>
+            <div class="formula-box"><strong>The gradient vector points in the direction of steepest increase of the function.</strong></div>
+            <p>Imagine you're hiking on a hilly terrain and you want to climb as quickly as possible. You could walk north, south, east, west, or any diagonal. Each direction has a different slope. The gradient tells you: "If you want to gain elevation as fast as possible, walk <em>this</em> way."</p>
+            <p>Why does this work? The component ∂f/∂x measures how much the function increases when you step in the x-direction. The component ∂f/∂y measures the increase when you step in the y-direction. When you combine these into a vector, you get the optimal combination for maximum increase.</p>
+            <p>In your visualization, you'll see this as an arrow lying on the xy-plane, pointing in the direction where the surface rises most steeply. Drag the point around and watch the arrow rotate—it always swings to point "uphill."</p>
+          </section>
+
+          <section class="content-section">
+            <h2>4. Gradient Magnitude: How Steep Is Steep?</h2>
+            <p>The gradient isn't just a direction—it's a vector with both direction <em>and</em> magnitude. The magnitude tells you <strong>how steep</strong> the steepest direction is.</p>
+            <div class="formula-box"><strong>||∇f|| = √[(∂f/∂x)² + (∂f/∂y)²]</strong></div>
+            <p>A larger magnitude means a steeper slope; a smaller magnitude means a gentler slope.</p>
+            <p>Consider what happens at different points:</p>
+            <ul>
+              <li><strong>At a hilltop or valley bottom:</strong> Both partial derivatives are zero, so the gradient is the zero vector (0, 0). The magnitude is zero.</li>
+              <li><strong>On a gentle slope:</strong> The partial derivatives are small, so the gradient vector is short.</li>
+              <li><strong>On a steep cliff:</strong> The partial derivatives are large, so the gradient vector is long.</li>
+            </ul>
+            <p>In your visualization, the length of the gradient arrow changes as you move across the surface. Near the peak of a hill, the arrow shrinks to nothing. On steep flanks, the arrow grows long.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>5. Negative Gradient: Flip the Arrow to Go Downhill</h2>
+            <p>Here's where things get practical for machine learning.</p>
+            <p>If the gradient points in the direction of steepest <em>increase</em>, then the <strong>negative gradient</strong> points in the direction of steepest <em>decrease</em>:</p>
+            <div class="formula-box"><strong>-∇f = (-∂f/∂x, -∂f/∂y)</strong></div>
+            <p>Just flip the arrow. Where the gradient says "go this way to climb," the negative gradient says "go this way to descend."</p>
+            <p>Why do we care about going downhill? Because in machine learning, we want to <em>minimize</em> a loss function. We're not trying to climb to the peak—we're trying to descend into the valley where the loss is lowest. The negative gradient is our guide down.</p>
+            <p>Think of it like water flowing downhill. Water doesn't think; it just follows the steepest descent from wherever it is. Gradient descent algorithms mimic this natural behavior.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>6. Gradient in the xy-Plane</h2>
+            <p>Here's a subtle but important point that often confuses beginners: <strong>the gradient is a vector in the input space, not a vector pointing "up" the surface.</strong></p>
+            <p>For f(x, y), the gradient ∇f = (∂f/∂x, ∂f/∂y) is a 2D vector with x and y components. It lies flat in the xy-plane. It doesn't have a z-component.</p>
+            <p>The gradient tells you which direction to move <em>in the input space</em> to achieve the steepest increase in the output. It answers: "Should I increase x? Decrease y? Some combination?"</p>
+            <p>In your 3D visualization, you'll see the gradient arrow lying on the horizontal plane beneath the surface, not tilting up along the surface itself. This is correct!</p>
+          </section>
+
+          <section class="content-section highlight-section">
+            <h2>7. Why This Matters for Machine Learning</h2>
+            <p>Now let's connect everything to neural network training.</p>
+            <p>When you train a neural network, you have a <strong>loss function</strong> L that measures how wrong the network's predictions are. This loss depends on all the network's weights: L(w₁, w₂, ..., wₙ). You can think of this as a surface—an incredibly high-dimensional surface that you can't visualize, but which has the same mathematical properties as our 3D surfaces.</p>
+            <p><strong>Your goal:</strong> Find the weights that minimize the loss.</p>
+            <p><strong>The problem:</strong> You can't see the whole surface. You're standing at one point (your current weights) and can only measure local information—specifically, the gradient.</p>
+            <p><strong>The solution:</strong> Use the gradient as a compass. The gradient ∇L points uphill (toward higher loss). The negative gradient -∇L points downhill (toward lower loss). Take a step in the negative gradient direction, and you'll reduce the loss.</p>
+            <p>This is <strong>gradient descent</strong> in its purest form:</p>
+            <div class="formula-box"><strong>weights_new = weights_old - learning_rate × ∇L</strong></div>
+            <p>Each iteration: compute the gradient, subtract a small multiple of it from the current weights, repeat until the loss stops decreasing.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>8. Gradient for N Variables</h2>
+            <p>For a neural network with millions of weights:</p>
+            <div class="formula-box"><strong>∇L = (∂L/∂w₁, ∂L/∂w₂, ∂L/∂w₃, ..., ∂L/∂wₙ)</strong></div>
+            <p>The gradient is now a vector with millions of components—one for each weight. You can't visualize a million-dimensional arrow, but mathematically it behaves exactly like our 2D gradient:</p>
+            <ul>
+              <li>It points in the direction of steepest increase of L</li>
+              <li>Its magnitude indicates how steep that direction is</li>
+              <li>The negative gradient points toward lower loss</li>
+              <li>Each component tells you how to adjust one specific weight</li>
+            </ul>
+            <p>The update rule looks exactly the same: <strong>wᵢ_new = wᵢ_old - learning_rate × ∂L/∂wᵢ</strong></p>
+          </section>
+
+          <section class="content-section">
+            <h2>9. Computing Gradients: Enter Backpropagation</h2>
+            <p>Computing each partial derivative from scratch would require evaluating the loss function multiple times per weight—astronomically expensive for millions of weights.</p>
+            <p><strong>Backpropagation</strong> solves this problem brilliantly. It computes <em>all</em> partial derivatives in essentially two passes through the network:</p>
+            <ol>
+              <li><strong>Forward pass:</strong> Compute the loss normally, but save intermediate values</li>
+              <li><strong>Backward pass:</strong> Starting from the loss, propagate gradient information backward through each layer using the chain rule</li>
+            </ol>
+            <p>The result: instead of millions of forward passes, we need one forward pass and one backward pass. This makes gradient descent practical for modern neural networks with billions of parameters.</p>
+            <p>Every time you call <code>loss.backward()</code> in PyTorch or let TensorFlow's autodiff do its work, backpropagation is computing the gradient—the full vector of all partial derivatives—efficiently.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>Wrapping Up</h2>
+            <p>The gradient is where partial derivatives become truly powerful. By packaging all the individual slopes into a single vector, we get something remarkable: a compass that always points toward steeper terrain.</p>
+            <p>For optimization, we flip that compass. The negative gradient points downhill, and gradient descent follows it step by step toward lower loss. This simple idea—compute the gradient, step opposite to it, repeat—is the engine that trains virtually every neural network in existence.</p>
+            <p>In your visualization, watch the gradient arrow as you move across the surface. See how it always points toward higher ground, and how its length reflects the steepness. That arrow, generalized to millions of dimensions, is what guides a neural network from random initialization to useful predictions.</p>
+            <p>The gradient isn't just a mathematical curiosity—it's the steering wheel of machine learning.</p>
+          </section>
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="b2-partial-derivatives.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← B2: Partial Derivatives</span>
+          </a>
+          <a href="b4-chain-rule.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">B4: Chain Rule Visualiser →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="b2-partial-derivatives.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← B2: Partial Derivatives</span>
-        </a>
-        <a href="b4-chain-rule.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">B4: Chain Rule Visualiser →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>

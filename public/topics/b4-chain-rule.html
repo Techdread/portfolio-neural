@@ -10,6 +10,142 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +173,189 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-b">Calculus</a>
-        <span>›</span>
-        <span>B4</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-b)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-b)">B4</span>
-          <span class="topic-category">Calculus Essentials</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../../viz/B4-chain-rule-visualization.html" title="Chain Rule Interactive Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Chain Rule Visualiser</h1>
-        <p class="topic-description">Nested functions as pipeline. Animate derivatives multiplying through — the heart of backprop.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-b">Calculus</a>
+          <span>›</span>
+          <span>B4</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-b)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-b)">B4</span>
+            <span class="topic-category">Calculus Essentials</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Chain Rule Visualiser</h1>
+          <p class="topic-description">Nested functions as pipeline. Animate derivatives multiplying through — the heart of backprop.</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+          <section class="content-section">
+            <h2>1. Function Composition: The Pipeline</h2>
+            <p>Before we tackle the chain rule, let's make sure we're solid on function composition. When you write f(g(x)), you're describing a two-step process:</p>
+            <ol>
+              <li>First, g takes x and produces some output</li>
+              <li>Then, f takes that output and produces the final result</li>
+            </ol>
+            <p>Think of it as an assembly line. The raw material x enters the first machine (g), which transforms it into an intermediate product g(x). That intermediate product then enters the second machine (f), which transforms it into the final output f(g(x)).</p>
+            <p>For example, if g(x) = 3x + 1 and f(u) = u², then: <strong>f(g(x)) = f(3x + 1) = (3x + 1)²</strong></p>
+            <p>This might seem like a simple concept, but it's the foundation of everything that follows. Neural networks are nothing more than deeply nested function compositions—dozens or hundreds of functions applied in sequence.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>2. The Pipeline Metaphor</h2>
+            <p>Let's extend our assembly line into a full pipeline visualization. Imagine data flowing through a series of tubes:</p>
+            <div class="formula-box">x → [g] → g(x) → [f] → f(g(x))</div>
+            <p>Each box is a function that processes whatever flows into it. This is exactly how a neural network processes data:</p>
+            <div class="formula-box">input → [Layer 1] → [Layer 2] → [Layer 3] → ... → output</div>
+            <p>The key insight is that we can make this pipeline arbitrarily long. Three functions? No problem:</p>
+            <div class="formula-box">x → [h] → h(x) → [g] → g(h(x)) → [f] → f(g(h(x)))</div>
+            <p>Each stage does its own transformation, blissfully unaware of what came before or what comes after.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>3. The Problem: Sensitivity Through the Chain</h2>
+            <p>Here's the question that leads us to the chain rule:</p>
+            <p><strong>If I wiggle the input x by a tiny amount, how much does the final output wiggle?</strong></p>
+            <p>This is asking for the derivative of the composite function. But here's the challenge: the effect of changing x has to propagate through every stage of the pipeline. A small change in x causes a change in g(x), which in turn causes a change in f(g(x)).</p>
+            <p>Let's think about this concretely. Suppose:</p>
+            <ul>
+              <li>When x changes by 1, g(x) changes by 2 (so g'(x) = 2)</li>
+              <li>When g's output changes by 1, f's output changes by 3 (so f'(g(x)) = 3)</li>
+            </ul>
+            <p>If x increases by a tiny amount Δx:</p>
+            <ul>
+              <li>g(x) increases by approximately 2·Δx</li>
+              <li>f(g(x)) increases by approximately 3·(2·Δx) = 6·Δx</li>
+            </ul>
+            <p>The overall amplification is 2 × 3 = 6. <strong>The derivatives multiply.</strong></p>
+          </section>
+
+          <section class="content-section">
+            <h2>4. Intuitive Chain Rule: Derivatives Multiply Through</h2>
+            <p>This is the core insight of the chain rule, and it's worth burning into your brain:</p>
+            <div class="formula-box"><strong>When functions are composed, their derivatives multiply.</strong></div>
+            <p>Think about why this makes sense. Each function in the chain either amplifies or dampens changes passing through it. If the first function doubles everything (derivative = 2) and the second function triples everything (derivative = 3), then the overall effect is to multiply by 6.</p>
+            <p>It's like compound interest, or gear ratios. If one gear doubles the rotation speed and the next triples it, the total speedup is 6×.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>5. The Chain Rule Formula</h2>
+            <p>Now we can state the chain rule precisely:</p>
+            <div class="formula-box"><strong>d/dx[f(g(x))] = f'(g(x)) · g'(x)</strong></div>
+            <p>In words: "The derivative of a composition equals the derivative of the outer function (evaluated at the inner function) times the derivative of the inner function."</p>
+            <p>Some people remember this as "outer derivative times inner derivative." Others use the mnemonic "derivative of the outside, leave the inside alone, times derivative of the inside."</p>
+            <p>There's an equivalent notation using Leibniz's dy/dx style. If we let u = g(x), then:</p>
+            <div class="formula-box"><strong>dy/dx = (dy/du) · (du/dx)</strong></div>
+            <p>This looks like fraction multiplication where the du's "cancel." They don't actually cancel, but the notation is suggestive and helps many people remember the rule.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>6. Step-by-Step Example</h2>
+            <p>Let's work through a complete example. Consider: <strong>h(x) = (3x + 1)²</strong></p>
+            <p><strong>Step 1: Identify the composition</strong></p>
+            <ul>
+              <li>Outer: f(u) = u²</li>
+              <li>Inner: g(x) = 3x + 1</li>
+            </ul>
+            <p><strong>Step 2: Find the individual derivatives</strong></p>
+            <ul>
+              <li>f(u) = u² → f'(u) = 2u</li>
+              <li>g(x) = 3x + 1 → g'(x) = 3</li>
+            </ul>
+            <p><strong>Step 3: Apply the chain rule</strong></p>
+            <p>h'(x) = f'(g(x)) · g'(x) = 2(3x + 1) · 3 = <strong>6(3x + 1)</strong></p>
+            <p><strong>Step 4: Verify (optional)</strong></p>
+            <p>Expand h(x) = (3x + 1)² = 9x² + 6x + 1, then h'(x) = 18x + 6 = 6(3x + 1) ✓</p>
+          </section>
+
+          <section class="content-section">
+            <h2>7. Multiple Links in the Chain</h2>
+            <p>The chain rule extends naturally to longer compositions. For three functions:</p>
+            <div class="formula-box"><strong>d/dx[f(g(h(x)))] = f'(g(h(x))) · g'(h(x)) · h'(x)</strong></div>
+            <p>Just keep multiplying. Each derivative is evaluated at its input—the value that actually flows into that stage of the pipeline.</p>
+            <p>For a chain of n functions:</p>
+            <div class="formula-box"><strong>d/dx[f₁(f₂(f₃(...fₙ(x)...)))] = f₁' · f₂' · f₃' · ... · fₙ'</strong></div>
+            <p>This is beautiful in its simplicity. No matter how long the chain, you just multiply all the derivatives together.</p>
+          </section>
+
+          <section class="content-section highlight-section">
+            <h2>8. Why This Matters for Machine Learning</h2>
+            <p>The chain rule isn't just another calculus technique—it's the mathematical foundation of how neural networks learn.</p>
+            <h3>Neural Networks Are Function Compositions</h3>
+            <p>A neural network is literally a composition of functions:</p>
+            <div class="formula-box">input → [Layer 1] → [Layer 2] → ... → [Layer L] → prediction → [Loss]</div>
+            <p>The entire network, from input to loss, is one giant composite function.</p>
+            <h3>The Learning Problem</h3>
+            <p>Training a neural network means adjusting the weights to minimize the loss. To do this with gradient descent, we need to know: <strong>how does each weight affect the loss?</strong></p>
+            <p>But any given weight in Layer 1 affects the loss only indirectly. Changing that weight changes Layer 1's output, which changes Layer 2's output... eventually affecting the loss.</p>
+            <h3>Backpropagation Is the Chain Rule</h3>
+            <p>Backpropagation—the algorithm that makes deep learning possible—is just the chain rule applied systematically.</p>
+            <p>During the <strong>forward pass</strong>, data flows from input to output. During the <strong>backward pass</strong>, gradients flow from output to input:</p>
+            <div class="formula-box">∂L/∂x ← Layer 1 ← Layer 2 ← ... ← Layer L ← ∂L/∂Loss = 1</div>
+            <p>At each layer, we multiply by that layer's local derivative. The gradient with respect to early layers is the product of all the derivatives along the path—exactly what the chain rule says.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>9. The Computational Graph View</h2>
+            <p>There's a powerful visual way to think about the chain rule: the <strong>computational graph</strong>.</p>
+            <p>A computational graph represents a computation as a network of nodes and edges:</p>
+            <ul>
+              <li><strong>Nodes</strong> are operations (add, multiply, square, apply activation function, etc.)</li>
+              <li><strong>Edges</strong> carry values from one operation to the next</li>
+            </ul>
+            <p>During the forward pass, values flow left to right. During the backward pass, gradients flow right to left, getting multiplied at each node.</p>
+            <p>This is exactly how automatic differentiation frameworks like PyTorch and TensorFlow work. When you call <code>.backward()</code>, the framework traverses the graph in reverse, applying the chain rule at each node.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>Wrapping Up</h2>
+            <p>The chain rule is deceptively simple: when functions are composed, their derivatives multiply. But this simple rule is the engine that powers all of deep learning.</p>
+            <p>When you train a neural network, you're asking: "How does each weight affect the final loss?" The answer requires tracing through every layer of the network, accounting for how changes propagate through each transformation. The chain rule tells you exactly how to do this: multiply the local derivatives together.</p>
+            <p>Backpropagation is just the chain rule applied efficiently. The "backward" pass flows gradient information from the loss back to each weight, multiplying by local derivatives at every step.</p>
+            <p>In your visualization, watch how a small change at the input creates a cascade of changes through the pipeline. Each stage amplifies or dampens the effect. The final sensitivity—the derivative of the composition—is the product of all those individual sensitivities.</p>
+            <p>The chain rule transforms a daunting question into a series of simple local questions, combined by multiplication. That's the magic that makes deep learning work.</p>
+          </section>
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="b3-gradient-vector.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← B3: The Gradient Vector</span>
+          </a>
+          <a href="b5-product-rule.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">B5: Product Rule →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="b3-gradient-vector.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← B3: The Gradient Vector</span>
-        </a>
-        <a href="b5-product-rule.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">B5: Product Rule →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>

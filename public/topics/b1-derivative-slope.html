@@ -57,29 +57,102 @@
 
       <div class="content-layout">
         <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed. Check back soon for:</p>
+          <section class="content-section">
+            <h2>1. Slope Recap: Rise Over Run</h2>
+            <p>Before we tackle derivatives, let's make sure we're solid on the concept of slope for straight lines. If you've ever climbed a hill or walked up a ramp, you've experienced slope intuitively. Mathematically, slope measures how steep something is—how much the line rises (or falls) as you move horizontally.</p>
+            <p>The formula is beautifully simple: <strong>slope = rise / run</strong>. Pick any two points on a straight line, measure how much the y-value changes (the rise), divide by how much the x-value changes (the run), and you have the slope. A slope of 2 means "for every 1 unit you move right, you go up 2 units." A slope of -3 means you go <em>down</em> 3 units for every 1 unit right.</p>
+            <p>Here's the beautiful thing about straight lines: the slope is the same everywhere. Pick any two points on the line, and you'll calculate the same number. This constancy makes straight lines predictable and easy to work with.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>2. The Problem with Curves</h2>
+            <p>Now imagine a curved line—say, the path of a ball thrown into the air, or the shape of a parabola like y = x². Try to calculate its slope using rise over run, and you immediately hit a problem: the answer depends on which two points you pick.</p>
+            <p>On a curve, the steepness is constantly changing. At some points it's nearly flat, at others it's steep. A ball at the top of its arc is momentarily horizontal (zero slope), but halfway up it was climbing steeply. The slope isn't a single number anymore—it's different at every single point along the curve.</p>
+            <p>This creates a fascinating question: can we define the slope at a <em>single point</em> on a curve? After all, slope requires two points—rise over run between <em>somewhere</em> and <em>somewhere else</em>. How do you measure rise and run when you only have one point?</p>
+            <p>This is exactly the problem that calculus solves, and the solution is the derivative.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>3. The Secant Line Approach</h2>
+            <p>Let's start with what we know how to do. Pick a point on the curve—let's call it our target point at x. Now pick a second point nearby at x + h, where h is some small distance. Connect these two points with a straight line. This line that cuts through two points of a curve is called a <strong>secant line</strong>.</p>
+            <p>We can easily calculate the slope of this secant line. The rise is the difference in y-values: f(x + h) - f(x). The run is the difference in x-values: (x + h) - x = h. So the slope of the secant line is:</p>
+            <div class="formula-box"><strong>[f(x + h) - f(x)] / h</strong></div>
+            <p>This gives us the <strong>average rate of change</strong> between our two points. It's not the slope at a single point—it's the slope between two points. But it's a start, and it leads us to a crucial insight.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>4. The Key Insight: Secant Becomes Tangent</h2>
+            <p>In your visualization, try this experiment: drag the second point closer to the target point. Watch what happens to the secant line. As the gap between the points shrinks, something magical occurs—the secant line rotates and settles into a stable position.</p>
+            <p>When h = 1, the secant line might cut sharply across the curve. When h = 0.1, it fits better. When h = 0.01, even better. As h gets smaller and smaller, approaching zero, the secant line approaches a very special line—one that just <em>touches</em> the curve at exactly one point.</p>
+            <p>This is the <strong>tangent line</strong>, and its slope is the derivative. The word "tangent" comes from the Latin "tangere," meaning "to touch." The tangent line grazes the curve at a single point, matching the curve's direction at that exact location.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>5. The Limit Definition</h2>
+            <p>Mathematicians formalize this "approaching" behavior with the concept of a limit. The derivative of f at point x is written as:</p>
+            <div class="formula-box"><strong>f'(x) = lim(h→0) [f(x + h) - f(x)] / h</strong></div>
+            <p>Don't let the notation intimidate you. Read it as a question: "What slope do we approach as the gap h shrinks toward zero?" The "lim" symbol (short for limit) is mathematical shorthand for "the value we get closer and closer to as h approaches zero."</p>
+            <p>We never actually set h = 0 (that would give us 0/0, which is undefined). Instead, we ask what happens as h gets arbitrarily small—0.1, then 0.01, then 0.001, and so on forever. If the secant slopes settle toward a specific number, that number is the derivative.</p>
+            <p>Here's another way to think about it: imagine zooming in on a curve. From far away, a parabola looks curved. But keep zooming—zoom in a hundred times, a thousand times—and eventually any smooth curve starts to look like a straight line. The derivative tells you the slope of that straight line, the direction the curve is heading at that infinitesimal scale.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>6. The Tangent Line</h2>
+            <p>The tangent line has a special relationship with the curve at the point of tangency. Unlike a secant line that crashes through the curve at two points, the tangent line just barely touches it at one point before continuing on its way.</p>
+            <p>Mathematically, the tangent line is the best linear approximation to the curve at that point—if you could only use a straight line to estimate the curve near that spot, the tangent line would be your best choice. Very close to the point of tangency, the curve and its tangent are nearly indistinguishable.</p>
+            <p>Once you know the derivative f'(a) at a point a, you can write the equation of the tangent line: <strong>y = f(a) + f'(a)(x - a)</strong>. This says: start at the point (a, f(a)) on the curve, then travel in the direction given by the slope f'(a).</p>
+          </section>
+
+          <section class="content-section">
+            <h2>7. Derivative Notation</h2>
+            <p>You'll encounter several notations for derivatives, all meaning the same thing:</p>
             <ul>
-              <li>Slope recap for straight lines</li>
-              <li>The problem with curves</li>
-              <li>Secant line approach</li>
-              <li>The limit definition</li>
-              <li>Tangent lines</li>
-              <li>Connection to gradient descent</li>
+              <li><strong>f'(x)</strong> — Read as "f prime of x." This is Lagrange notation, compact and common in pure mathematics.</li>
+              <li><strong>df/dx</strong> — Read as "d f d x" or "the derivative of f with respect to x." This is Leibniz notation.</li>
+              <li><strong>dy/dx</strong> — When y = f(x), this is equivalent to df/dx. It asks: "How does y change as x changes?"</li>
             </ul>
-          </div>
+            <p>All three notations describe the same concept—the instantaneous rate of change.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>8. Basic Derivative Rules</h2>
+            <p>You don't need to compute limits every time you want a derivative. Here are the essential rules:</p>
+            <h3>Constant Rule</h3>
+            <p>If f(x) = c (a constant), then f'(x) = 0. A constant function is a flat horizontal line with zero slope.</p>
+            <h3>Power Rule</h3>
+            <p>If f(x) = xⁿ, then <strong>f'(x) = n·xⁿ⁻¹</strong>. Bring the exponent down, reduce by one. The derivative of x² is 2x; the derivative of x³ is 3x².</p>
+            <h3>Sum Rule</h3>
+            <p>The derivative of a sum is the sum of derivatives. If you have f(x) + g(x), differentiate each piece separately and add the results.</p>
+            <p>With just these three rules, you can differentiate any polynomial. For example, if f(x) = 3x² + 2x - 5, then f'(x) = 6x + 2.</p>
+          </section>
+
+          <section class="content-section highlight-section">
+            <h2>9. Why This Matters for Machine Learning</h2>
+            <p>Now for the payoff—why every ML engineer needs to understand derivatives.</p>
+            <h3>Loss Functions as Landscapes</h3>
+            <p>When you train a neural network, you're trying to minimize a <strong>loss function</strong>—a measure of how wrong the network's predictions are. Think of this loss function as a landscape with hills and valleys. Each point represents a possible configuration of your model's parameters. Your goal is to find the lowest valley.</p>
+            <h3>The Derivative as Compass</h3>
+            <p>The derivative tells you the slope of this landscape at your current position. If the derivative is positive, you're on an upward slope—moving forward increases the loss. If the derivative is negative, you're on a downward slope—moving forward decreases the loss.</p>
+            <p>Without the derivative, you'd be lost in this landscape, unable to tell which direction leads downhill. The derivative provides a clear signal: it tells you exactly which direction improves your model.</p>
+            <h3>Gradient Descent in Action</h3>
+            <p>This leads directly to <strong>gradient descent</strong>, the workhorse algorithm of deep learning. The strategy is elegantly simple: compute the derivative, then step in the opposite direction.</p>
+            <div class="formula-box">new_weight = old_weight - learning_rate × derivative</div>
+            <p>In practice, neural networks have millions of parameters. Instead of a single derivative, you compute a <strong>gradient</strong>—a vector of partial derivatives, one for each parameter. The algorithm called <strong>backpropagation</strong> computes these derivatives efficiently using the chain rule.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>Wrapping Up</h2>
+            <p>We've traveled from the simple slope of a straight line to the foundation of modern machine learning. The derivative transforms an impossible question—"What's the slope at a single point?"—into a practical tool by asking what happens as two points converge.</p>
+            <p>Play with the interactive visualization. Drag the point along the curve and watch the tangent line follow. Adjust the gap h and see the secant line settle into the tangent. These visual experiences will cement your understanding far better than any formula.</p>
+            <p>The derivative is your entry point into calculus, and calculus is the language of change. Master this concept, and you'll have the foundation to understand backpropagation, optimization algorithms, and the mathematics that makes neural networks learn.</p>
+          </section>
         </article>
 
         <aside class="viz-sidebar">
           <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
+            <iframe src="../../viz/B1-derivative-visualization.html" title="Derivative as Slope Interactive Visualization" loading="lazy"></iframe>
           </div>
+          <a href="../../viz/B1-derivative-visualization.html" class="fullscreen-link" target="_blank" rel="noopener">Open fullscreen ↗</a>
         </aside>
       </div>
 

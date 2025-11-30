@@ -10,6 +10,142 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +173,181 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-b">Calculus</a>
-        <span>›</span>
-        <span>B2</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-b)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-b)">B2</span>
-          <span class="topic-category">Calculus Essentials</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../../viz/B2-partial-derivatives-visualization.html" title="Partial Derivatives Interactive Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Partial Derivatives</h1>
-        <p class="topic-description">3D surface with slices showing change along each axis independently.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-b">Calculus</a>
+          <span>›</span>
+          <span>B2</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-b)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-b)">B2</span>
+            <span class="topic-category">Calculus Essentials</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
+          <h1>Partial Derivatives</h1>
+          <p class="topic-description">3D surface with slices showing change along each axis independently.</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+          <section class="content-section">
+            <h2>1. From One Variable to Many</h2>
+            <p>In the last section, we mastered the derivative of functions like f(x) = x²—functions with a single input and a single output. But real-world problems rarely involve just one variable. The temperature in a room depends on position <em>and</em> time. The price of a house depends on square footage <em>and</em> location <em>and</em> age. And critically for us, the loss of a neural network depends on <em>millions</em> of weights simultaneously.</p>
+            <p>We need to extend our notion of derivative to handle functions with multiple inputs. The journey goes like this:</p>
+            <ul>
+              <li><strong>Single variable:</strong> f(x) = x² — One input, one output. We know how to differentiate this.</li>
+              <li><strong>Two variables:</strong> f(x, y) = x² + y² — Two inputs, one output. This is where we're headed now.</li>
+              <li><strong>Many variables:</strong> f(x₁, x₂, ..., xₙ) — n inputs, one output. This is what neural networks actually use.</li>
+            </ul>
+            <p>The good news: once you understand the two-variable case, the extension to many variables is straightforward. The core insight stays exactly the same.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>2. Visualizing f(x, y) as a Surface</h2>
+            <p>When you have a function of one variable, you can draw it as a curve on a 2D graph—x on the horizontal axis, f(x) on the vertical. But what happens when you have two inputs?</p>
+            <p>With f(x, y), you need three dimensions: x and y spread out horizontally (forming a floor or "plane"), and the output f(x, y) rises vertically above each point. The result is a <strong>surface</strong>—a landscape of hills and valleys floating above the xy-plane.</p>
+            <p>Imagine a bedsheet draped over some objects. Each point on the floor has coordinates (x, y), and the height of the sheet at that point is f(x, y). Some spots are high (hilltops), some are low (valleys), and some are saddle-shaped (rising in one direction while falling in another).</p>
+            <p>In your visualization, you'll see this directly: a 3D surface that you can rotate and examine from different angles.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>3. The Problem: Infinitely Many Directions</h2>
+            <p>Here's where things get interesting. On a curve, there's only one direction to move—forward or backward along the line. The derivative tells you the slope in that single direction.</p>
+            <p>But on a surface, you can move in <em>infinitely many</em> directions from any point. You could walk due east (increasing x). You could walk due north (increasing y). You could walk northeast, or 37 degrees off north, or any angle you like. Each direction has its own slope.</p>
+            <p>How do we define "the derivative" when there's no single direction? The answer is: we don't try to capture everything at once. Instead, we break the problem into manageable pieces.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>4. The Solution: One Direction at a Time</h2>
+            <p>The key insight of partial derivatives is beautiful in its simplicity: <strong>measure the slope in one coordinate direction at a time, pretending the other variables don't exist.</strong></p>
+            <p>Want to know how the function changes as x increases? Hold y fixed at some constant value, and measure the slope in the x-direction. That's the partial derivative with respect to x.</p>
+            <p>Want to know how it changes as y increases? Hold x fixed, and measure the slope in the y-direction. That's the partial derivative with respect to y.</p>
+            <p>It's like asking "how steep is this hill going east?" and "how steep is it going north?" separately, rather than trying to describe every possible direction at once.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>5. Partial Derivative Definition</h2>
+            <p>Let's make this precise. For a function f(x, y):</p>
+            <p><strong>Partial derivative with respect to x</strong>, written ∂f/∂x:</p>
+            <blockquote>"How does f change as x changes, while y is held constant?"</blockquote>
+            <div class="formula-box"><strong>∂f/∂x = lim(h→0) [f(x + h, y) - f(x, y)] / h</strong></div>
+            <p><strong>Partial derivative with respect to y</strong>, written ∂f/∂y:</p>
+            <blockquote>"How does f change as y changes, while x is held constant?"</blockquote>
+            <div class="formula-box"><strong>∂f/∂y = lim(h→0) [f(x, y + h) - f(x, y)] / h</strong></div>
+            <p>Each partial derivative answers a specific question: if I adjust <em>this one input</em> while freezing everything else, how does the output respond?</p>
+          </section>
+
+          <section class="content-section">
+            <h2>6. The Slice Interpretation</h2>
+            <p>Here's where the visualization becomes powerful. When you hold y constant at some value c, you're essentially slicing through the 3D surface with a vertical plane parallel to the xz-axes.</p>
+            <p>That slice reveals a curve—a 2D cross-section of the surface. This curve shows how f changes with x (when y = c), and <strong>∂f/∂x is simply the slope of that curve</strong>. It's the same derivative concept from B1, just applied to a slice of a higher-dimensional object.</p>
+            <p>In your interactive visualization, try this:</p>
+            <ol>
+              <li>Look at the surface from the side, along the y-axis. You'll see the profile of an x-slice—a curve whose slope is ∂f/∂x.</li>
+              <li>Now rotate to look along the x-axis. The profile you see is a y-slice, with slope ∂f/∂y.</li>
+              <li>Drag the slice plane back and forth. Watch how the curve's shape (and therefore its slope) changes at different slice positions.</li>
+            </ol>
+          </section>
+
+          <section class="content-section">
+            <h2>7. Notation</h2>
+            <p>You'll encounter several notations for partial derivatives:</p>
+            <ul>
+              <li><strong>∂f/∂x</strong> — The standard notation. The curly "∂" signals that this is a partial derivative, not an ordinary one.</li>
+              <li><strong>∂/∂x [f]</strong> — Operator notation. The ∂/∂x is an operator that acts on functions.</li>
+              <li><strong>fₓ</strong> or <strong>f_x</strong> — Subscript notation. Compact and common in physics and engineering.</li>
+            </ul>
+            <p>Why the curly ∂ instead of the straight d? It's a visual reminder that other variables exist and are being held constant.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>8. Computing Partial Derivatives</h2>
+            <p>The mechanical process is surprisingly easy: <strong>treat all other variables as constants, then differentiate normally.</strong></p>
+            <p>Let's work through an example. Suppose f(x, y) = x²y + 3xy² - 5y.</p>
+            <p><strong>To find ∂f/∂x:</strong> Pretend y is just a constant (like the number 7). Then:</p>
+            <ul>
+              <li>x²y differentiates to 2xy (the y is just a coefficient)</li>
+              <li>3xy² differentiates to 3y² (again, y² is just a coefficient)</li>
+              <li>-5y differentiates to 0 (it's a "constant" since there's no x)</li>
+            </ul>
+            <p>So <strong>∂f/∂x = 2xy + 3y²</strong></p>
+            <p><strong>To find ∂f/∂y:</strong> Now pretend x is the constant:</p>
+            <ul>
+              <li>x²y differentiates to x²</li>
+              <li>3xy² differentiates to 6xy (power rule on y²)</li>
+              <li>-5y differentiates to -5</li>
+            </ul>
+            <p>So <strong>∂f/∂y = x² + 6xy - 5</strong></p>
+          </section>
+
+          <section class="content-section highlight-section">
+            <h2>9. Why This Matters for Machine Learning</h2>
+            <p>Now for the payoff. A neural network's loss function isn't f(x, y)—it's f(w₁, w₂, w₃, ..., wₙ) where n might be millions or billions. Each wᵢ is a weight in the network.</p>
+            <p>When training, we need to answer this question for every single weight: <strong>"If I nudge this one weight slightly, how does the overall loss change?"</strong> That's exactly what a partial derivative tells us.</p>
+            <p>∂L/∂w₁ says: "Holding all other weights fixed, how does the loss L respond to changes in w₁?"</p>
+            <p>Why do we need this? Because gradient descent updates each weight independently:</p>
+            <div class="formula-box">
+              <strong>w₁_new = w₁_old - learning_rate × ∂L/∂w₁</strong><br>
+              <strong>w₂_new = w₂_old - learning_rate × ∂L/∂w₂</strong>
             </div>
-          </div>
-        </aside>
+            <p>Each weight gets its own update based on its own partial derivative. The algorithm called <strong>backpropagation</strong> computes all these partial derivatives efficiently.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>10. The Gradient Preview</h2>
+            <p>We've seen that a function of n variables has n partial derivatives—one for each input. It's natural to collect them all into a single object: the <strong>gradient</strong>.</p>
+            <p>For f(x, y), the gradient is the vector:</p>
+            <div class="formula-box"><strong>∇f = (∂f/∂x, ∂f/∂y)</strong></div>
+            <p>This vector has a remarkable property: <strong>it points in the direction of steepest ascent</strong>. If you want to descend as quickly as possible (which is exactly what gradient descent does), go in the <em>opposite</em> direction.</p>
+            <p>We'll explore the gradient in depth in the next section. For now, just remember: partial derivatives are the components of the gradient.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>Wrapping Up</h2>
+            <p>Partial derivatives extend the concept of "rate of change" to functions with multiple inputs. The key insight is simple: <strong>measure change in one direction at a time, holding everything else constant.</strong></p>
+            <p>When you look at your 3D visualization, remember that each slice through the surface gives you an ordinary curve, and the partial derivative is the slope of that curve.</p>
+            <p>For machine learning, partial derivatives answer the essential training question: "How does each individual weight affect the loss?" By computing these sensitivities for every parameter, backpropagation enables neural networks to learn.</p>
+          </section>
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="b1-derivative-slope.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← B1: Derivative as Slope</span>
+          </a>
+          <a href="b3-gradient-vector.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">B3: The Gradient Vector →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="b1-derivative-slope.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← B1: Derivative as Slope</span>
-        </a>
-        <a href="b3-gradient-vector.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">B3: The Gradient Vector →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>

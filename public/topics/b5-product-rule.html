@@ -10,6 +10,142 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +173,210 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-b">Calculus</a>
-        <span>›</span>
-        <span>B5</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-b)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-b)">B5</span>
-          <span class="topic-category">Calculus Essentials</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../../viz/B5-product-rule-visualization.html" title="Product Rule Interactive Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Product Rule</h1>
-        <p class="topic-description">Area of rectangle: d(uv) = u·dv + v·du. Animate both terms contributing.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-b">Calculus</a>
+          <span>›</span>
+          <span>B5</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-b)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-b)">B5</span>
+            <span class="topic-category">Calculus Essentials</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
+          <h1>Product Rule</h1>
+          <p class="topic-description">Area of rectangle: d(uv) = u·dv + v·du. Animate both terms contributing.</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+          <section class="content-section">
+            <h2>1. The Setup: When Functions Multiply</h2>
+            <p>You've learned to differentiate single functions like x², sin(x), and eˣ. But what happens when two functions are <em>multiplied together</em>?</p>
+            <p>Consider a function like: <strong>h(x) = f(x) · g(x)</strong></p>
+            <p>For example:</p>
+            <ul>
+              <li>h(x) = x² · sin(x)</li>
+              <li>h(x) = eˣ · x</li>
+              <li>h(x) = (x + 1) · (x² - 3)</li>
+            </ul>
+            <p>Each of these is the <em>product</em> of two simpler functions. To find h'(x), we need a new rule.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>2. Why Not Just Multiply Derivatives?</h2>
+            <p>Here's the trap that catches nearly everyone at first: "If h(x) = f(x) · g(x), surely h'(x) = f'(x) · g'(x)?"</p>
+            <p><strong>Let's test this with a simple example.</strong></p>
+            <p>Take h(x) = x · x = x². We <em>know</em> the derivative of x² is 2x. That's our ground truth.</p>
+            <p>Now, let's try the "just multiply derivatives" approach:</p>
+            <ul>
+              <li>f(x) = x, so f'(x) = 1</li>
+              <li>g(x) = x, so g'(x) = 1</li>
+              <li>"Multiply derivatives": 1 × 1 = 1</li>
+            </ul>
+            <p>But wait — we said h'(x) should be 2x, not 1!</p>
+            <p><strong>The "multiply derivatives" approach is completely wrong.</strong> This isn't a small error; we got 1 instead of 2x. So what's actually happening when we differentiate a product?</p>
+          </section>
+
+          <section class="content-section">
+            <h2>3. The Rectangle Analogy: Seeing the Product Rule</h2>
+            <p>This is the key insight that makes the product rule intuitive. <strong>Think of f(x) · g(x) as the area of a rectangle.</strong></p>
+            <p>Imagine a rectangle where:</p>
+            <ul>
+              <li><strong>Width</strong> = f(x)</li>
+              <li><strong>Height</strong> = g(x)</li>
+              <li><strong>Area</strong> = f(x) · g(x)</li>
+            </ul>
+            <p>Now, here's the crucial question: <em>When x changes slightly, how does the area change?</em></p>
+            <h3>Both Dimensions Change Simultaneously</h3>
+            <p>When x increases by a tiny amount Δx:</p>
+            <ul>
+              <li>The width changes from f(x) to f(x) + Δf</li>
+              <li>The height changes from g(x) to g(x) + Δg</li>
+            </ul>
+            <p>The change in area gives us three pieces:</p>
+            <ol>
+              <li><strong>f · Δg</strong> — A horizontal strip: keeping width f, height increases by Δg</li>
+              <li><strong>g · Δf</strong> — A vertical strip: keeping height g, width increases by Δf</li>
+              <li><strong>Δf · Δg</strong> — A tiny corner: both changes together</li>
+            </ol>
+            <h3>The Vanishing Corner</h3>
+            <p>Here's the beautiful part. That corner piece (Δf · Δg) is <em>tiny squared</em> — it's the product of two infinitesimally small quantities. As Δx → 0, this term vanishes much faster than the others.</p>
+            <p>When we take the limit, the corner disappears entirely:</p>
+            <div class="formula-box"><strong>d(fg)/dx = f · (dg/dx) + g · (df/dx)</strong></div>
+          </section>
+
+          <section class="content-section">
+            <h2>4. The Product Rule Formula</h2>
+            <p>For h(x) = f(x) · g(x):</p>
+            <div class="formula-box"><strong>h'(x) = f'(x) · g(x) + f(x) · g'(x)</strong></div>
+            <p>Or equivalently: <strong>(fg)' = f'g + fg'</strong></p>
+            <h3>Leibniz Notation</h3>
+            <p>Using Leibniz's notation with u and v:</p>
+            <div class="formula-box"><strong>d(uv) = u·dv + v·du</strong></div>
+            <p>This is elegant because it shows the symmetry — each function gets its turn being differentiated while the other stays put.</p>
+            <h3>The Mnemonic</h3>
+            <p>There's a classic memory aid:</p>
+            <blockquote>"<strong>First times derivative of second, plus second times derivative of first.</strong>"</blockquote>
+            <p>Or more rhythmically: "<strong>Left d-right, plus right d-left.</strong>"</p>
+          </section>
+
+          <section class="content-section">
+            <h2>5. Worked Examples</h2>
+            <h3>Example 1: h(x) = x² · sin(x)</h3>
+            <p><strong>Identify the parts:</strong></p>
+            <ul>
+              <li>f(x) = x² → f'(x) = 2x</li>
+              <li>g(x) = sin(x) → g'(x) = cos(x)</li>
+            </ul>
+            <p><strong>Apply the product rule:</strong></p>
+            <p>h'(x) = 2x · sin(x) + x² · cos(x)</p>
+            <p><strong>Final answer: h'(x) = 2x·sin(x) + x²·cos(x)</strong></p>
+
+            <h3>Example 2: h(x) = eˣ · x</h3>
+            <p><strong>Identify the parts:</strong></p>
+            <ul>
+              <li>f(x) = eˣ → f'(x) = eˣ</li>
+              <li>g(x) = x → g'(x) = 1</li>
+            </ul>
+            <p><strong>Apply the product rule:</strong></p>
+            <p>h'(x) = eˣ · x + eˣ · 1 = <strong>eˣ(x + 1)</strong></p>
+
+            <h3>Example 3: Three Functions (Extended Product Rule)</h3>
+            <p>For h(x) = f(x) · g(x) · k(x), the pattern extends naturally:</p>
+            <div class="formula-box"><strong>(fgk)' = f'gk + fg'k + fgk'</strong></div>
+            <p>Each function takes a turn being differentiated.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>6. Common Mistakes to Avoid</h2>
+            <h3>Mistake 1: Multiplying the Derivatives</h3>
+            <p>❌ <strong>Wrong:</strong> (fg)' = f' · g'</p>
+            <p>✅ <strong>Right:</strong> (fg)' = f'g + fg'</p>
+
+            <h3>Mistake 2: Forgetting One Term</h3>
+            <p>❌ <strong>Wrong:</strong> (x² · sin(x))' = 2x · cos(x)</p>
+            <p>✅ <strong>Right:</strong> (x² · sin(x))' = 2x · sin(x) + x² · cos(x)</p>
+            <p>Always count your terms. Product rule = two terms. Three functions = three terms.</p>
+
+            <h3>Mistake 3: Confusing Product Rule with Chain Rule</h3>
+            <p>The product rule handles <strong>f(x) · g(x)</strong> — two separate functions multiplied.</p>
+            <p>The chain rule handles <strong>f(g(x))</strong> — one function <em>inside</em> another.</p>
+            <p>These are different situations requiring different rules.</p>
+          </section>
+
+          <section class="content-section highlight-section">
+            <h2>7. Why This Matters for ML/AI</h2>
+            <p>The product rule isn't just calculus trivia — it's essential for understanding how neural networks learn.</p>
+            
+            <h3>Gating Mechanisms in LSTMs</h3>
+            <p>Long Short-Term Memory networks use <strong>gates</strong> that multiply signals together:</p>
+            <div class="formula-box">output = sigmoid(weights) × hidden_state</div>
+            <p>When backpropagation computes gradients through this multiplication, it applies the product rule. The gradient flows through <em>both</em> the sigmoid path and the hidden state path.</p>
+
+            <h3>Attention Mechanisms</h3>
+            <p>In attention layers (the heart of Transformers):</p>
+            <div class="formula-box">output = softmax(scores) × values</div>
+            <p>The attention weights multiply the values. During training, gradients must flow backward through this product.</p>
+
+            <h3>The Backpropagation Connection</h3>
+            <p>When an automatic differentiation system encounters a multiplication node during backpropagation, it implements the product rule automatically:</p>
+            <div class="formula-box">
+              Forward:  z = x * y<br>
+              Backward: ∂L/∂x = y * (∂L/∂z)<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ∂L/∂y = x * (∂L/∂z)
             </div>
-          </div>
-        </aside>
+            <p>Each input's gradient is the <em>other</em> input times the upstream gradient. This is the product rule in action.</p>
+          </section>
+
+          <section class="content-section">
+            <h2>Summary</h2>
+            <p><strong>The Product Rule:</strong> When differentiating h(x) = f(x) · g(x):</p>
+            <div class="formula-box"><strong>h'(x) = f'(x) · g(x) + f(x) · g'(x)</strong></div>
+            <p><strong>The Rectangle Intuition:</strong> Area changes because <em>both</em> dimensions change. The total change is the sum of the horizontal strip (f · Δg) plus the vertical strip (g · Δf). The corner vanishes in the limit.</p>
+            <p><strong>The Mnemonic:</strong> "First times derivative of second, plus second times derivative of first."</p>
+            <p><strong>In ML:</strong> Every multiplication in a neural network — gating, attention, weighted losses — requires the product rule during backpropagation. The gradient splits and flows through both multiplicands.</p>
+          </section>
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="b4-chain-rule.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← B4: Chain Rule Visualiser</span>
+          </a>
+          <a href="b6-sum-rule.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">B6: Sum Rule & Linearity →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="b4-chain-rule.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← B4: Chain Rule Visualiser</span>
-        </a>
-        <a href="b6-sum-rule.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">B6: Sum Rule & Linearity →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>
