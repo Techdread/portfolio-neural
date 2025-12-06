@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Forward Pass - Step by Step</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0e1a;
+            --bg-panel: rgba(15, 23, 42, 0.92);
+            --accent-blue: #38bdf8;
+            --accent-cyan: #22d3ee;
+            --accent-red: #f43f5e;
+            --accent-amber: #fbbf24;
+            --accent-green: #34d399;
+            --text-primary: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-subtle: rgba(148, 163, 184, 0.15);
+        }
+
+        * { box-sizing: border-box; }
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: var(--bg-deep);
+            color: var(--text-primary); 
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        #canvas-container { 
+            position: absolute; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            z-index: 0; 
+        }
+
+        /* Floating Labels */
+        .node-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .weight-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            pointer-events: none;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 5;
+            white-space: nowrap;
+        }
+
+        .weight-label.positive {
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .weight-label.negative {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent-red);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #1e293b;
+            border-radius: 2px;
+        }
+
+        /* Activation Graph Canvas */
+        #activation-graph {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        /* Matrix Display */
+        .matrix-bracket {
+            font-size: 2em;
+            line-height: 0.8;
+            color: var(--text-muted);
+        }
+
+        .matrix-cell {
+            min-width: 3.5em;
+            text-align: right;
+            padding: 2px 4px;
+        }
+
+        /* Step Indicator */
+        .step-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #1e293b;
+            border: 2px solid var(--border-subtle);
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 12px var(--accent-cyan);
+        }
+
+        .step-dot.completed {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
+        /* Pulse Animation */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px currentColor; }
+            50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+        }
+
+        .computing {
+            animation: pulse-glow 0.8s ease-in-out infinite;
+        }
+
+        /* Value Badge */
+        .value-badge {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .value-badge.highlight {
+            border-color: var(--accent-amber);
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: #1e293b;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 11px;
+            max-width: 280px;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .tooltip.visible { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Labels Container -->
+    <div id="labels-container" class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"></div>
+
+    <!-- UI Overlay: Top Left - Title & Controls -->
+    <div class="absolute top-4 left-4 pointer-events-none">
+        <div class="glass-panel p-5 rounded-2xl pointer-events-auto max-w-sm">
+            <h1 class="text-2xl font-bold mb-1">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Forward Pass</span>
+                <span class="text-slate-400 text-lg font-normal ml-2">Explorer</span>
+            </h1>
+            <p class="text-xs text-slate-400 mb-4">
+                Network: <span class="mono text-cyan-400">2 → 2 → 1</span> 
+                <span class="text-slate-500 ml-2">(matches tutorial example)</span>
+            </p>
+            
+            <div class="flex gap-2 mb-4">
+                <button id="btn-reset" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700">
+                    Reset
+                </button>
+                <button id="btn-random-weights" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700">
+                    Random Weights
+                </button>
+                <button id="btn-use-tutorial" class="px-3 py-1.5 bg-cyan-900/50 hover:bg-cyan-800/50 rounded-lg text-xs font-medium transition border border-cyan-700/50 text-cyan-300">
+                    Tutorial Values
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-300">Activation:</span>
+                    <select id="activation-select" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1 text-xs outline-none focus:border-cyan-500 cursor-pointer">
+                        <option value="relu">ReLU</option>
+                        <option value="sigmoid">Sigmoid</option>
+                        <option value="tanh">Tanh</option>
+                        <option value="linear">Linear</option>
+                    </select>
+                </div>
+                
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="show-weights" checked class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-cyan-500 focus:ring-cyan-500">
+                    <span class="text-xs text-slate-300">Show weight labels</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Input Controls -->
+        <div class="glass-panel p-4 rounded-2xl pointer-events-auto mt-4 w-64">
+            <h3 class="text-sm font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                </svg>
+                Input Values
+            </h3>
+            <div id="input-controls" class="space-y-4">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay: Top Right - Math Panel -->
+    <div class="absolute top-4 right-4 pointer-events-none">
+        <div class="glass-panel p-5 rounded-2xl pointer-events-auto w-96">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Operation</h2>
+                <span id="step-badge" class="mono text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">Step 0/6</span>
+            </div>
+            
+            <div id="formula-display" class="mono text-sm mb-4 min-h-[60px]">
+                <div class="text-slate-500 italic">Ready to begin forward pass...</div>
+            </div>
+
+            <div id="math-details" class="pt-3 border-t border-slate-700/50 text-xs min-h-[120px]">
+                <!-- Dynamic Content -->
+            </div>
+
+            <!-- Activation Function Graph -->
+            <div id="activation-graph-container" class="mt-4 pt-4 border-t border-slate-700/50 hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider">Activation Function</span>
+                    <span id="activation-name" class="mono text-xs text-cyan-400">ReLU</span>
+                </div>
+                <canvas id="activation-graph" width="340" height="100"></canvas>
+                <div class="flex justify-between mt-1 text-[9px] text-slate-600 mono">
+                    <span>z = -3</span>
+                    <span id="current-z-display" class="text-amber-400">z = 0.00</span>
+                    <span>z = 3</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay: Bottom - Playback -->
+    <div class="absolute bottom-0 left-0 w-full p-6 flex flex-col items-center pointer-events-none">
+        
+        <!-- Step Indicators -->
+        <div class="flex items-center gap-3 mb-4">
+            <div class="step-dot" data-step="0"></div>
+            <div class="w-8 h-0.5 bg-slate-700"></div>
+            <div class="step-dot" data-step="1"></div>
+            <div class="w-8 h-0.5 bg-slate-700"></div>
+            <div class="step-dot" data-step="2"></div>
+            <div class="w-8 h-0.5 bg-slate-700"></div>
+            <div class="step-dot" data-step="3"></div>
+            <div class="w-8 h-0.5 bg-slate-700"></div>
+            <div class="step-dot" data-step="4"></div>
+            <div class="w-8 h-0.5 bg-slate-700"></div>
+            <div class="step-dot" data-step="5"></div>
+            <div class="w-8 h-0.5 bg-slate-700"></div>
+            <div class="step-dot" data-step="6"></div>
+        </div>
+
+        <!-- Playback Controls -->
+        <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-4 pointer-events-auto">
+            <button id="btn-prev" class="text-slate-400 hover:text-white transition p-1" title="Previous Step">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M19 20L9 12l10-8v16zM5 19V5"/>
+                </svg>
+            </button>
+            
+            <button id="btn-play-pause" class="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-cyan-500/30 transition transform hover:scale-105">
+                <svg id="icon-play" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <svg id="icon-pause" class="hidden" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+
+            <button id="btn-next" class="text-slate-400 hover:text-white transition p-1" title="Next Step">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M5 4l10 8-10 8V4zM19 5v14"/>
+                </svg>
+            </button>
+
+            <div class="h-8 w-px bg-slate-700 mx-2"></div>
+
+            <div class="flex flex-col items-center w-28">
+                <label class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Speed</label>
+                <input type="range" id="speed-slider" min="0.25" max="2.0" step="0.25" value="1.0">
+            </div>
+        </div>
+
+        <!-- Step Description -->
+        <div id="step-label" class="mt-3 text-xs text-slate-400 mono text-center max-w-md">
+            Press Play or Step Forward to begin
+        </div>
+    </div>
+
+    <!-- Tooltip (for neuron hover) -->
+    <div id="tooltip" class="tooltip">
+        <div id="tooltip-content"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ═══════════════════════════════════════════════════════════════
+        // CONFIGURATION - Matches Educational Document Exactly
+        // ═══════════════════════════════════════════════════════════════
+        
+        const NETWORK_SHAPE = [2, 2, 1]; // 2 inputs, 2 hidden, 1 output
+        const LAYER_SPACING = 7;
+        const NEURON_SPACING = 3.5;
+
+        // Tutorial values from the educational document
+        const TUTORIAL_WEIGHTS = {
+            layer1: [
+                [0.4, 0.3],    // h₁ weights: w₁₁=0.4, w₁₂=0.3
+                [-0.2, 0.5]    // h₂ weights: w₂₁=-0.2, w₂₂=0.5
+            ],
+            layer2: [
+                [0.6, -0.4]    // y₁ weights: w₁₁=0.6, w₁₂=-0.4
+            ]
+        };
+
+        const TUTORIAL_BIASES = {
+            layer1: [0.1, -0.1],   // b₁=0.1, b₂=-0.1
+            layer2: [0.2]          // b₁=0.2
+        };
+
+        const TUTORIAL_INPUTS = [0.5, 0.8];
+
+        // ═══════════════════════════════════════════════════════════════
+        // ACTIVATION FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+
+        const ACTIVATIONS = {
+            relu: {
+                func: (x) => Math.max(0, x),
+                name: 'ReLU',
+                formula: 'max(0, z)',
+                desc: 'Outputs z if positive, 0 otherwise'
+            },
+            sigmoid: {
+                func: (x) => 1 / (1 + Math.exp(-Math.min(Math.max(x, -500), 500))),
+                name: 'Sigmoid',
+                formula: '1 / (1 + e⁻ᶻ)',
+                desc: 'Squashes values between 0 and 1'
+            },
+            tanh: {
+                func: (x) => Math.tanh(x),
+                name: 'Tanh',
+                formula: 'tanh(z)',
+                desc: 'Squashes values between -1 and 1'
+            },
+            linear: {
+                func: (x) => x,
+                name: 'Linear',
+                formula: 'z',
+                desc: 'No transformation (identity)'
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // STATE MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════
+
+        const state = {
+            inputs: [...TUTORIAL_INPUTS],
+            weights: [
+                [...TUTORIAL_WEIGHTS.layer1.map(row => [...row])],
+                [...TUTORIAL_WEIGHTS.layer2.map(row => [...row])]
+            ],
+            biases: [
+                [...TUTORIAL_BIASES.layer1],
+                [...TUTORIAL_BIASES.layer2]
+            ],
+            layerValues: NETWORK_SHAPE.map(count => new Array(count).fill(0)),
+            preActivations: NETWORK_SHAPE.map(count => new Array(count).fill(0)),
+            activationType: 'relu',
+            stepIndex: 0,
+            isPlaying: false,
+            speed: 1.0,
+            showWeights: true
+        };
+
+        // Step definitions with descriptions
+        const STEPS = [
+            { id: 0, name: 'Ready', desc: 'Input values loaded. Ready to propagate forward.' },
+            { id: 1, name: 'Input → Hidden', desc: 'Data traveling along weighted connections to hidden layer.' },
+            { id: 2, name: 'Hidden Sum', desc: 'Computing weighted sum + bias at each hidden neuron.' },
+            { id: 3, name: 'Hidden Activation', desc: 'Applying activation function to get final hidden values.' },
+            { id: 4, name: 'Hidden → Output', desc: 'Hidden values traveling to output layer.' },
+            { id: 5, name: 'Output Sum', desc: 'Computing weighted sum + bias at output neuron.' },
+            { id: 6, name: 'Final Output', desc: 'Applying activation to produce final prediction.' }
+        ];
+
+        const TOTAL_STEPS = 6;
+
+        // ═══════════════════════════════════════════════════════════════
+        // THREE.JS SETUP
+        // ═══════════════════════════════════════════════════════════════
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0e1a);
+        scene.fog = new THREE.FogExp2(0x0a0e1a, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 16);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 10;
+        controls.maxDistance = 25;
+        controls.maxPolarAngle = Math.PI / 1.5;
+        controls.minPolarAngle = Math.PI / 3;
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        
+        const keyLight = new THREE.PointLight(0x38bdf8, 1.5, 50);
+        keyLight.position.set(5, 5, 10);
+        scene.add(keyLight);
+
+        const fillLight = new THREE.PointLight(0x22d3ee, 0.8, 50);
+        fillLight.position.set(-5, -3, 8);
+        scene.add(fillLight);
+
+        // ═══════════════════════════════════════════════════════════════
+        // 3D OBJECTS
+        // ═══════════════════════════════════════════════════════════════
+
+        const networkObjects = {
+            neurons: [],      // [layerIndex][neuronIndex] = mesh
+            connections: [],  // { mesh, pulseMesh, from, to, weight, ... }
+            labels: [],       // { div, mesh, layerIdx, neuronIdx }
+            weightLabels: []  // { div, connection }
+        };
+
+        const geometries = {
+            neuron: new THREE.SphereGeometry(0.55, 32, 32),
+            neuronRing: new THREE.TorusGeometry(0.75, 0.04, 16, 64),
+            pulse: new THREE.SphereGeometry(0.12, 16, 16)
+        };
+
+        function createNeuronMaterial(isInput = false) {
+            return new THREE.MeshPhysicalMaterial({
+                color: 0x1e293b,
+                roughness: 0.2,
+                metalness: 0.8,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1,
+                emissive: 0x000000,
+                emissiveIntensity: 0
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // NETWORK INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        function initNetwork() {
+            clearScene();
+            buildNeurons();
+            buildConnections();
+            createInputControls();
+            computeForwardPass();
+            updateAllVisuals();
+        }
+
+        function clearScene() {
+            // Remove old meshes
+            networkObjects.neurons.flat().forEach(m => scene.remove(m));
+            networkObjects.connections.forEach(c => {
+                scene.remove(c.mesh);
+                scene.remove(c.pulseMesh);
+            });
+            
+            // Clear labels
+            document.getElementById('labels-container').innerHTML = '';
+            
+            networkObjects.neurons = [];
+            networkObjects.connections = [];
+            networkObjects.labels = [];
+            networkObjects.weightLabels = [];
+        }
+
+        function buildNeurons() {
+            const startX = -((NETWORK_SHAPE.length - 1) * LAYER_SPACING) / 2;
+
+            NETWORK_SHAPE.forEach((count, layerIdx) => {
+                const layerNeurons = [];
+                const layerHeight = (count - 1) * NEURON_SPACING;
+                const startY = layerHeight / 2;
+
+                for (let i = 0; i < count; i++) {
+                    const mesh = new THREE.Mesh(geometries.neuron, createNeuronMaterial(layerIdx === 0));
+                    mesh.position.set(
+                        startX + layerIdx * LAYER_SPACING,
+                        startY - i * NEURON_SPACING,
+                        0
+                    );
+                    
+                    // Add glow ring
+                    const ring = new THREE.Mesh(
+                        geometries.neuronRing,
+                        new THREE.MeshBasicMaterial({ 
+                            color: 0x38bdf8, 
+                            transparent: true, 
+                            opacity: 0 
+                        })
+                    );
+                    mesh.add(ring);
+                    mesh.userData = { ring, layerIdx, neuronIdx: i };
+
+                    scene.add(mesh);
+                    layerNeurons.push(mesh);
+
+                    // Create HTML label
+                    createNeuronLabel(mesh, layerIdx, i);
+                }
+
+                networkObjects.neurons.push(layerNeurons);
+            });
+        }
+
+        function createNeuronLabel(mesh, layerIdx, neuronIdx) {
+            const container = document.createElement('div');
+            container.className = 'node-label';
+
+            // Neuron name
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'text-center text-xs font-semibold mb-1';
+            
+            if (layerIdx === 0) {
+                nameDiv.innerHTML = `<span class="text-cyan-400">x</span><sub class="text-cyan-400">${neuronIdx + 1}</sub>`;
+            } else if (layerIdx === NETWORK_SHAPE.length - 1) {
+                nameDiv.innerHTML = `<span class="text-green-400">y</span><sub class="text-green-400">${neuronIdx + 1}</sub>`;
+            } else {
+                nameDiv.innerHTML = `<span class="text-blue-400">h</span><sub class="text-blue-400">${neuronIdx + 1}</sub>`;
+            }
+            container.appendChild(nameDiv);
+
+            // Value display
+            const valueDiv = document.createElement('div');
+            valueDiv.className = 'value-badge text-center';
+            valueDiv.id = `val-${layerIdx}-${neuronIdx}`;
+            valueDiv.innerText = '0.00';
+            container.appendChild(valueDiv);
+
+            // Bias display (for non-input layers)
+            if (layerIdx > 0) {
+                const biasDiv = document.createElement('div');
+                biasDiv.className = 'text-[9px] text-amber-400/80 mt-1 mono text-center';
+                biasDiv.id = `bias-${layerIdx}-${neuronIdx}`;
+                const biasVal = state.biases[layerIdx - 1][neuronIdx];
+                biasDiv.innerText = `b=${biasVal >= 0 ? '+' : ''}${biasVal.toFixed(2)}`;
+                container.appendChild(biasDiv);
+            }
+
+            document.getElementById('labels-container').appendChild(container);
+            networkObjects.labels.push({ div: container, mesh, layerIdx, neuronIdx });
+        }
+
+        function buildConnections() {
+            for (let l = 0; l < NETWORK_SHAPE.length - 1; l++) {
+                const fromLayer = networkObjects.neurons[l];
+                const toLayer = networkObjects.neurons[l + 1];
+
+                for (let j = 0; j < toLayer.length; j++) {
+                    for (let i = 0; i < fromLayer.length; i++) {
+                        const weight = state.weights[l][j][i];
+                        const startPos = fromLayer[i].position.clone();
+                        const endPos = toLayer[j].position.clone();
+
+                        // Line
+                        const lineGeo = new THREE.BufferGeometry().setFromPoints([startPos, endPos]);
+                        const isPositive = weight >= 0;
+                        const lineMat = new THREE.LineBasicMaterial({
+                            color: isPositive ? 0x38bdf8 : 0xf43f5e,
+                            transparent: true,
+                            opacity: 0.15 + Math.abs(weight) * 0.4,
+                            linewidth: 1
+                        });
+                        const lineMesh = new THREE.Line(lineGeo, lineMat);
+                        scene.add(lineMesh);
+
+                        // Pulse
+                        const pulseMesh = new THREE.Mesh(
+                            geometries.pulse,
+                            new THREE.MeshBasicMaterial({
+                                color: isPositive ? 0x38bdf8 : 0xf43f5e,
+                                transparent: true,
+                                opacity: 0.9
+                            })
+                        );
+                        pulseMesh.visible = false;
+                        scene.add(pulseMesh);
+
+                        const connection = {
+                            mesh: lineMesh,
+                            pulseMesh,
+                            fromLayer: l,
+                            fromIndex: i,
+                            toIndex: j,
+                            weight,
+                            startPos,
+                            endPos
+                        };
+
+                        networkObjects.connections.push(connection);
+
+                        // Weight label
+                        createWeightLabel(connection);
+                    }
+                }
+            }
+        }
+
+        function createWeightLabel(connection) {
+            const div = document.createElement('div');
+            div.className = `weight-label mono ${connection.weight >= 0 ? 'positive' : 'negative'}`;
+            div.innerText = `w=${connection.weight.toFixed(2)}`;
+            document.getElementById('labels-container').appendChild(div);
+            
+            connection.labelEl = div;
+            networkObjects.weightLabels.push({ div, connection });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // FORWARD PASS COMPUTATION
+        // ═══════════════════════════════════════════════════════════════
+
+        function computeForwardPass() {
+            // Layer 0: Inputs
+            state.layerValues[0] = [...state.inputs];
+            state.preActivations[0] = [...state.inputs];
+
+            // Layer 1: Hidden
+            for (let j = 0; j < NETWORK_SHAPE[1]; j++) {
+                let sum = 0;
+                for (let i = 0; i < NETWORK_SHAPE[0]; i++) {
+                    sum += state.inputs[i] * state.weights[0][j][i];
+                }
+                sum += state.biases[0][j];
+                state.preActivations[1][j] = sum;
+                state.layerValues[1][j] = ACTIVATIONS[state.activationType].func(sum);
+            }
+
+            // Layer 2: Output
+            for (let j = 0; j < NETWORK_SHAPE[2]; j++) {
+                let sum = 0;
+                for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
+                    sum += state.layerValues[1][i] * state.weights[1][j][i];
+                }
+                sum += state.biases[1][j];
+                state.preActivations[2][j] = sum;
+                state.layerValues[2][j] = ACTIVATIONS[state.activationType].func(sum);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VISUAL UPDATES
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateAllVisuals() {
+            updateNeuronLabels();
+            updateNeuronColors();
+            updateWeightLabelVisibility();
+            updateStepIndicators();
+            updateMathDisplay();
+        }
+
+        function updateNeuronLabels() {
+            state.layerValues.forEach((layer, lIdx) => {
+                layer.forEach((val, nIdx) => {
+                    const el = document.getElementById(`val-${lIdx}-${nIdx}`);
+                    if (el) {
+                        el.innerText = val.toFixed(2);
+                        
+                        // Color based on value
+                        if (val > 0.01) {
+                            el.style.color = '#38bdf8';
+                            el.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+                        } else if (val < -0.01) {
+                            el.style.color = '#f43f5e';
+                            el.style.borderColor = 'rgba(244, 63, 94, 0.3)';
+                        } else {
+                            el.style.color = '#94a3b8';
+                            el.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+                        }
+                    }
+                });
+            });
+
+            // Update bias labels
+            for (let l = 1; l < NETWORK_SHAPE.length; l++) {
+                for (let n = 0; n < NETWORK_SHAPE[l]; n++) {
+                    const el = document.getElementById(`bias-${l}-${n}`);
+                    if (el) {
+                        const biasVal = state.biases[l - 1][n];
+                        el.innerText = `b=${biasVal >= 0 ? '+' : ''}${biasVal.toFixed(2)}`;
+                    }
+                }
+            }
+        }
+
+        function updateNeuronColors() {
+            const step = state.stepIndex;
+
+            networkObjects.neurons.forEach((layer, lIdx) => {
+                layer.forEach((mesh, nIdx) => {
+                    const val = state.layerValues[lIdx][nIdx];
+                    const ring = mesh.userData.ring;
+                    
+                    let isActive = false;
+                    let isComputing = false;
+
+                    // Determine state based on current step
+                    if (step === 0 && lIdx === 0) isActive = true;
+                    if (step >= 1 && lIdx === 0) isActive = true;
+                    if (step === 2 && lIdx === 1) isComputing = true;
+                    if (step >= 3 && lIdx === 1) isActive = true;
+                    if (step === 5 && lIdx === 2) isComputing = true;
+                    if (step >= 6 && lIdx === 2) isActive = true;
+
+                    if (isComputing) {
+                        // Yellow glow for computing
+                        mesh.material.color.setHex(0xfbbf24);
+                        mesh.material.emissive.setHex(0xfbbf24);
+                        mesh.material.emissiveIntensity = 0.6;
+                        ring.material.color.setHex(0xfbbf24);
+                        ring.material.opacity = 0.8;
+                    } else if (isActive) {
+                        const color = val >= 0 ? 0x38bdf8 : 0xf43f5e;
+                        const intensity = Math.min(Math.abs(val), 1) * 0.7;
+                        mesh.material.color.setHex(color);
+                        mesh.material.emissive.setHex(color);
+                        mesh.material.emissiveIntensity = intensity;
+                        ring.material.color.setHex(color);
+                        ring.material.opacity = intensity * 0.6;
+                    } else {
+                        mesh.material.color.setHex(0x1e293b);
+                        mesh.material.emissive.setHex(0x000000);
+                        mesh.material.emissiveIntensity = 0;
+                        ring.material.opacity = 0;
+                    }
+                });
+            });
+        }
+
+        function updateWeightLabelVisibility() {
+            networkObjects.weightLabels.forEach(({ div }) => {
+                div.style.opacity = state.showWeights ? '1' : '0';
+            });
+        }
+
+        function updateStepIndicators() {
+            document.querySelectorAll('.step-dot').forEach((dot, idx) => {
+                dot.classList.remove('active', 'completed');
+                if (idx === state.stepIndex) {
+                    dot.classList.add('active');
+                } else if (idx < state.stepIndex) {
+                    dot.classList.add('completed');
+                }
+            });
+
+            document.getElementById('step-badge').innerText = `Step ${state.stepIndex}/${TOTAL_STEPS}`;
+            document.getElementById('step-label').innerText = STEPS[state.stepIndex].desc;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MATH DISPLAY
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateMathDisplay() {
+            const formula = document.getElementById('formula-display');
+            const details = document.getElementById('math-details');
+            const graphContainer = document.getElementById('activation-graph-container');
+            const act = ACTIVATIONS[state.activationType];
+            const step = state.stepIndex;
+
+            // Hide graph by default
+            graphContainer.classList.add('hidden');
+
+            if (step === 0) {
+                formula.innerHTML = `
+                    <div class="text-slate-400 text-xs mb-2">Input Vector</div>
+                    <div class="text-lg">
+                        <span class="text-cyan-400">x</span> = 
+                        <span class="text-white">[${state.inputs.map(v => v.toFixed(2)).join(', ')}]</span>
+                    </div>
+                `;
+                details.innerHTML = `
+                    <div class="text-slate-500 text-[11px]">
+                        These input values will be multiplied by weights and propagated through the network.
+                    </div>
+                `;
+            }
+            else if (step === 1) {
+                formula.innerHTML = `
+                    <div class="text-slate-400 text-xs mb-2">Data Transmission</div>
+                    <div class="text-base">
+                        Each input <span class="text-cyan-400">xᵢ</span> travels along 
+                        connection weighted by <span class="text-blue-400">wⱼᵢ</span>
+                    </div>
+                `;
+                details.innerHTML = buildWeightMatrixHTML(0, 'W₁', 'Input → Hidden');
+            }
+            else if (step === 2) {
+                formula.innerHTML = `
+                    <div class="text-slate-400 text-xs mb-2">Weighted Sum + Bias</div>
+                    <div class="text-lg">
+                        <span class="text-amber-400">z</span> = 
+                        <span class="text-blue-400">W₁</span> · 
+                        <span class="text-cyan-400">x</span> + 
+                        <span class="text-amber-400">b₁</span>
+                    </div>
+                `;
+                details.innerHTML = buildLayerComputationHTML(1);
+            }
+            else if (step === 3) {
+                formula.innerHTML = `
+                    <div class="text-slate-400 text-xs mb-2">Apply ${act.name}</div>
+                    <div class="text-lg">
+                        <span class="text-blue-400">h</span> = 
+                        <span class="text-green-400">${act.name}</span>(<span class="text-amber-400">z</span>)
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1">${act.formula}</div>
+                `;
+                details.innerHTML = buildActivationResultsHTML(1);
+                
+                // Show activation graph
+                graphContainer.classList.remove('hidden');
+                document.getElementById('activation-name').innerText = act.name;
+                drawActivationGraph(state.preActivations[1][0]);
+            }
+            else if (step === 4) {
+                formula.innerHTML = `
+                    <div class="text-slate-400 text-xs mb-2">Data Transmission</div>
+                    <div class="text-base">
+                        Hidden values <span class="text-blue-400">hᵢ</span> travel to output 
+                        weighted by <span class="text-green-400">wⱼᵢ</span>
+                    </div>
+                `;
+                details.innerHTML = buildWeightMatrixHTML(1, 'W₂', 'Hidden → Output');
+            }
+            else if (step === 5) {
+                formula.innerHTML = `
+                    <div class="text-slate-400 text-xs mb-2">Weighted Sum + Bias</div>
+                    <div class="text-lg">
+                        <span class="text-amber-400">z</span> = 
+                        <span class="text-green-400">W₂</span> · 
+                        <span class="text-blue-400">h</span> + 
+                        <span class="text-amber-400">b₂</span>
+                    </div>
+                `;
+                details.innerHTML = buildOutputComputationHTML();
+            }
+            else if (step === 6) {
+                formula.innerHTML = `
+                    <div class="text-slate-400 text-xs mb-2">Final Prediction</div>
+                    <div class="text-2xl">
+                        <span class="text-green-400">y</span> = 
+                        <span class="text-white font-bold">${state.layerValues[2][0].toFixed(4)}</span>
+                    </div>
+                `;
+                details.innerHTML = `
+                    <div class="text-slate-400 text-[11px] mb-3">
+                        ${act.name}(${state.preActivations[2][0].toFixed(3)}) = ${state.layerValues[2][0].toFixed(4)}
+                    </div>
+                    <div class="p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
+                        <div class="text-green-400 text-xs font-semibold mb-1">Forward Pass Complete!</div>
+                        <div class="text-slate-400 text-[10px]">
+                            This value would be compared against the true label to compute loss during training.
+                        </div>
+                    </div>
+                `;
+                
+                graphContainer.classList.remove('hidden');
+                document.getElementById('activation-name').innerText = act.name;
+                drawActivationGraph(state.preActivations[2][0]);
+            }
+        }
+
+        function buildWeightMatrixHTML(layerIdx, name, label) {
+            const W = state.weights[layerIdx];
+            const rows = W.map(row => 
+                row.map(w => {
+                    const color = w >= 0 ? 'text-cyan-400' : 'text-red-400';
+                    return `<span class="${color}">${w >= 0 ? '+' : ''}${w.toFixed(2)}</span>`;
+                }).join('  ')
+            ).join('<br>');
+
+            return `
+                <div class="text-slate-500 text-[10px] uppercase tracking-wider mb-2">${label} Weights</div>
+                <div class="flex items-center gap-2 mono text-xs">
+                    <span class="text-slate-400">${name} =</span>
+                    <span class="matrix-bracket">[</span>
+                    <div class="leading-relaxed">${rows}</div>
+                    <span class="matrix-bracket">]</span>
+                </div>
+            `;
+        }
+
+        function buildLayerComputationHTML(layerIdx) {
+            const x = layerIdx === 1 ? state.inputs : state.layerValues[1];
+            const W = state.weights[layerIdx - 1];
+            const b = state.biases[layerIdx - 1];
+            const z = state.preActivations[layerIdx];
+
+            let html = '<div class="space-y-3 mono text-[10px]">';
+            
+            for (let j = 0; j < W.length; j++) {
+                const terms = W[j].map((w, i) => {
+                    const wColor = w >= 0 ? 'text-cyan-400' : 'text-red-400';
+                    return `<span class="${wColor}">${w.toFixed(2)}</span>×${x[i].toFixed(2)}`;
+                }).join(' + ');
+                
+                const bColor = b[j] >= 0 ? 'text-amber-400' : 'text-amber-400';
+                const neuronName = layerIdx === 1 ? `h${j+1}` : `y${j+1}`;
+                
+                html += `
+                    <div class="p-2 bg-slate-800/50 rounded">
+                        <span class="text-blue-400">${neuronName}:</span> 
+                        ${terms} + <span class="${bColor}">${b[j].toFixed(2)}</span>
+                        = <span class="text-amber-300 font-semibold">${z[j].toFixed(3)}</span>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function buildActivationResultsHTML(layerIdx) {
+            const act = ACTIVATIONS[state.activationType];
+            const z = state.preActivations[layerIdx];
+            const h = state.layerValues[layerIdx];
+
+            let html = '<div class="space-y-2 mono text-[10px]">';
+            
+            for (let j = 0; j < z.length; j++) {
+                const neuronName = layerIdx === 1 ? `h${j+1}` : `y${j+1}`;
+                const hColor = h[j] >= 0 ? 'text-cyan-400' : 'text-red-400';
+                
+                html += `
+                    <div class="p-2 bg-slate-800/50 rounded flex justify-between items-center">
+                        <span>
+                            <span class="text-green-400">${act.name}</span>(<span class="text-amber-400">${z[j].toFixed(3)}</span>)
+                        </span>
+                        <span>
+                            <span class="text-slate-500">${neuronName} =</span> 
+                            <span class="${hColor} font-semibold">${h[j].toFixed(4)}</span>
+                        </span>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function buildOutputComputationHTML() {
+            const h = state.layerValues[1];
+            const W = state.weights[1];
+            const b = state.biases[1];
+            const z = state.preActivations[2];
+
+            const terms = W[0].map((w, i) => {
+                const wColor = w >= 0 ? 'text-cyan-400' : 'text-red-400';
+                return `<span class="${wColor}">${w.toFixed(2)}</span>×${h[i].toFixed(3)}`;
+            }).join(' + ');
+
+            return `
+                <div class="mono text-[10px] p-3 bg-slate-800/50 rounded">
+                    <div class="text-slate-500 mb-2">y₁ computation:</div>
+                    <div class="mb-2">${terms} + <span class="text-amber-400">${b[0].toFixed(2)}</span></div>
+                    <div class="text-right">
+                        = <span class="text-amber-300 font-bold text-sm">${z[0].toFixed(4)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // ACTIVATION GRAPH
+        // ═══════════════════════════════════════════════════════════════
+
+        function drawActivationGraph(currentZ) {
+            const canvas = document.getElementById('activation-graph');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width;
+            const H = canvas.height;
+            const act = ACTIVATIONS[state.activationType];
+
+            ctx.clearRect(0, 0, W, H);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+            ctx.lineWidth = 1;
+            
+            // Vertical center line (z=0)
+            ctx.beginPath();
+            ctx.moveTo(W/2, 0);
+            ctx.lineTo(W/2, H);
+            ctx.stroke();
+
+            // Horizontal center line (y=0 for tanh, y=0.5 for sigmoid)
+            const yCenter = state.activationType === 'sigmoid' ? H * 0.2 : H / 2;
+            ctx.beginPath();
+            ctx.moveTo(0, yCenter);
+            ctx.lineTo(W, yCenter);
+            ctx.stroke();
+
+            // Draw activation curve
+            ctx.beginPath();
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 2;
+
+            const zMin = -3, zMax = 3;
+            
+            for (let px = 0; px <= W; px++) {
+                const z = zMin + (px / W) * (zMax - zMin);
+                const y = act.func(z);
+                
+                // Map y to canvas (different scaling per function)
+                let py;
+                if (state.activationType === 'sigmoid') {
+                    py = H - (y * H * 0.9) - H * 0.05;
+                } else if (state.activationType === 'tanh') {
+                    py = H/2 - (y * H * 0.4);
+                } else if (state.activationType === 'relu') {
+                    py = H - Math.min(y, 2.5) * H * 0.35 - H * 0.1;
+                } else {
+                    py = H/2 - (y * H * 0.15);
+                }
+
+                if (px === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+
+            // Draw current point
+            const clampedZ = Math.max(zMin, Math.min(zMax, currentZ));
+            const currentY = act.func(clampedZ);
+            const pointX = ((clampedZ - zMin) / (zMax - zMin)) * W;
+            
+            let pointY;
+            if (state.activationType === 'sigmoid') {
+                pointY = H - (currentY * H * 0.9) - H * 0.05;
+            } else if (state.activationType === 'tanh') {
+                pointY = H/2 - (currentY * H * 0.4);
+            } else if (state.activationType === 'relu') {
+                pointY = H - Math.min(currentY, 2.5) * H * 0.35 - H * 0.1;
+            } else {
+                pointY = H/2 - (currentY * H * 0.15);
+            }
+
+            // Vertical line to point
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+            ctx.setLineDash([4, 4]);
+            ctx.moveTo(pointX, H);
+            ctx.lineTo(pointX, pointY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Point
+            ctx.beginPath();
+            ctx.fillStyle = '#fbbf24';
+            ctx.arc(pointX, pointY, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.fillStyle = '#0a0e1a';
+            ctx.arc(pointX, pointY, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Update z display
+            document.getElementById('current-z-display').innerText = `z = ${currentZ.toFixed(2)} → ${currentY.toFixed(3)}`;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // ANIMATION
+        // ═══════════════════════════════════════════════════════════════
+
+        let lastStepTime = 0;
+        const STEP_DURATION = 1800;
+
+        function animatePulses() {
+            const step = state.stepIndex;
+            
+            // Reset all pulses
+            networkObjects.connections.forEach(c => c.pulseMesh.visible = false);
+
+            // Animate pulses for appropriate steps
+            if (step === 1) {
+                animateConnectionPulses(0);
+            } else if (step === 4) {
+                animateConnectionPulses(1);
+            }
+        }
+
+        function animateConnectionPulses(fromLayerIdx) {
+            const t = (performance.now() / 1000 * state.speed) % 1;
+            
+            networkObjects.connections
+                .filter(c => c.fromLayer === fromLayerIdx)
+                .forEach(c => {
+                    c.pulseMesh.visible = true;
+                    c.pulseMesh.position.lerpVectors(c.startPos, c.endPos, t);
+                    
+                    // Scale pulse based on weight magnitude
+                    const scale = 0.8 + Math.abs(c.weight) * 0.5;
+                    c.pulseMesh.scale.setScalar(scale);
+                });
+        }
+
+        function updateLabelPositions() {
+            // Neuron labels
+            networkObjects.labels.forEach(item => {
+                const pos = item.mesh.position.clone().project(camera);
+                const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+                
+                item.div.style.left = `${x}px`;
+                item.div.style.top = `${y + 50}px`;
+            });
+
+            // Weight labels
+            networkObjects.weightLabels.forEach(({ div, connection }) => {
+                const midPos = new THREE.Vector3().lerpVectors(
+                    connection.startPos, 
+                    connection.endPos, 
+                    0.5
+                ).project(camera);
+                
+                const x = (midPos.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-midPos.y * 0.5 + 0.5) * window.innerHeight;
+                
+                div.style.left = `${x}px`;
+                div.style.top = `${y}px`;
+            });
+        }
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // Auto-advance steps
+            if (state.isPlaying) {
+                const effectiveDuration = STEP_DURATION / state.speed;
+                if (time - lastStepTime > effectiveDuration) {
+                    if (state.stepIndex < TOTAL_STEPS) {
+                        state.stepIndex++;
+                        updateAllVisuals();
+                    } else {
+                        state.isPlaying = false;
+                        updatePlayIcon();
+                    }
+                    lastStepTime = time;
+                }
+            }
+
+            updateLabelPositions();
+            animatePulses();
+            updateNeuronColors();
+
+            renderer.render(scene, camera);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INPUT CONTROLS
+        // ═══════════════════════════════════════════════════════════════
+
+        function createInputControls() {
+            const container = document.getElementById('input-controls');
+            container.innerHTML = '';
+
+            state.inputs.forEach((val, idx) => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = `
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">x<sub>${idx + 1}</sub></span>
+                        <span id="input-display-${idx}" class="mono text-cyan-400">${val.toFixed(2)}</span>
+                    </div>
+                    <input type="range" min="-1" max="1" step="0.05" value="${val}" data-index="${idx}">
+                `;
+                container.appendChild(wrapper);
+            });
+
+            container.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const idx = parseInt(e.target.dataset.index);
+                    const val = parseFloat(e.target.value);
+                    state.inputs[idx] = val;
+                    document.getElementById(`input-display-${idx}`).innerText = val.toFixed(2);
+                    
+                    computeForwardPass();
+                    if (state.stepIndex === 0) {
+                        updateAllVisuals();
+                    }
+                });
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UI EVENT HANDLERS
+        // ═══════════════════════════════════════════════════════════════
+
+        function updatePlayIcon() {
+            const playIcon = document.getElementById('icon-play');
+            const pauseIcon = document.getElementById('icon-pause');
+            
+            if (state.isPlaying) {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            }
+        }
+
+        function resetAnimation() {
+            state.stepIndex = 0;
+            state.isPlaying = false;
+            updatePlayIcon();
+            computeForwardPass();
+            updateAllVisuals();
+        }
+
+        // Button handlers
+        document.getElementById('btn-play-pause').addEventListener('click', () => {
+            if (state.stepIndex >= TOTAL_STEPS) {
+                state.stepIndex = 0;
+            }
+            state.isPlaying = !state.isPlaying;
+            lastStepTime = performance.now();
+            updatePlayIcon();
+        });
+
+        document.getElementById('btn-next').addEventListener('click', () => {
+            if (state.stepIndex < TOTAL_STEPS) {
+                state.stepIndex++;
+            } else {
+                state.stepIndex = 0;
+            }
+            updateAllVisuals();
+        });
+
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            if (state.stepIndex > 0) {
+                state.stepIndex--;
+                updateAllVisuals();
+            }
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', resetAnimation);
+
+        document.getElementById('btn-random-weights').addEventListener('click', () => {
+            // Generate random weights
+            state.weights = [
+                [
+                    [Math.random() * 2 - 1, Math.random() * 2 - 1].map(w => parseFloat(w.toFixed(2))),
+                    [Math.random() * 2 - 1, Math.random() * 2 - 1].map(w => parseFloat(w.toFixed(2)))
+                ],
+                [
+                    [Math.random() * 2 - 1, Math.random() * 2 - 1].map(w => parseFloat(w.toFixed(2)))
+                ]
+            ];
+            state.biases = [
+                [Math.random() * 0.4 - 0.2, Math.random() * 0.4 - 0.2].map(b => parseFloat(b.toFixed(2))),
+                [Math.random() * 0.4 - 0.2].map(b => parseFloat(b.toFixed(2)))
+            ];
+            
+            initNetwork();
+            resetAnimation();
+        });
+
+        document.getElementById('btn-use-tutorial').addEventListener('click', () => {
+            state.inputs = [...TUTORIAL_INPUTS];
+            state.weights = [
+                TUTORIAL_WEIGHTS.layer1.map(row => [...row]),
+                TUTORIAL_WEIGHTS.layer2.map(row => [...row])
+            ];
+            state.biases = [
+                [...TUTORIAL_BIASES.layer1],
+                [...TUTORIAL_BIASES.layer2]
+            ];
+            
+            initNetwork();
+            resetAnimation();
+        });
+
+        document.getElementById('activation-select').addEventListener('change', (e) => {
+            state.activationType = e.target.value;
+            computeForwardPass();
+            updateAllVisuals();
+        });
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            state.speed = parseFloat(e.target.value);
+        });
+
+        document.getElementById('show-weights').addEventListener('change', (e) => {
+            state.showWeights = e.target.checked;
+            updateWeightLabelVisibility();
+        });
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // STARTUP
+        // ═══════════════════════════════════════════════════════════════
+
+        initNetwork();
+        animate(0);
+
+    </script>
+</body>
+</html>
