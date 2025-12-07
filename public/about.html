@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About — Neural Pathways</title>
+  <meta name="description" content="Learn about Neural Pathways - interactive visualizations for understanding machine learning concepts.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    .about-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .about-header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-top: 2rem;
+    }
+
+    .about-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+
+    .about-header p {
+      color: #94a3b8;
+      font-size: 1.125rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .about-section {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .about-section h2 {
+      color: #f1f5f9;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .about-section h2 i {
+      color: #60a5fa;
+    }
+
+    .about-section p {
+      color: #94a3b8;
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+
+    .about-section p:last-child {
+      margin-bottom: 0;
+    }
+
+    .about-section ul {
+      color: #94a3b8;
+      padding-left: 1.5rem;
+      line-height: 1.8;
+    }
+
+    .about-section ul li {
+      margin-bottom: 0.5rem;
+    }
+
+    .about-section a {
+      color: #60a5fa;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .about-section a:hover {
+      color: #93c5fd;
+      text-decoration: underline;
+    }
+
+    .learning-path {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .path-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .path-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.875rem;
+      flex-shrink: 0;
+    }
+
+    .path-step:nth-child(1) .path-number { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+    .path-step:nth-child(2) .path-number { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+    .path-step:nth-child(3) .path-number { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+    .path-step:nth-child(4) .path-number { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
+
+    .path-content h4 {
+      color: #f1f5f9;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .path-content p {
+      color: #64748b;
+      font-size: 0.875rem;
+      margin: 0;
+    }
+
+    .tech-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .tech-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      color: #cbd5e1;
+    }
+
+    .author-card {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: 1rem;
+    }
+
+    .author-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .author-info h3 {
+      color: #f1f5f9;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .author-info p {
+      color: #64748b;
+      margin: 0;
+    }
+
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21;
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6;
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    @media (max-width: 640px) {
+      .author-card {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="12" cy="36" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="24" cy="18" r="4" fill="currentColor"/>
+            <circle cx="24" cy="30" r="4" fill="currentColor"/>
+            <circle cx="36" cy="24" r="5" fill="currentColor"/>
+            <line x1="16" y1="12" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="16" y1="36" x2="20" y2="30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="18" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="30" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Neural Pathways</h1>
+          <span>Interactive ML Visualizations</span>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main class="about-container">
+    <header class="about-header">
+      <h1>About Neural Pathways</h1>
+      <p>Making machine learning intuitive through interactive visualizations that show you the math in action.</p>
+    </header>
+
+    <section class="about-section">
+      <h2><i class="ri-lightbulb-line"></i> Why I Built This</h2>
+      <p>Machine learning can feel like magic—until you see the numbers flow. Neural Pathways was born from a simple belief: <strong>understanding comes from seeing</strong>.</p>
+      <p>Too many ML resources throw equations at you without showing what they actually <em>do</em>. Here, every concept has an interactive visualization. Drag a point and watch the derivative change. Adjust weights and see the network respond. Play with matrices and observe transformations unfold.</p>
+      <p>This isn't about memorizing formulas—it's about building genuine intuition for how neural networks think.</p>
+    </section>
+
+    <section class="about-section">
+      <h2><i class="ri-route-line"></i> Suggested Learning Path</h2>
+      <div class="learning-path">
+        <div class="path-step">
+          <div class="path-number">1</div>
+          <div class="path-content">
+            <h4>Linear Algebra Foundations</h4>
+            <p>Start with vectors, matrices, and transformations. These are the building blocks of everything.</p>
+          </div>
+        </div>
+        <div class="path-step">
+          <div class="path-number">2</div>
+          <div class="path-content">
+            <h4>Calculus Essentials</h4>
+            <p>Learn derivatives, gradients, and the chain rule—the language of how networks learn.</p>
+          </div>
+        </div>
+        <div class="path-step">
+          <div class="path-number">3</div>
+          <div class="path-content">
+            <h4>Neural Network Operations</h4>
+            <p>See forward passes and backpropagation in action with real numbers at every step.</p>
+          </div>
+        </div>
+        <div class="path-step">
+          <div class="path-number">4</div>
+          <div class="path-content">
+            <h4>Optimization & Playgrounds</h4>
+            <p>Experiment with gradient descent, loss landscapes, and build your own networks.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h2><i class="ri-code-s-slash-line"></i> Tech Stack</h2>
+      <p>Built for performance and clarity. Every visualization runs smoothly so you can focus on learning.</p>
+      <div class="tech-stack">
+        <span class="tech-badge"><i class="ri-box-3-line"></i> Three.js</span>
+        <span class="tech-badge"><i class="ri-html5-line"></i> Vanilla JS</span>
+        <span class="tech-badge"><i class="ri-palette-line"></i> Tailwind CSS</span>
+        <span class="tech-badge"><i class="ri-speed-line"></i> No frameworks</span>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h2><i class="ri-user-line"></i> About the Author</h2>
+      <div class="author-card">
+        <div class="author-avatar">PE</div>
+        <div class="author-info">
+          <h3>Peter Edwards</h3>
+          <p>Software Developer passionate about making complex concepts accessible. Building tools that help people understand the math behind AI.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h2><i class="ri-heart-line"></i> Inspiration & Credits</h2>
+      <p>Standing on the shoulders of giants. This project draws inspiration from:</p>
+      <ul>
+        <li><strong>3Blue1Brown</strong> — For proving that math visualization changes everything</li>
+        <li><strong>Distill.pub</strong> — For setting the standard in interactive ML explanations</li>
+        <li><strong>Andrej Karpathy</strong> — For making neural networks approachable</li>
+        <li><strong>The open-source community</strong> — For Three.js, Tailwind, and countless other tools</li>
+      </ul>
+    </section>
+  </main>
+
+  <a href="index.html" class="back-home" title="Back to Home">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  </a>
+</body>
+</html>

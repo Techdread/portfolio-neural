@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playgrounds — Neural Pathways</title>
+  <meta name="description" content="Interactive ML playgrounds to experiment with neural networks, embeddings, and more.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    .playgrounds-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .playgrounds-header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-top: 2rem;
+    }
+
+    .playgrounds-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f472b6 0%, #c084fc 50%, #60a5fa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+
+    .playgrounds-header p {
+      color: #94a3b8;
+      font-size: 1.125rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .playgrounds-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .playground-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .playground-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--card-accent, #f472b6), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .playground-card:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .playground-card:hover::before {
+      opacity: 1;
+    }
+
+    .playground-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+
+    .playground-card:nth-child(1) .playground-icon { background: rgba(244, 114, 182, 0.15); color: #f472b6; }
+    .playground-card:nth-child(1) { --card-accent: #f472b6; }
+    
+    .playground-card:nth-child(2) .playground-icon { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
+    .playground-card:nth-child(2) { --card-accent: #c084fc; }
+    
+    .playground-card:nth-child(3) .playground-icon { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+    .playground-card:nth-child(3) { --card-accent: #60a5fa; }
+    
+    .playground-card:nth-child(4) .playground-icon { background: rgba(52, 211, 153, 0.15); color: #34d399; }
+    .playground-card:nth-child(4) { --card-accent: #34d399; }
+
+    .playground-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.625rem;
+      border-radius: 9999px;
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      margin-bottom: 1rem;
+    }
+
+    .playground-card h3 {
+      color: #f1f5f9;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .playground-card p {
+      color: #64748b;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .playground-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .feature-tag {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 4px;
+      color: #94a3b8;
+    }
+
+    .coming-soon-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+      border-radius: 16px;
+    }
+
+    .playground-card:hover .coming-soon-overlay {
+      opacity: 1;
+    }
+
+    .coming-soon-text {
+      background: rgba(0, 0, 0, 0.8);
+      padding: 0.75rem 1.5rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21;
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6;
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="12" cy="36" r="4" fill="currentColor" opacity="0.8"/>
+            <circle cx="24" cy="18" r="4" fill="currentColor"/>
+            <circle cx="24" cy="30" r="4" fill="currentColor"/>
+            <circle cx="36" cy="24" r="5" fill="currentColor"/>
+            <line x1="16" y1="12" x2="20" y2="18" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="16" y1="36" x2="20" y2="30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="18" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+            <line x1="28" y1="30" x2="32" y2="24" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Neural Pathways</h1>
+          <span>Interactive ML Visualizations</span>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main class="playgrounds-container">
+    <header class="playgrounds-header">
+      <h1>Playgrounds</h1>
+      <p>Experiment freely. Build intuition by playing with neural networks, embeddings, and optimization algorithms in real-time.</p>
+    </header>
+
+    <div class="playgrounds-grid">
+      <!-- Perceptron Playground -->
+      <article class="playground-card">
+        <div class="playground-icon">
+          <i class="ri-node-tree"></i>
+        </div>
+        <span class="playground-badge"><i class="ri-time-line"></i> Coming Soon</span>
+        <h3>Perceptron Playground</h3>
+        <p>Adjust weights and bias in real-time. Watch the decision boundary shift as you train a single neuron to classify points.</p>
+        <div class="playground-features">
+          <span class="feature-tag">Interactive weights</span>
+          <span class="feature-tag">Live training</span>
+          <span class="feature-tag">2D visualization</span>
+        </div>
+        <div class="coming-soon-overlay">
+          <span class="coming-soon-text">Coming Soon</span>
+        </div>
+      </article>
+
+      <!-- Embedding Explorer -->
+      <article class="playground-card">
+        <div class="playground-icon">
+          <i class="ri-compass-3-line"></i>
+        </div>
+        <span class="playground-badge"><i class="ri-time-line"></i> Coming Soon</span>
+        <h3>Embedding Space Explorer</h3>
+        <p>Navigate high-dimensional embedding spaces. See how words, images, or concepts cluster and relate in vector space.</p>
+        <div class="playground-features">
+          <span class="feature-tag">3D navigation</span>
+          <span class="feature-tag">Similarity search</span>
+          <span class="feature-tag">Custom data</span>
+        </div>
+        <div class="coming-soon-overlay">
+          <span class="coming-soon-text">Coming Soon</span>
+        </div>
+      </article>
+
+      <!-- GAN Training Dance -->
+      <article class="playground-card">
+        <div class="playground-icon">
+          <i class="ri-swap-box-line"></i>
+        </div>
+        <span class="playground-badge"><i class="ri-time-line"></i> Coming Soon</span>
+        <h3>GAN Training Dance</h3>
+        <p>Watch generator and discriminator compete. Visualize the adversarial training process as fake samples become indistinguishable from real.</p>
+        <div class="playground-features">
+          <span class="feature-tag">Live generation</span>
+          <span class="feature-tag">Loss visualization</span>
+          <span class="feature-tag">Mode collapse</span>
+        </div>
+        <div class="coming-soon-overlay">
+          <span class="coming-soon-text">Coming Soon</span>
+        </div>
+      </article>
+
+      <!-- Decision Boundary -->
+      <article class="playground-card">
+        <div class="playground-icon">
+          <i class="ri-shape-line"></i>
+        </div>
+        <span class="playground-badge"><i class="ri-time-line"></i> Coming Soon</span>
+        <h3>Decision Boundary Evolution</h3>
+        <p>Watch neural networks learn to separate classes. See decision boundaries evolve from simple lines to complex curves.</p>
+        <div class="playground-features">
+          <span class="feature-tag">Multiple architectures</span>
+          <span class="feature-tag">Dataset selection</span>
+          <span class="feature-tag">Epoch control</span>
+        </div>
+        <div class="coming-soon-overlay">
+          <span class="coming-soon-text">Coming Soon</span>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <a href="index.html" class="back-home" title="Back to Home">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  </a>
+</body>
+</html>
