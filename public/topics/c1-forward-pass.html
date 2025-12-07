@@ -10,6 +10,142 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +173,227 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-c">Neural Network Ops</a>
-        <span>›</span>
-        <span>C1</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-c)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-c)">C1</span>
-          <span class="topic-category">Neural Network Operations</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/C1-forward-pass-visualization.html" title="Forward Pass Interactive Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Forward Pass Step-by-Step</h1>
-        <p class="topic-description">Data flowing through layers: input → weighted sum → activation → output. Show actual numbers.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-c">Neural Network Ops</a>
+          <span>›</span>
+          <span>C1</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-c)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-c)">C1</span>
+            <span class="topic-category">Neural Network Operations</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Forward Pass Step-by-Step</h1>
+          <p class="topic-description">Data flowing through layers: input → weighted sum → activation → output. See the actual numbers at every step.</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <h2>What is a Forward Pass?</h2>
+              <p>Imagine a factory assembly line. Raw materials enter one end, pass through several workstations where they're shaped and modified, and a finished product comes out the other end. A neural network works the same way.</p>
+              <p><strong>The forward pass is the journey data takes from input to output.</strong></p>
+              <p>When you give a neural network an image and it tells you "cat," that answer came from a forward pass. When a language model predicts the next word, that prediction came from a forward pass. Every time a neural network produces an output, it has performed a forward pass.</p>
+              <p>Here's the key insight: <strong>a forward pass is just arithmetic</strong>. Multiplication, addition, and simple functions—repeated many times. Nothing more mysterious than that.</p>
+              <p>At each layer, three things happen:</p>
+              <ol>
+                <li>Multiply inputs by weights</li>
+                <li>Add a bias</li>
+                <li>Apply an activation function</li>
+              </ol>
+            </section>
+
+            <section class="content-section">
+              <h2>The Single Neuron</h2>
+              <p>A neuron is the basic computing unit of a neural network. Despite the biological name, it's just a small mathematical function. Here's what a single neuron does:</p>
+              
+              <h3>Step 1: Receive Multiple Inputs</h3>
+              <p>A neuron receives several numbers as input. Let's say our neuron receives three inputs: <strong>x₁ = 2</strong>, <strong>x₂ = 3</strong>, <strong>x₃ = 1</strong></p>
+              
+              <h3>Step 2: Multiply Each Input by a Weight</h3>
+              <p>Every input has an associated <strong>weight</strong>—a number that determines how much that input matters. Let's say our weights are: <strong>w₁ = 0.5</strong>, <strong>w₂ = -0.3</strong>, <strong>w₃ = 0.8</strong></p>
+              <p>We multiply each input by its weight:</p>
+              <ul>
+                <li>w₁ × x₁ = 0.5 × 2 = <strong>1.0</strong></li>
+                <li>w₂ × x₂ = -0.3 × 3 = <strong>-0.9</strong></li>
+                <li>w₃ × x₃ = 0.8 × 1 = <strong>0.8</strong></li>
+              </ul>
+              
+              <h3>Step 3: Sum All Weighted Inputs</h3>
+              <p>Add up all those products:</p>
+              <div class="formula-box"><strong>1.0 + (-0.9) + 0.8 = 0.9</strong></div>
+              <p>This is the <strong>weighted sum</strong>. If you remember dot products from our vectors lesson, you'll recognize this: we just computed the dot product of the input vector [2, 3, 1] and the weight vector [0.5, -0.3, 0.8].</p>
+              
+              <h3>Step 4: Add a Bias</h3>
+              <p>The <strong>bias</strong> is a single number added to the weighted sum. Think of it as the neuron's "baseline" or "offset." Let's say our bias is: <strong>b = 0.1</strong></p>
+              <div class="formula-box"><strong>0.9 + 0.1 = 1.0</strong></div>
+              
+              <h3>Step 5: Apply an Activation Function</h3>
+              <p>Finally, we pass this result through an <strong>activation function</strong>. Using ReLU (Rectified Linear Unit): if the number is negative, output 0; if positive, output the number unchanged.</p>
+              <div class="formula-box"><strong>ReLU(1.0) = 1.0</strong></div>
+              <p>This is our neuron's output: <strong>1.0</strong></p>
+            </section>
+
+            <section class="content-section">
+              <h2>Why Weights and Biases?</h2>
+              
+              <h3>Weights: The Importance Dial</h3>
+              <p>Each weight controls how much its corresponding input influences the output:</p>
+              <ul>
+                <li><strong>Large positive weight</strong> (like 2.0): "This input is very important—when it goes up, push my output up strongly"</li>
+                <li><strong>Small positive weight</strong> (like 0.1): "This input matters a little"</li>
+                <li><strong>Negative weight</strong> (like -0.5): "This input matters, but inversely—when it goes up, push my output down"</li>
+                <li><strong>Zero weight</strong>: "Ignore this input completely"</li>
+              </ul>
+              
+              <h3>Bias: Shifting the Threshold</h3>
+              <p>The bias shifts when the neuron "activates."</p>
+              <ul>
+                <li><strong>Positive bias</strong> (+2): The neuron is "eager"—it produces output even with weak or zero inputs</li>
+                <li><strong>Negative bias</strong> (-2): The neuron is "reluctant"—inputs need to be stronger to overcome this deficit</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>Activation Functions: Adding Non-Linearity</h2>
+              <p>Without activation functions, stacking layers would be pointless. Two linear transformations in a row can always be collapsed into a single linear transformation. No matter how many layers you stack, the network could only learn linear relationships.</p>
+              <p>Activation functions add <strong>non-linearity</strong>—the ability to learn curves, boundaries, and complex patterns.</p>
+              <p>Common activation functions:</p>
+              <table>
+                <thead>
+                  <tr><th>Function</th><th>Formula</th><th>Output Range</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>ReLU</strong></td><td>max(0, x)</td><td>0 if negative, x if positive</td></tr>
+                  <tr><td><strong>Sigmoid</strong></td><td>1/(1 + e⁻ˣ)</td><td>Always between 0 and 1</td></tr>
+                  <tr><td><strong>Tanh</strong></td><td>(eˣ - e⁻ˣ)/(eˣ + e⁻ˣ)</td><td>Always between -1 and 1</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="content-section">
+              <h2>From Neuron to Layer</h2>
+              <p>A single neuron is limited—it can only output one number. Real neural networks have layers containing many neurons working in parallel.</p>
+              <p>Here's the insight that connects to your matrix multiplication knowledge:</p>
+              <ul>
+                <li><strong>One neuron</strong>: dot product of inputs with weights, add bias</li>
+                <li><strong>Many neurons</strong>: matrix multiplication of inputs with weight matrix, add bias vector</li>
+              </ul>
+              <div class="formula-box"><strong>output = activation(W · x + b)</strong></div>
+              <p>This is exactly the matrix multiplication you learned! The weight matrix transforms the input vector into a new vector, we add the bias vector, and apply activation to each element.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Complete Worked Example</h2>
+              <p>Let's trace every single number through a complete network:</p>
+              <p><strong>Network Architecture</strong>: 2 inputs → 2 hidden → 1 output</p>
+              <p><strong>Input</strong>: x = [0.5, 0.8]</p>
+              
+              <h3>Layer 1 (Hidden Layer)</h3>
+              <p>Weight matrix and biases:</p>
+<pre><code>W₁ = | 0.4   0.3 |      b₁ = | 0.1  |
+     | -0.2  0.5 |           | -0.1 |</code></pre>
+              
+              <p><strong>Step 1.1: Matrix Multiplication</strong></p>
+<pre><code>Hidden neuron 1: 0.4 × 0.5 + 0.3 × 0.8 = 0.44
+Hidden neuron 2: -0.2 × 0.5 + 0.5 × 0.8 = 0.30
+Result: [0.44, 0.30]</code></pre>
+              
+              <p><strong>Step 1.2: Add Bias</strong></p>
+<pre><code>[0.44 + 0.1, 0.30 + (-0.1)] = [0.54, 0.20]</code></pre>
+              
+              <p><strong>Step 1.3: Apply ReLU</strong></p>
+<pre><code>ReLU([0.54, 0.20]) = [0.54, 0.20]  (both positive)</code></pre>
+              
+              <h3>Layer 2 (Output Layer)</h3>
+<pre><code>W₂ = | 0.6  -0.4 |      b₂ = | 0.2 |</code></pre>
+              
+              <p><strong>Step 2.1: Matrix Multiplication</strong></p>
+<pre><code>0.6 × 0.54 + (-0.4) × 0.20 = 0.324 - 0.08 = 0.244</code></pre>
+              
+              <p><strong>Step 2.2: Add Bias</strong></p>
+<pre><code>0.244 + 0.2 = 0.444</code></pre>
+              
+              <p><strong>Step 2.3: Apply Sigmoid</strong></p>
+<pre><code>sigmoid(0.444) = 1 / (1 + e^(-0.444)) ≈ 0.609</code></pre>
+              
+              <p><strong>Final Output: 0.609</strong></p>
+            </section>
+
+            <section class="content-section highlight-section">
+              <h2>Why This Matters for ML/AI</h2>
+              
+              <h3>1. Prediction = One Forward Pass</h3>
+              <p>When you use a trained model, you're running forward passes. Every ChatGPT response, every image classification, every recommendation—it's forward passes producing outputs.</p>
+              
+              <h3>2. Inference Time = Sum of Layer Computations</h3>
+              <p>The time to get a prediction depends on: number of layers (depth), size of each layer (width), and complexity of operations. Bigger matrices = more multiplications = slower inference.</p>
+              
+              <h3>3. Forward Pass is Prerequisite for Backpropagation</h3>
+              <p>Training a neural network requires <strong>backpropagation</strong>—computing how to adjust weights to reduce errors. But backprop needs the forward pass first:</p>
+              <ol>
+                <li>Forward pass: compute output</li>
+                <li>Calculate error: compare output to correct answer</li>
+                <li>Backward pass: trace error back through layers to compute weight updates</li>
+              </ol>
+            </section>
+
+            <section class="content-section">
+              <h2>Key Takeaways</h2>
+              <ol>
+                <li><strong>A forward pass is data flowing through layers</strong> from input to output</li>
+                <li><strong>Each neuron computes</strong>: weighted sum + bias + activation</li>
+                <li><strong>Weights determine importance</strong> of each input; biases shift thresholds</li>
+                <li><strong>Activation functions add non-linearity</strong>—without them, stacking layers is pointless</li>
+                <li><strong>Matrix multiplication handles entire layers</strong> at once—it's not just convenient, it's computationally efficient</li>
+                <li><strong>The entire process is just arithmetic</strong>: multiply, add, apply simple functions, repeat</li>
+              </ol>
+              <p>In your visualization, you'll see these numbers flowing through the network. Watch how different weights create different transformations. Notice how negative weighted sums become zero after ReLU. See the data reshape itself at each layer until a final answer emerges.</p>
+              <p><em>Next: C2 — Backpropagation: How Networks Learn from Their Mistakes</em></p>
+            </section>
+
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="b6-sum-rule.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← B6: Sum Rule</span>
+          </a>
+          <a href="c2-backpropagation.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">C2: Backpropagation →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="b6-sum-rule.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← B6: Sum Rule</span>
-        </a>
-        <a href="c2-backpropagation.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">C2: Backpropagation →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>
