@@ -3,1748 +3,1385 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backpropagation — Computing Gradients Layer by Layer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>C2: Backpropagation Walkthrough</title>
     <style>
-        :root {
-            --bg-deep: #0a0e1a;
-            --bg-panel: rgba(15, 23, 42, 0.92);
-            --accent-blue: #38bdf8;
-            --accent-cyan: #22d3ee;
-            --accent-red: #f43f5e;
-            --accent-rose: #fb7185;
-            --accent-amber: #fbbf24;
-            --accent-green: #34d399;
-            --accent-purple: #a78bfa;
-            --text-primary: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border-subtle: rgba(148, 163, 184, 0.15);
-        }
-
         * { box-sizing: border-box; }
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
         
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background: var(--bg-deep);
-            color: var(--text-primary); 
-            font-family: 'Space Grotesk', sans-serif;
-        }
-
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        #canvas-container { 
-            position: absolute; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            z-index: 0; 
-        }
-
-        #labels-container {
+        /* UI Overlay */
+        #ui-layer {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
-            overflow: hidden;
-            z-index: 5;
-        }
-
-        /* Node Labels */
-        .node-label {
-            position: absolute;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
-            transition: all 0.3s ease;
-            z-index: 10;
-        }
-
-        .value-badge {
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid var(--border-subtle);
-            border-radius: 6px;
-            padding: 3px 8px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            transition: all 0.3s ease;
-        }
-
-        .value-badge.forward {
-            border-color: rgba(56, 189, 248, 0.4);
-        }
-
-        .value-badge.backward {
-            border-color: rgba(244, 63, 94, 0.5);
-            background: rgba(244, 63, 94, 0.15);
-        }
-
-        /* Gradient Display at Nodes */
-        .gradient-display {
-            position: absolute;
-            transform: translate(-50%, 0);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: rgba(244, 63, 94, 0.2);
-            border: 1px solid rgba(244, 63, 94, 0.4);
-            color: var(--accent-rose);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s;
-            white-space: nowrap;
-            z-index: 15;
-        }
-
-        .gradient-display.visible { opacity: 1; }
-
-        .gradient-display .chain-multiply {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 2px;
+            justify-content: space-between;
         }
 
-        .gradient-display .incoming { color: var(--accent-amber); }
-        .gradient-display .local { color: var(--accent-purple); }
-        .gradient-display .result { color: var(--accent-red); font-weight: 600; }
-        .gradient-display .operator { color: var(--text-muted); font-size: 8px; }
+        /* Top Header */
+        header {
+            padding: 20px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            pointer-events: auto;
+        }
+        h1 { margin: 0; font-size: 1.5rem; color: #4facfe; text-shadow: 0 0 10px rgba(79, 172, 254, 0.5); }
+        .subtitle { margin: 5px 0 0; color: #aaa; font-size: 0.9rem; max-width: 600px; }
 
-        /* Weight Labels on Connections */
-        .weight-label {
+        /* Controls Panel */
+        #controls {
             position: absolute;
-            transform: translate(-50%, -50%);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            padding: 2px 5px;
+            top: 80px;
+            left: 20px;
+            background: rgba(20, 20, 30, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            pointer-events: auto;
+            width: 280px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .control-group { margin-bottom: 15px; }
+        .control-group:last-child { margin-bottom: 0; }
+        label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            background: #222;
+            border: 1px solid #444;
+            color: white;
             border-radius: 4px;
-            pointer-events: none;
-            transition: all 0.3s;
-            z-index: 5;
-            white-space: nowrap;
-        }
-
-        .weight-label.positive {
-            background: rgba(56, 189, 248, 0.15);
-            color: var(--accent-blue);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-        }
-
-        .weight-label.negative {
-            background: rgba(244, 63, 94, 0.15);
-            color: var(--accent-red);
-            border: 1px solid rgba(244, 63, 94, 0.3);
-        }
-
-        .weight-label .grad-value {
-            color: var(--accent-rose);
-            font-weight: 600;
-        }
-
-        /* Glass Panel */
-        .glass-panel {
-            background: var(--bg-panel);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border-subtle);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Range Slider */
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 14px;
-            width: 14px;
-            border-radius: 50%;
-            background: var(--accent-cyan);
             cursor: pointer;
-            margin-top: -5px;
-            box-shadow: 0 0 10px var(--accent-cyan);
+            transition: all 0.2s;
+            font-weight: bold;
         }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            background: #1e293b;
-            border-radius: 2px;
+        button:hover:not(:disabled) { background: #333; border-color: #666; }
+        button.primary { background: #0066cc; border-color: #0055aa; }
+        button.primary:hover:not(:disabled) { background: #0077dd; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-row { display: flex; gap: 5px; margin-top: 5px; }
+        .btn-row button { flex: 1; }
+
+        hr { border: none; border-top: 1px solid #444; margin: 15px 0; }
+
+        /* Progress Bar */
+        .progress-container {
+            background: #222;
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-top: 10px;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ff8e53);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
         }
 
-        /* Step Indicators */
-        .step-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #1e293b;
-            border: 2px solid var(--border-subtle);
-            transition: all 0.3s ease;
+        /* Status */
+        .status-box {
+            font-size: 0.8em;
+            color: #4facfe;
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(79, 172, 254, 0.1);
+            border-radius: 4px;
+            border-left: 3px solid #4facfe;
         }
 
-        .step-dot.active {
-            background: var(--accent-red);
-            border-color: var(--accent-red);
-            box-shadow: 0 0 12px var(--accent-red);
+        /* Math/Chain Rule Panel */
+        #math-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 15, 0.95);
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            min-width: 500px;
+            max-width: 700px;
+            text-align: center;
+            pointer-events: auto;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            transition: opacity 0.3s, transform 0.3s;
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+        }
+        #math-panel.visible { 
+            opacity: 1; 
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .math-title { 
+            color: #ff6b6b; 
+            font-size: 0.85rem; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin-bottom: 12px;
+            font-weight: bold;
+        }
+        .equation { 
+            font-size: 1.5rem; 
+            font-family: 'Courier New', monospace; 
+            margin: 12px 0; 
+            color: #fff;
+            line-height: 1.4;
+        }
+        .substitution { 
+            font-size: 1.1rem; 
+            color: #aaa; 
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .result-val { 
+            color: #4cd964; 
+            font-weight: bold;
+            font-size: 1.3rem;
+            margin-top: 10px;
+        }
+        .step-desc { 
+            font-size: 0.9rem; 
+            color: #888; 
+            font-style: italic; 
+            margin-top: 12px;
+            border-top: 1px solid #333;
+            padding-top: 12px;
         }
 
-        .step-dot.completed {
-            background: var(--accent-green);
-            border-color: var(--accent-green);
+        /* Local Gradient Reference */
+        #local-gradient-box {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(20, 20, 30, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            width: 220px;
+            backdrop-filter: blur(5px);
+            pointer-events: auto;
         }
-
-        .step-dot.forward-phase {
-            background: var(--accent-blue);
-            border-color: var(--accent-blue);
-        }
-
-        /* Phase Badge */
-        .phase-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
+        .local-grad-title {
+            font-size: 0.8rem;
+            color: #ff6b6b;
             text-transform: uppercase;
             letter-spacing: 1px;
+            margin-bottom: 10px;
+            font-weight: bold;
         }
-
-        .phase-badge.forward {
-            background: rgba(56, 189, 248, 0.2);
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            color: var(--accent-blue);
+        .local-grad-item {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            padding: 6px 8px;
+            margin: 4px 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            transition: all 0.3s;
         }
-
-        .phase-badge.backward {
-            background: rgba(244, 63, 94, 0.2);
-            border: 1px solid rgba(244, 63, 94, 0.4);
-            color: var(--accent-red);
+        .local-grad-item.active {
+            background: rgba(255, 107, 107, 0.2);
+            border-left: 3px solid #ff6b6b;
         }
+        .local-grad-item .op { color: #4facfe; }
+        .local-grad-item .deriv { color: #aaa; }
 
-        .phase-badge.complete {
-            background: rgba(52, 211, 153, 0.2);
-            border: 1px solid rgba(52, 211, 153, 0.4);
-            color: var(--accent-green);
-        }
-
-        /* Pulse glow animation */
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 5px currentColor; }
-            50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
-        }
-
-        .computing { animation: pulse-glow 0.6s ease-in-out infinite; }
-
-        /* Math Panel Styling */
-        .math-equation {
-            font-family: 'JetBrains Mono', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 12px 16px;
+        /* Network Values Display */
+        #network-values {
+            position: absolute;
+            top: 320px;
+            right: 20px;
+            background: rgba(20, 20, 30, 0.9);
+            padding: 15px;
             border-radius: 8px;
-            border-left: 3px solid var(--accent-red);
-            margin: 8px 0;
+            border: 1px solid #333;
+            width: 220px;
+            backdrop-filter: blur(5px);
+            pointer-events: auto;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
         }
+        .values-title {
+            font-size: 0.8rem;
+            color: #4facfe;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .value-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid #222;
+        }
+        .value-row:last-child { border-bottom: none; }
+        .value-label { color: #888; }
+        .value-num { color: #fff; }
+        .value-grad { color: #ff6b6b; }
 
-        .math-equation .var-blue { color: var(--accent-blue); }
-        .math-equation .var-red { color: var(--accent-red); }
-        .math-equation .var-amber { color: var(--accent-amber); }
-        .math-equation .var-green { color: var(--accent-green); }
-        .math-equation .var-purple { color: var(--accent-purple); }
-
-        /* Gradient Summary Table */
-        .gradient-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'JetBrains Mono', monospace;
+        /* Floating Labels */
+        .label {
+            position: absolute;
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            background: rgba(0,0,0,0.8);
+            padding: 3px 8px;
+            border-radius: 4px;
+            pointer-events: none;
+            user-select: none;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.2s, background 0.3s;
+            white-space: nowrap;
+        }
+        .label.grad { 
+            color: #ff6b6b; 
+            border: 1px solid #ff6b6b; 
+            font-weight: bold; 
+            z-index: 10;
+            background: rgba(255, 107, 107, 0.15);
+        }
+        .label.val { color: #4facfe; }
+        .label.weight {
+            color: #aaa;
+            font-size: 10px;
+            background: rgba(50, 50, 60, 0.9);
+        }
+        .label.bias {
+            color: #9b59b6;
             font-size: 10px;
         }
-
-        .gradient-table th {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 6px 8px;
-            text-align: left;
-            color: var(--text-muted);
-            font-weight: 500;
-            border-bottom: 1px solid var(--border-subtle);
+        
+        /* Legend */
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            pointer-events: none;
         }
-
-        .gradient-table td {
-            padding: 5px 8px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        .legend-item { display: flex; align-items: center; margin-bottom: 6px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
+        
+        /* Tooltip for hovering */
+        #tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.95);
+            border: 1px solid #555;
+            padding: 12px;
+            border-radius: 6px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            font-size: 0.85rem;
+            min-width: 180px;
         }
+        #tooltip strong { color: #4facfe; }
+        #tooltip .tt-row { margin: 4px 0; }
+        #tooltip .tt-label { color: #888; }
+        #tooltip .tt-val { color: #fff; float: right; font-family: monospace; }
 
-        .gradient-table .param-name { color: var(--text-muted); }
-        .gradient-table .param-value { color: var(--accent-blue); }
-        .gradient-table .param-grad { color: var(--accent-red); font-weight: 600; }
-        .gradient-table .param-grad.positive { color: var(--accent-green); }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
 </head>
 <body>
 
-    <!-- 3D Canvas -->
-    <div id="canvas-container"></div>
+<div id="canvas-container"></div>
 
-    <!-- Labels Container -->
-    <div id="labels-container"></div>
+<div id="ui-layer">
+    <header>
+        <h1>C2: Backpropagation Walkthrough</h1>
+        <p class="subtitle">Step through the Chain Rule to see how error gradients flow backward through the network.</p>
+    </header>
 
-    <!-- UI: Top Left - Title & Controls -->
-    <div class="absolute top-4 left-4 pointer-events-none">
-        <div class="glass-panel p-5 rounded-2xl pointer-events-auto max-w-sm">
-            <div class="flex items-center justify-between mb-3">
-                <h1 class="text-xl font-bold">
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-red-400">Backpropagation</span>
-                </h1>
-                <div id="phase-badge" class="phase-badge forward">
-                    <span class="w-2 h-2 rounded-full bg-current"></span>
-                    <span>Ready</span>
-                </div>
-            </div>
-            <p class="text-xs text-slate-400 mb-4">
-                Network: <span class="mono text-cyan-400">2 → 2 → 1</span> 
-                <span class="text-slate-500">| Target: <span id="target-display" class="text-amber-400">1.0</span></span>
-            </p>
-            
-            <div class="flex gap-2 mb-4 flex-wrap">
-                <button id="btn-forward" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-medium transition">
-                    Forward Pass
-                </button>
-                <button id="btn-backprop" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>
-                    Backpropagate
-                </button>
-                <button id="btn-reset" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-medium transition">
-                    Reset
-                </button>
-            </div>
-
-            <!-- Stats -->
-            <div class="grid grid-cols-2 gap-3 text-xs">
-                <div class="bg-slate-800/50 rounded-lg p-3">
-                    <div class="text-slate-500 mb-1">Prediction (ŷ)</div>
-                    <div id="prediction-display" class="mono text-lg text-cyan-400">—</div>
-                </div>
-                <div class="bg-slate-800/50 rounded-lg p-3">
-                    <div class="text-slate-500 mb-1">Loss (MSE)</div>
-                    <div id="loss-display" class="mono text-lg text-amber-400">—</div>
-                </div>
-            </div>
-
-            <!-- Input Controls (collapsible) -->
-            <details class="mt-4">
-                <summary class="text-xs text-slate-400 cursor-pointer hover:text-slate-300">Adjust Inputs & Target</summary>
-                <div class="mt-3 space-y-3">
-                    <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-slate-400">x₁</span>
-                            <span id="input1-display" class="mono text-cyan-400">0.50</span>
-                        </div>
-                        <input type="range" id="input1" min="-1" max="1" step="0.05" value="0.5">
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-slate-400">x₂</span>
-                            <span id="input2-display" class="mono text-cyan-400">0.80</span>
-                        </div>
-                        <input type="range" id="input2" min="-1" max="1" step="0.05" value="0.8">
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-slate-400">Target (t)</span>
-                            <span id="target-input-display" class="mono text-amber-400">1.00</span>
-                        </div>
-                        <input type="range" id="target" min="0" max="1" step="0.05" value="1.0">
-                    </div>
-                </div>
-            </details>
+    <div id="controls">
+        <div class="control-group">
+            <label>Target Output: <span id="target-val">1.0</span></label>
+            <input type="range" id="target-slider" min="0" max="1" step="0.1" value="1.0">
         </div>
-    </div>
-
-    <!-- UI: Top Right - Math Panel -->
-    <div class="absolute top-4 right-4 pointer-events-none">
-        <div class="glass-panel p-5 rounded-2xl pointer-events-auto w-[420px] max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Chain Rule Computation</h2>
-                <span id="step-counter" class="mono text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">Step 0/6</span>
-            </div>
-            
-            <div id="math-title" class="text-base font-semibold text-rose-400 mb-2">
-                Ready to Begin
-            </div>
-            
-            <div id="math-description" class="text-xs text-slate-400 mb-3">
-                Run forward pass first, then click Backpropagate to trace gradients.
-            </div>
-
-            <div id="math-content" class="space-y-3">
-                <!-- Dynamic equations will go here -->
-            </div>
-
-            <!-- Gradient Summary (shown at end) -->
-            <div id="gradient-summary" class="mt-4 pt-4 border-t border-slate-700/50 hidden">
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Complete Gradient Summary</h3>
-                <div id="gradient-table-container">
-                    <!-- Table inserted by JS -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- UI: Bottom - Step Controls -->
-    <div class="absolute bottom-0 left-0 w-full p-6 flex flex-col items-center pointer-events-none">
         
-        <!-- Step Indicators -->
-        <div id="step-indicators" class="flex items-center gap-2 mb-4">
-            <!-- Forward steps (blue) -->
-            <div class="flex items-center gap-1">
-                <div class="step-dot" data-step="f1" title="Input"></div>
-                <div class="w-4 h-0.5 bg-slate-700"></div>
-                <div class="step-dot" data-step="f2" title="Hidden"></div>
-                <div class="w-4 h-0.5 bg-slate-700"></div>
-                <div class="step-dot" data-step="f3" title="Output"></div>
+        <div class="control-group">
+            <button id="btn-forward" class="primary">1. Run Forward Pass</button>
+        </div>
+        
+        <hr>
+        
+        <div class="control-group">
+            <button id="btn-start-back" disabled>2. Start Backprop</button>
+            <div class="btn-row">
+                <button id="btn-prev" disabled>◀ Prev</button>
+                <button id="btn-next" disabled>Next ▶</button>
             </div>
-            
-            <div class="w-px h-6 bg-slate-600 mx-3"></div>
-            
-            <!-- Backward steps (red) -->
-            <div class="flex items-center gap-1">
-                <div class="step-dot" data-step="b1" title="∂L/∂y"></div>
-                <div class="w-4 h-0.5 bg-slate-700"></div>
-                <div class="step-dot" data-step="b2" title="δ_out"></div>
-                <div class="w-4 h-0.5 bg-slate-700"></div>
-                <div class="step-dot" data-step="b3" title="∂L/∂W₂"></div>
-                <div class="w-4 h-0.5 bg-slate-700"></div>
-                <div class="step-dot" data-step="b4" title="∂L/∂h"></div>
-                <div class="w-4 h-0.5 bg-slate-700"></div>
-                <div class="step-dot" data-step="b5" title="δ_hidden"></div>
-                <div class="w-4 h-0.5 bg-slate-700"></div>
-                <div class="step-dot" data-step="b6" title="∂L/∂W₁"></div>
+            <button id="btn-auto" disabled style="margin-top: 5px;">▶ Auto Play</button>
+        </div>
+
+        <div class="progress-container" id="progress-container" style="display: none;">
+            <div class="progress-label">
+                <span>Backprop Progress</span>
+                <span id="step-counter">0 / 0</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
             </div>
         </div>
 
-        <!-- Playback Controls -->
-        <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-4 pointer-events-auto">
-            <button id="btn-prev" class="text-slate-400 hover:text-white transition p-1 disabled:opacity-30" disabled>
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M19 20L9 12l10-8v16zM5 19V5"/>
-                </svg>
-            </button>
-            
-            <button id="btn-play-pause" class="w-12 h-12 bg-gradient-to-br from-rose-500 to-red-500 hover:from-rose-400 hover:to-red-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-rose-500/30 transition transform hover:scale-105 disabled:opacity-40" disabled>
-                <svg id="icon-play" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                <svg id="icon-pause" class="hidden" width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-            </button>
-
-            <button id="btn-next" class="text-slate-400 hover:text-white transition p-1 disabled:opacity-30" disabled>
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M5 4l10 8-10 8V4zM19 5v14"/>
-                </svg>
-            </button>
-
-            <div class="h-8 w-px bg-slate-700 mx-2"></div>
-
-            <div class="flex flex-col items-center w-28">
-                <label class="text-[9px] text-slate-500 uppercase tracking-wider mb-1">Speed</label>
-                <input type="range" id="speed-slider" min="0.25" max="2.0" step="0.25" value="1.0">
-            </div>
+        <hr>
+        
+        <div class="control-group">
+            <button id="btn-reset">Reset All</button>
         </div>
 
-        <div id="step-description" class="mt-3 text-xs text-slate-400 mono text-center max-w-lg">
-            Press Forward Pass to begin
+        <div class="status-box">
+            <span id="status-text">Ready. Click "Run Forward Pass" to begin.</span>
         </div>
     </div>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    <!-- Local Gradient Reference -->
+    <div id="local-gradient-box">
+        <div class="local-grad-title">Local Gradients</div>
+        <div class="local-grad-item" id="lg-sigmoid">
+            <span class="op">σ(z)</span> → <span class="deriv">σ(1-σ)</span>
+        </div>
+        <div class="local-grad-item" id="lg-multiply">
+            <span class="op">y = w·x</span> → <span class="deriv">∂y/∂w = x</span>
+        </div>
+        <div class="local-grad-item" id="lg-add">
+            <span class="op">y = Σxᵢ</span> → <span class="deriv">∂y/∂xᵢ = 1</span>
+        </div>
+        <div class="local-grad-item" id="lg-loss">
+            <span class="op">L = ½(t-y)²</span> → <span class="deriv">∂L/∂y = y-t</span>
+        </div>
+    </div>
 
-        // ═══════════════════════════════════════════════════════════════
-        // CONFIGURATION - Matches C1 and Educational Documents EXACTLY
-        // ═══════════════════════════════════════════════════════════════
+    <!-- Network Values -->
+    <div id="network-values">
+        <div class="values-title">Network State</div>
+        <div id="values-content">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <div id="math-panel">
+        <div class="math-title" id="math-title">Current Calculation</div>
+        <div class="equation" id="math-eq">∂L/∂w = ...</div>
+        <div class="substitution" id="math-sub">...</div>
+        <div class="result-val" id="math-res"></div>
+        <div class="step-desc" id="math-desc">Waiting to start...</div>
+    </div>
+
+    <div id="legend">
+        <div class="legend-item"><div class="dot" style="background:#4facfe"></div>Forward Signal (Activation)</div>
+        <div class="legend-item"><div class="dot" style="background:#ff6b6b"></div>Backward Gradient (Error)</div>
+        <div class="legend-item"><div class="dot" style="background:#9b59b6"></div>Bias Terms</div>
+        <div class="legend-item"><div class="dot" style="background:#888"></div>Weights</div>
+    </div>
+    
+    <div id="tooltip"></div>
+</div>
+
+<script>
+/**
+ * BACKPROPAGATION VISUALIZATION ENGINE - IMPROVED VERSION
+ * 
+ * Matches C2 educational content values exactly:
+ * - Inputs: x1=0.5, x2=0.8
+ * - Weights: w1=0.4, w2=0.3, w3=0.2, w4=0.5, w5=0.6, w6=0.4
+ * - Biases: b1=0.1, b2=0.1, b3=0.1
+ * - Target: 1.0
+ */
+
+// --- CONFIGURATION ---
+const CONFIG = {
+    colors: {
+        background: 0x111111,
+        neuron: 0x333344,
+        neuronActive: 0x4facfe,
+        neuronBack: 0xff6b6b,
+        connection: 0x444455,
+        signalForward: 0x4facfe,
+        signalBackward: 0xff6b6b,
+        bias: 0x9b59b6
+    },
+    dims: {
+        layerSpacing: 15,
+        neuronSpacing: 6,
+        neuronSize: 1.2
+    },
+    animation: {
+        pulseDuration: 400,
+        pulseRepeats: 2,
+        particleSpeed: 800,
+        stepDelay: 1200,        // Delay between auto-play steps
+        buttonLockTime: 1000   // How long to disable buttons during animation
+    },
+    // Network values matching C2 content exactly
+    network: {
+        inputs: [0.5, 0.8],
+        weights: {
+            // Input -> Hidden (w1-w4 in C2 notation)
+            // w1: x1->h1, w2: x2->h1, w3: x1->h2, w4: x2->h2
+            inputToHidden: [
+                [0.4, 0.2],  // From x1 to [h1, h2]
+                [0.3, 0.5]   // From x2 to [h1, h2]
+            ],
+            // Hidden -> Output (w5, w6)
+            hiddenToOutput: [0.6, 0.4]  // From [h1, h2] to output
+        },
+        biases: {
+            hidden: [0.1, 0.1],
+            output: 0.1
+        }
+    }
+};
+
+// --- DATA STRUCTURES ---
+class Neuron {
+    constructor(id, layerIndex, indexInLayer, type) {
+        this.id = id;
+        this.layerIndex = layerIndex;
+        this.indexInLayer = indexInLayer;
+        this.type = type; // 'input', 'hidden', 'output'
+        this.mesh = null;
+        this.output = 0;        // a (activation)
+        this.inputSum = 0;      // z (pre-activation)
+        this.delta = 0;         // δ (error term)
+        this.bias = 0;          // b
+        this.biasGradient = 0;  // ∂L/∂b
+        this.position = new THREE.Vector3();
+        this.connectionsIn = [];
+        this.connectionsOut = [];
+        this.labelElement = null;
+        this.gradLabelElement = null;
+        this.name = '';
+    }
+}
+
+class Connection {
+    constructor(source, target, weight, weightName) {
+        this.source = source;
+        this.target = target;
+        this.weight = weight;
+        this.weightName = weightName;
+        this.mesh = null;
+        this.gradient = 0;
+        this.labelElement = null;
+    }
+}
+
+// --- NEURAL NETWORK MATH ---
+class NeuralNetworkMath {
+    static sigmoid(x) { 
+        return 1 / (1 + Math.exp(-x)); 
+    }
+    
+    static sigmoidPrime(x) { 
+        const s = NeuralNetworkMath.sigmoid(x); 
+        return s * (1 - s); 
+    }
+    
+    static squaredErrorLoss(target, output) {
+        return 0.5 * Math.pow(target - output, 2);
+    }
+    
+    static squaredErrorLossPrime(target, output) {
+        return -(target - output);  // dL/dOutput
+    }
+}
+
+// --- MAIN APPLICATION ---
+class BackpropVisualization {
+    constructor() {
+        this.container = document.getElementById('canvas-container');
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.controls = null;
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+        this.mouseRaw = { x: 0, y: 0 };
         
-        const NETWORK_SHAPE = [2, 2, 1];
-        const LAYER_SPACING = 7;
-        const NEURON_SPACING = 3.5;
+        this.neurons = [];
+        this.connections = [];
+        this.layers = [2, 2, 1];
+        this.labelElements = [];
+        
+        // State
+        this.targetValue = 1.0;
+        this.stepQueue = [];
+        this.currentStepIndex = -1;
+        this.isForwardComplete = false;
+        this.isBackpropActive = false;
+        this.isAnimating = false;
+        this.autoPlayInterval = null;
+        
+        this.init();
+    }
 
-        // Tutorial values from C1 and C2 documents
-        const TUTORIAL = {
-            weights: {
-                layer1: [[0.4, 0.3], [-0.2, 0.5]],   // h₁, h₂ weights
-                layer2: [[0.6, -0.4]]                 // y weights
-            },
-            biases: {
-                layer1: [0.1, -0.1],
-                layer2: [0.2]
-            },
-            inputs: [0.5, 0.8],
-            target: 1.0
-        };
+    init() {
+        this.initThree();
+        this.buildNetwork();
+        this.initUI();
+        this.updateNetworkValuesPanel();
+        this.animate();
+        
+        window.addEventListener('resize', () => this.onWindowResize());
+        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    }
 
-        // ═══════════════════════════════════════════════════════════════
-        // MATH FUNCTIONS
-        // ═══════════════════════════════════════════════════════════════
+    initThree() {
+        // Scene
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(CONFIG.colors.background);
+        this.scene.fog = new THREE.Fog(CONFIG.colors.background, 25, 80);
 
-        const relu = (x) => Math.max(0, x);
-        const reluPrime = (x) => x > 0 ? 1 : 0;
-        const sigmoid = (x) => 1 / (1 + Math.exp(-Math.min(Math.max(x, -500), 500)));
-        const sigmoidPrime = (x) => { const s = sigmoid(x); return s * (1 - s); };
-        const mseLoss = (pred, target) => 0.5 * Math.pow(pred - target, 2);
-        const mseLossPrime = (pred, target) => pred - target;
+        // Camera
+        this.camera = new THREE.PerspectiveCamera(
+            45, 
+            window.innerWidth / window.innerHeight, 
+            0.1, 
+            1000
+        );
+        this.camera.position.set(0, 5, 35);
 
-        // ═══════════════════════════════════════════════════════════════
-        // STATE
-        // ═══════════════════════════════════════════════════════════════
+        // Renderer
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.container.appendChild(this.renderer.domElement);
 
-        const state = {
-            // Network parameters
-            inputs: [...TUTORIAL.inputs],
-            target: TUTORIAL.target,
-            weights: [
-                TUTORIAL.weights.layer1.map(row => [...row]),
-                TUTORIAL.weights.layer2.map(row => [...row])
-            ],
-            biases: [
-                [...TUTORIAL.biases.layer1],
-                [...TUTORIAL.biases.layer2]
-            ],
-
-            // Forward pass values
-            layerValues: NETWORK_SHAPE.map(n => new Array(n).fill(0)),
-            preActivations: NETWORK_SHAPE.map(n => new Array(n).fill(0)),
-            prediction: 0,
-            loss: 0,
-
-            // Backward pass values
-            gradients: {
-                dL_dy: 0,           // ∂L/∂y
-                dy_dz2: 0,          // σ'(z₂)
-                delta_out: 0,       // δ_out = dL/dy × dy/dz2
-                dL_dW2: [],         // ∂L/∂W₂
-                dL_db2: 0,          // ∂L/∂b₂
-                dL_dh: [],          // ∂L/∂h (gradient at hidden outputs)
-                dh_dz1: [],         // ReLU'(z₁)
-                delta_hidden: [],   // δ_hidden
-                dL_dW1: [],         // ∂L/∂W₁
-                dL_db1: []          // ∂L/∂b₁
-            },
-
-            // Animation state
-            phase: 'idle',          // idle, forward, forward_done, backward, complete
-            forwardStep: 0,         // 0-3
-            backwardStep: 0,        // 0-6
-            isPlaying: false,
-            speed: 1.0
-        };
-
-        // Forward steps
-        const FORWARD_STEPS = [
-            { id: 'f1', name: 'Set Inputs', desc: 'Load input values x₁ and x₂' },
-            { id: 'f2', name: 'Hidden Layer', desc: 'Compute z = Wx + b, then apply ReLU' },
-            { id: 'f3', name: 'Output Layer', desc: 'Compute z = Wh + b, then apply Sigmoid' }
-        ];
-
-        // Backward steps
-        const BACKWARD_STEPS = [
-            { id: 'b1', name: 'Loss Gradient', desc: '∂L/∂y = (ŷ - t) — How loss changes with prediction' },
-            { id: 'b2', name: 'Output Delta', desc: 'δ_out = ∂L/∂y × σ\'(z) — Chain through sigmoid' },
-            { id: 'b3', name: 'Output Weights', desc: '∂L/∂W₂ = δ_out × h — Gradient for output layer weights' },
-            { id: 'b4', name: 'Hidden Gradient', desc: '∂L/∂h = δ_out × W₂ — Error flows to hidden layer' },
-            { id: 'b5', name: 'Hidden Delta', desc: 'δ_h = ∂L/∂h × ReLU\'(z) — Chain through ReLU' },
-            { id: 'b6', name: 'Hidden Weights', desc: '∂L/∂W₁ = δ_h × x — Gradient for hidden layer weights' }
-        ];
-
-        // ═══════════════════════════════════════════════════════════════
-        // THREE.JS SETUP
-        // ═══════════════════════════════════════════════════════════════
-
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0e1a);
-        scene.fog = new THREE.FogExp2(0x0a0e1a, 0.015);
-
-        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 0, 16);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.minDistance = 10;
-        controls.maxDistance = 25;
-        controls.maxPolarAngle = Math.PI / 1.5;
-        controls.minPolarAngle = Math.PI / 3;
+        // Controls
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.minDistance = 15;
+        this.controls.maxDistance = 60;
 
         // Lighting
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        const keyLight = new THREE.PointLight(0x38bdf8, 1.2, 50);
-        keyLight.position.set(5, 5, 10);
-        scene.add(keyLight);
-        const fillLight = new THREE.PointLight(0xf43f5e, 0.6, 50);
-        fillLight.position.set(-5, -3, 8);
-        scene.add(fillLight);
+        this.scene.add(new THREE.AmbientLight(0x404040, 2));
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        this.scene.add(dirLight);
+        
+        const blueLight = new THREE.PointLight(0x4facfe, 0.6, 50);
+        blueLight.position.set(-20, 10, 5);
+        this.scene.add(blueLight);
 
-        // ═══════════════════════════════════════════════════════════════
-        // NETWORK OBJECTS
-        // ═══════════════════════════════════════════════════════════════
+        const redLight = new THREE.PointLight(0xff6b6b, 0.6, 50);
+        redLight.position.set(20, 10, 5);
+        this.scene.add(redLight);
+    }
 
-        const networkObjects = {
-            neurons: [],
-            connections: [],
-            labels: [],
-            weightLabels: [],
-            gradientDisplays: [],
-            pulses: []
-        };
+    buildNetwork() {
+        this.clearNetwork();
+        
+        // Create neurons layer by layer
+        let neuronId = 0;
+        const startX = -((this.layers.length - 1) * CONFIG.dims.layerSpacing) / 2;
+        const neuronNames = ['x₁', 'x₂', 'h₁', 'h₂', 'ŷ'];
+        let nameIdx = 0;
 
-        const geometries = {
-            neuron: new THREE.SphereGeometry(0.55, 32, 32),
-            neuronRing: new THREE.TorusGeometry(0.75, 0.04, 16, 64),
-            pulse: new THREE.SphereGeometry(0.12, 16, 16)
-        };
+        this.layers.forEach((neuronCount, layerIdx) => {
+            const layerX = startX + (layerIdx * CONFIG.dims.layerSpacing);
+            const startY = ((neuronCount - 1) * CONFIG.dims.neuronSpacing) / 2;
 
-        // ═══════════════════════════════════════════════════════════════
-        // INITIALIZATION
-        // ═══════════════════════════════════════════════════════════════
+            for (let i = 0; i < neuronCount; i++) {
+                const type = layerIdx === 0 ? 'input' 
+                           : layerIdx === this.layers.length - 1 ? 'output' 
+                           : 'hidden';
+                
+                const neuron = new Neuron(neuronId++, layerIdx, i, type);
+                neuron.name = neuronNames[nameIdx++];
+                neuron.position.set(layerX, startY - (i * CONFIG.dims.neuronSpacing), 0);
+                
+                // Set biases
+                if (type === 'hidden') {
+                    neuron.bias = CONFIG.network.biases.hidden[i];
+                } else if (type === 'output') {
+                    neuron.bias = CONFIG.network.biases.output;
+                }
+                
+                // Create mesh
+                const geometry = new THREE.SphereGeometry(CONFIG.dims.neuronSize, 32, 32);
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: CONFIG.colors.neuron, 
+                    roughness: 0.4, 
+                    metalness: 0.6,
+                    emissive: 0x000000 
+                });
+                neuron.mesh = new THREE.Mesh(geometry, material);
+                neuron.mesh.position.copy(neuron.position);
+                neuron.mesh.userData = { isNeuron: true, id: neuron.id };
+                
+                // Glow ring
+                const ringGeo = new THREE.TorusGeometry(CONFIG.dims.neuronSize * 1.25, 0.06, 16, 50);
+                const ringMat = new THREE.MeshBasicMaterial({ 
+                    color: 0x555566, 
+                    transparent: true, 
+                    opacity: 0.4 
+                });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                neuron.mesh.add(ring);
 
-        function initNetwork() {
-            clearScene();
-            buildNeurons();
-            buildConnections();
-            createInputControls();
-            updateUI();
-        }
+                this.scene.add(neuron.mesh);
+                this.neurons.push(neuron);
+                this.createLabelsForNeuron(neuron);
+            }
+        });
 
-        function clearScene() {
-            networkObjects.neurons.flat().forEach(m => {
-                scene.remove(m);
-                if (m.userData.ring) scene.remove(m.userData.ring);
+        // Create connections with proper weight mapping
+        // C2 notation: w1=x1->h1, w2=x2->h1, w3=x1->h2, w4=x2->h2, w5=h1->out, w6=h2->out
+        const inputNeurons = this.neurons.filter(n => n.type === 'input');
+        const hiddenNeurons = this.neurons.filter(n => n.type === 'hidden');
+        const outputNeurons = this.neurons.filter(n => n.type === 'output');
+        
+        let weightIdx = 1;
+        
+        // Input -> Hidden connections
+        // Following C2 order: w1(x1->h1), w2(x2->h1), w3(x1->h2), w4(x2->h2)
+        hiddenNeurons.forEach((hidden, hIdx) => {
+            inputNeurons.forEach((input, iIdx) => {
+                const weight = CONFIG.network.weights.inputToHidden[iIdx][hIdx];
+                const conn = new Connection(input, hidden, weight, `w${weightIdx++}`);
+                input.connectionsOut.push(conn);
+                hidden.connectionsIn.push(conn);
+                this.connections.push(conn);
+                this.createConnectionMesh(conn);
             });
-            networkObjects.connections.forEach(c => {
-                scene.remove(c.mesh);
-                if (c.pulseMesh) scene.remove(c.pulseMesh);
-            });
-            networkObjects.pulses.forEach(p => scene.remove(p.mesh));
-            
-            document.getElementById('labels-container').innerHTML = '';
-            
-            networkObjects.neurons = [];
-            networkObjects.connections = [];
-            networkObjects.labels = [];
-            networkObjects.weightLabels = [];
-            networkObjects.gradientDisplays = [];
-            networkObjects.pulses = [];
-        }
+        });
+        
+        // Hidden -> Output connections (w5, w6)
+        hiddenNeurons.forEach((hidden, hIdx) => {
+            const output = outputNeurons[0];
+            const weight = CONFIG.network.weights.hiddenToOutput[hIdx];
+            const conn = new Connection(hidden, output, weight, `w${weightIdx++}`);
+            hidden.connectionsOut.push(conn);
+            output.connectionsIn.push(conn);
+            this.connections.push(conn);
+            this.createConnectionMesh(conn);
+        });
 
-        function buildNeurons() {
-            const startX = -((NETWORK_SHAPE.length - 1) * LAYER_SPACING) / 2;
+        // Set initial input values
+        this.neurons[0].output = CONFIG.network.inputs[0];
+        this.neurons[1].output = CONFIG.network.inputs[1];
+        
+        this.updateAllLabels();
+    }
 
-            NETWORK_SHAPE.forEach((count, layerIdx) => {
-                const layerNeurons = [];
-                const layerHeight = (count - 1) * NEURON_SPACING;
-                const startY = layerHeight / 2;
+    createConnectionMesh(conn) {
+        const curve = new THREE.LineCurve3(conn.source.position, conn.target.position);
+        const tubeGeo = new THREE.TubeGeometry(curve, 1, 0.08, 8, false);
+        const tubeMat = new THREE.MeshBasicMaterial({ 
+            color: CONFIG.colors.connection, 
+            transparent: true, 
+            opacity: 0.4 
+        });
+        conn.mesh = new THREE.Mesh(tubeGeo, tubeMat);
+        this.scene.add(conn.mesh);
+        
+        // Weight label
+        const midPoint = conn.source.position.clone().add(conn.target.position).multiplyScalar(0.5);
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'label weight';
+        labelDiv.textContent = `${conn.weightName}=${conn.weight.toFixed(2)}`;
+        document.body.appendChild(labelDiv);
+        conn.labelElement = labelDiv;
+        this.labelElements.push(labelDiv);
+    }
 
-                for (let i = 0; i < count; i++) {
-                    const material = new THREE.MeshPhysicalMaterial({
-                        color: 0x1e293b,
-                        roughness: 0.2,
-                        metalness: 0.8,
-                        clearcoat: 1.0,
-                        emissive: 0x000000,
-                        emissiveIntensity: 0
-                    });
+    createLabelsForNeuron(neuron) {
+        // Value label
+        const valDiv = document.createElement('div');
+        valDiv.className = 'label val';
+        document.body.appendChild(valDiv);
+        neuron.labelElement = valDiv;
+        this.labelElements.push(valDiv);
 
-                    const mesh = new THREE.Mesh(geometries.neuron, material);
-                    mesh.position.set(
-                        startX + layerIdx * LAYER_SPACING,
-                        startY - i * NEURON_SPACING,
-                        0
-                    );
+        // Gradient label (hidden initially)
+        const gradDiv = document.createElement('div');
+        gradDiv.className = 'label grad';
+        gradDiv.style.opacity = '0';
+        document.body.appendChild(gradDiv);
+        neuron.gradLabelElement = gradDiv;
+        this.labelElements.push(gradDiv);
+    }
 
-                    // Glow ring
-                    const ring = new THREE.Mesh(
-                        geometries.neuronRing,
-                        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0 })
-                    );
-                    ring.position.copy(mesh.position);
-                    scene.add(ring);
+    clearNetwork() {
+        // Remove meshes
+        this.neurons.forEach(n => {
+            if (n.mesh) this.scene.remove(n.mesh);
+        });
+        this.connections.forEach(c => {
+            if (c.mesh) this.scene.remove(c.mesh);
+        });
+        
+        // Remove DOM labels
+        this.labelElements.forEach(el => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        });
+        
+        this.neurons = [];
+        this.connections = [];
+        this.labelElements = [];
+    }
 
-                    mesh.userData = { layerIdx, neuronIdx: i, ring };
-                    scene.add(mesh);
-                    layerNeurons.push(mesh);
+    updateAllLabels() {
+        this.neurons.forEach(neuron => {
+            const screenPos = neuron.position.clone().project(this.camera);
+            const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(screenPos.y * 0.5) + 0.5) * window.innerHeight;
 
-                    // Create labels
-                    createNeuronLabel(mesh, layerIdx, i);
-                    createGradientDisplay(mesh, layerIdx, i);
-                }
-
-                networkObjects.neurons.push(layerNeurons);
-            });
-        }
-
-        function createNeuronLabel(mesh, layerIdx, neuronIdx) {
-            const container = document.createElement('div');
-            container.className = 'node-label';
-
-            // Name
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'text-center text-xs font-semibold mb-1';
-            if (layerIdx === 0) {
-                nameDiv.innerHTML = `<span class="text-cyan-400">x<sub>${neuronIdx + 1}</sub></span>`;
-            } else if (layerIdx === NETWORK_SHAPE.length - 1) {
-                nameDiv.innerHTML = `<span class="text-green-400">ŷ</span>`;
-            } else {
-                nameDiv.innerHTML = `<span class="text-blue-400">h<sub>${neuronIdx + 1}</sub></span>`;
-            }
-            container.appendChild(nameDiv);
-
-            // Value badge
-            const valueBadge = document.createElement('div');
-            valueBadge.className = 'value-badge forward text-center';
-            valueBadge.id = `val-${layerIdx}-${neuronIdx}`;
-            valueBadge.innerText = '—';
-            container.appendChild(valueBadge);
-
-            // Pre-activation (for non-input layers)
-            if (layerIdx > 0) {
-                const preActDiv = document.createElement('div');
-                preActDiv.className = 'text-[9px] text-slate-500 mt-1 mono text-center';
-                preActDiv.id = `preact-${layerIdx}-${neuronIdx}`;
-                preActDiv.innerText = '';
-                container.appendChild(preActDiv);
-
-                // Bias
-                const biasDiv = document.createElement('div');
-                biasDiv.className = 'text-[9px] text-amber-400/70 mono text-center';
-                biasDiv.id = `bias-${layerIdx}-${neuronIdx}`;
-                const b = state.biases[layerIdx - 1][neuronIdx];
-                biasDiv.innerText = `b=${b >= 0 ? '+' : ''}${b.toFixed(2)}`;
-                container.appendChild(biasDiv);
-            }
-
-            document.getElementById('labels-container').appendChild(container);
-            networkObjects.labels.push({ div: container, mesh, layerIdx, neuronIdx });
-        }
-
-        function createGradientDisplay(mesh, layerIdx, neuronIdx) {
-            if (layerIdx === 0) return; // No gradients at input layer
-
-            const div = document.createElement('div');
-            div.className = 'gradient-display';
-            div.id = `grad-display-${layerIdx}-${neuronIdx}`;
-            div.innerHTML = '<div class="chain-multiply"></div>';
-            document.getElementById('labels-container').appendChild(div);
-            networkObjects.gradientDisplays.push({ div, mesh, layerIdx, neuronIdx });
-        }
-
-        function buildConnections() {
-            for (let l = 0; l < NETWORK_SHAPE.length - 1; l++) {
-                const fromLayer = networkObjects.neurons[l];
-                const toLayer = networkObjects.neurons[l + 1];
-
-                for (let j = 0; j < toLayer.length; j++) {
-                    for (let i = 0; i < fromLayer.length; i++) {
-                        const weight = state.weights[l][j][i];
-                        const startPos = fromLayer[i].position.clone();
-                        const endPos = toLayer[j].position.clone();
-
-                        // Line
-                        const lineGeo = new THREE.BufferGeometry().setFromPoints([startPos, endPos]);
-                        const isPositive = weight >= 0;
-                        const lineMat = new THREE.LineBasicMaterial({
-                            color: isPositive ? 0x38bdf8 : 0xf43f5e,
-                            transparent: true,
-                            opacity: 0.15 + Math.abs(weight) * 0.35
-                        });
-                        const lineMesh = new THREE.Line(lineGeo, lineMat);
-                        scene.add(lineMesh);
-
-                        const connection = {
-                            mesh: lineMesh,
-                            fromLayer: l,
-                            fromIndex: i,
-                            toIndex: j,
-                            weight,
-                            startPos,
-                            endPos,
-                            gradient: 0
-                        };
-
-                        networkObjects.connections.push(connection);
-                        createWeightLabel(connection);
-                    }
-                }
-            }
-        }
-
-        function createWeightLabel(connection) {
-            const div = document.createElement('div');
-            div.className = `weight-label ${connection.weight >= 0 ? 'positive' : 'negative'}`;
-            div.id = `weight-${connection.fromLayer}-${connection.fromIndex}-${connection.toIndex}`;
-            div.innerHTML = `w=${connection.weight.toFixed(2)}`;
-            document.getElementById('labels-container').appendChild(div);
-            connection.labelEl = div;
-            networkObjects.weightLabels.push({ div, connection });
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // FORWARD PASS
-        // ═══════════════════════════════════════════════════════════════
-
-        function runForwardPass() {
-            state.phase = 'forward';
-            state.forwardStep = 0;
-            state.backwardStep = 0;
-            resetGradientDisplays();
-            executeForwardStep();
-        }
-
-        function executeForwardStep() {
-            const step = state.forwardStep;
-
-            if (step === 0) {
-                // Set inputs
-                state.layerValues[0] = [...state.inputs];
-                state.preActivations[0] = [...state.inputs];
-                colorLayer(0, 'forward');
-                updateNeuronLabels();
-                updateStepIndicators();
-
-                if (state.isPlaying) {
-                    setTimeout(() => { state.forwardStep++; executeForwardStep(); }, 1200 / state.speed);
-                }
-            }
-            else if (step === 1) {
-                // Hidden layer computation
-                animatePulses(0, 'forward', () => {
-                    for (let j = 0; j < NETWORK_SHAPE[1]; j++) {
-                        let sum = 0;
-                        for (let i = 0; i < NETWORK_SHAPE[0]; i++) {
-                            sum += state.inputs[i] * state.weights[0][j][i];
-                        }
-                        sum += state.biases[0][j];
-                        state.preActivations[1][j] = sum;
-                        state.layerValues[1][j] = relu(sum);
-                    }
-                    colorLayer(1, 'forward');
-                    updateNeuronLabels();
-                    updateStepIndicators();
-
-                    if (state.isPlaying) {
-                        setTimeout(() => { state.forwardStep++; executeForwardStep(); }, 1200 / state.speed);
-                    }
-                });
-            }
-            else if (step === 2) {
-                // Output layer computation
-                animatePulses(1, 'forward', () => {
-                    for (let j = 0; j < NETWORK_SHAPE[2]; j++) {
-                        let sum = 0;
-                        for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                            sum += state.layerValues[1][i] * state.weights[1][j][i];
-                        }
-                        sum += state.biases[1][j];
-                        state.preActivations[2][j] = sum;
-                        state.layerValues[2][j] = sigmoid(sum);
-                    }
-                    state.prediction = state.layerValues[2][0];
-                    state.loss = mseLoss(state.prediction, state.target);
-
-                    colorLayer(2, 'forward');
-                    updateNeuronLabels();
-                    updateStatsDisplay();
-                    updateStepIndicators();
-
-                    state.phase = 'forward_done';
-                    state.isPlaying = false;
-                    updatePlayButton();
-                    enableBackpropButton();
-                });
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // BACKWARD PASS
-        // ═══════════════════════════════════════════════════════════════
-
-        function runBackwardPass() {
-            state.phase = 'backward';
-            state.backwardStep = 0;
-            executeBackwardStep();
-        }
-
-        function executeBackwardStep() {
-            const step = state.backwardStep;
-            updateStepIndicators();
-            updateMathPanel(step);
-
-            if (step === 0) {
-                // Step 1: ∂L/∂y
-                state.gradients.dL_dy = mseLossPrime(state.prediction, state.target);
-                colorLayer(2, 'backward');
-                showGradientAtNode(2, 0, {
-                    incoming: null,
-                    local: '∂L/∂ŷ',
-                    result: state.gradients.dL_dy
-                });
-
-                if (state.isPlaying) {
-                    setTimeout(() => { state.backwardStep++; executeBackwardStep(); }, 1800 / state.speed);
-                }
-            }
-            else if (step === 1) {
-                // Step 2: δ_out = ∂L/∂y × σ'(z)
-                state.gradients.dy_dz2 = sigmoidPrime(state.preActivations[2][0]);
-                state.gradients.delta_out = state.gradients.dL_dy * state.gradients.dy_dz2;
-
-                showGradientAtNode(2, 0, {
-                    incoming: state.gradients.dL_dy,
-                    local: state.gradients.dy_dz2,
-                    result: state.gradients.delta_out,
-                    localLabel: "σ'(z)"
-                });
-
-                if (state.isPlaying) {
-                    setTimeout(() => { state.backwardStep++; executeBackwardStep(); }, 1800 / state.speed);
-                }
-            }
-            else if (step === 2) {
-                // Step 3: ∂L/∂W₂ = δ_out × h
-                state.gradients.dL_dW2 = [];
-                state.gradients.dL_db2 = state.gradients.delta_out;
-
-                animatePulses(1, 'backward', () => {
-                    for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                        const grad = state.gradients.delta_out * state.layerValues[1][i];
-                        state.gradients.dL_dW2.push(grad);
-
-                        // Update connection
-                        const conn = networkObjects.connections.find(
-                            c => c.fromLayer === 1 && c.fromIndex === i && c.toIndex === 0
-                        );
-                        if (conn) {
-                            conn.gradient = grad;
-                            updateWeightLabelWithGradient(conn);
-                        }
-                    }
-                    colorConnectionsBackward(1);
-
-                    if (state.isPlaying) {
-                        setTimeout(() => { state.backwardStep++; executeBackwardStep(); }, 1800 / state.speed);
-                    }
-                });
-            }
-            else if (step === 3) {
-                // Step 4: ∂L/∂h = δ_out × W₂
-                state.gradients.dL_dh = [];
-                for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                    const grad = state.gradients.delta_out * state.weights[1][0][i];
-                    state.gradients.dL_dh.push(grad);
-                }
-
-                colorLayer(1, 'backward');
-                for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                    showGradientAtNode(1, i, {
-                        incoming: state.gradients.delta_out,
-                        local: state.weights[1][0][i],
-                        result: state.gradients.dL_dh[i],
-                        localLabel: `w=${state.weights[1][0][i].toFixed(2)}`
-                    });
-                }
-
-                if (state.isPlaying) {
-                    setTimeout(() => { state.backwardStep++; executeBackwardStep(); }, 1800 / state.speed);
-                }
-            }
-            else if (step === 4) {
-                // Step 5: δ_hidden = ∂L/∂h × ReLU'(z)
-                state.gradients.dh_dz1 = [];
-                state.gradients.delta_hidden = [];
-                state.gradients.dL_db1 = [];
-
-                for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                    const reluDeriv = reluPrime(state.preActivations[1][i]);
-                    state.gradients.dh_dz1.push(reluDeriv);
-                    const delta = state.gradients.dL_dh[i] * reluDeriv;
-                    state.gradients.delta_hidden.push(delta);
-                    state.gradients.dL_db1.push(delta);
-
-                    showGradientAtNode(1, i, {
-                        incoming: state.gradients.dL_dh[i],
-                        local: reluDeriv,
-                        result: delta,
-                        localLabel: "ReLU'(z)"
-                    });
-                }
-
-                if (state.isPlaying) {
-                    setTimeout(() => { state.backwardStep++; executeBackwardStep(); }, 1800 / state.speed);
-                }
-            }
-            else if (step === 5) {
-                // Step 6: ∂L/∂W₁ = δ_hidden × x
-                state.gradients.dL_dW1 = [[], []];
-
-                animatePulses(0, 'backward', () => {
-                    for (let j = 0; j < NETWORK_SHAPE[1]; j++) {
-                        for (let i = 0; i < NETWORK_SHAPE[0]; i++) {
-                            const grad = state.gradients.delta_hidden[j] * state.inputs[i];
-                            state.gradients.dL_dW1[j].push(grad);
-
-                            const conn = networkObjects.connections.find(
-                                c => c.fromLayer === 0 && c.fromIndex === i && c.toIndex === j
-                            );
-                            if (conn) {
-                                conn.gradient = grad;
-                                updateWeightLabelWithGradient(conn);
-                            }
-                        }
-                    }
-                    colorConnectionsBackward(0);
-                    colorLayer(0, 'backward');
-
-                    state.phase = 'complete';
-                    state.isPlaying = false;
-                    updatePlayButton();
-                    showGradientSummary();
-
-                    if (state.isPlaying) {
-                        // Already stopped
-                    }
-                });
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // VISUAL HELPERS
-        // ═══════════════════════════════════════════════════════════════
-
-        function colorLayer(layerIdx, mode) {
-            networkObjects.neurons[layerIdx].forEach((mesh, nIdx) => {
-                const val = state.layerValues[layerIdx][nIdx];
-                const ring = mesh.userData.ring;
-
-                if (mode === 'forward') {
-                    const color = val >= 0 ? 0x38bdf8 : 0xf43f5e;
-                    const intensity = Math.min(Math.abs(val), 1) * 0.7;
-                    mesh.material.color.setHex(color);
-                    mesh.material.emissive.setHex(color);
-                    mesh.material.emissiveIntensity = intensity;
-                    ring.material.color.setHex(color);
-                    ring.material.opacity = intensity * 0.6;
-                } else if (mode === 'backward') {
-                    mesh.material.color.setHex(0xf43f5e);
-                    mesh.material.emissive.setHex(0xf43f5e);
-                    mesh.material.emissiveIntensity = 0.5;
-                    ring.material.color.setHex(0xf43f5e);
-                    ring.material.opacity = 0.6;
+            if (neuron.labelElement) {
+                neuron.labelElement.style.left = `${x}px`;
+                neuron.labelElement.style.top = `${y - 35}px`;
+                
+                if (neuron.type === 'input') {
+                    neuron.labelElement.textContent = `${neuron.name}=${neuron.output.toFixed(2)}`;
                 } else {
-                    mesh.material.color.setHex(0x1e293b);
-                    mesh.material.emissive.setHex(0x000000);
-                    mesh.material.emissiveIntensity = 0;
-                    ring.material.opacity = 0;
+                    const biasStr = neuron.bias !== 0 ? ` (b=${neuron.bias})` : '';
+                    neuron.labelElement.textContent = `${neuron.name}=${neuron.output.toFixed(4)}`;
                 }
+            }
+
+            if (neuron.gradLabelElement) {
+                neuron.gradLabelElement.style.left = `${x}px`;
+                neuron.gradLabelElement.style.top = `${y + 35}px`;
+            }
+        });
+        
+        // Update connection labels
+        this.connections.forEach(conn => {
+            if (conn.labelElement) {
+                const midPoint = conn.source.position.clone()
+                    .add(conn.target.position).multiplyScalar(0.5);
+                const screenPos = midPoint.project(this.camera);
+                const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-(screenPos.y * 0.5) + 0.5) * window.innerHeight;
+                
+                conn.labelElement.style.left = `${x}px`;
+                conn.labelElement.style.top = `${y}px`;
+            }
+        });
+    }
+
+    // --- FORWARD PASS ---
+    runForwardPass() {
+        this.resetVisuals();
+        this.setStatus('Running forward pass...', '#4facfe');
+
+        // Process hidden layer
+        const hiddenNeurons = this.neurons.filter(n => n.type === 'hidden');
+        hiddenNeurons.forEach((neuron, idx) => {
+            let sum = neuron.bias;
+            neuron.connectionsIn.forEach(conn => {
+                sum += conn.source.output * conn.weight;
+                this.animatePulse(conn, 'forward', idx * 200);
             });
-        }
-
-        function colorConnectionsBackward(fromLayerIdx) {
-            networkObjects.connections
-                .filter(c => c.fromLayer === fromLayerIdx)
-                .forEach(c => {
-                    c.mesh.material.color.setHex(0xf43f5e);
-                    c.mesh.material.opacity = 0.6;
-                });
-        }
-
-        function animatePulses(fromLayerIdx, direction, callback) {
-            const connections = networkObjects.connections.filter(c => c.fromLayer === fromLayerIdx);
-            let completed = 0;
-
-            connections.forEach(conn => {
-                const pulseMesh = new THREE.Mesh(
-                    geometries.pulse,
-                    new THREE.MeshBasicMaterial({
-                        color: direction === 'forward' ? 0x38bdf8 : 0xf43f5e,
-                        transparent: true,
-                        opacity: 0.9
-                    })
-                );
-
-                const start = direction === 'forward' ? conn.startPos : conn.endPos;
-                const end = direction === 'forward' ? conn.endPos : conn.startPos;
-                pulseMesh.position.copy(start);
-                scene.add(pulseMesh);
-
-                networkObjects.pulses.push({
-                    mesh: pulseMesh,
-                    start,
-                    end,
-                    progress: 0,
-                    speed: 0.03 * state.speed,
-                    onComplete: () => {
-                        scene.remove(pulseMesh);
-                        completed++;
-                        if (completed === connections.length && callback) callback();
-                    }
-                });
-            });
-
-            if (connections.length === 0 && callback) callback();
-        }
-
-        function showGradientAtNode(layerIdx, neuronIdx, data) {
-            const display = networkObjects.gradientDisplays.find(
-                d => d.layerIdx === layerIdx && d.neuronIdx === neuronIdx
-            );
-            if (!display) return;
-
-            let html = '<div class="chain-multiply">';
-            if (data.incoming !== null) {
-                html += `<span class="incoming">${data.incoming.toFixed(3)}</span>`;
-                html += `<span class="operator">×</span>`;
-                html += `<span class="local">${typeof data.local === 'number' ? data.local.toFixed(3) : data.local}</span>`;
-                if (data.localLabel) {
-                    html += `<span class="text-[8px] text-slate-500">(${data.localLabel})</span>`;
-                }
-                html += `<span class="operator">=</span>`;
-            }
-            html += `<span class="result">δ = ${data.result.toFixed(4)}</span>`;
-            html += '</div>';
-
-            display.div.innerHTML = html;
-            display.div.classList.add('visible');
-        }
-
-        function resetGradientDisplays() {
-            networkObjects.gradientDisplays.forEach(d => {
-                d.div.classList.remove('visible');
-                d.div.innerHTML = '<div class="chain-multiply"></div>';
-            });
-            networkObjects.connections.forEach(c => {
-                c.gradient = 0;
-                if (c.labelEl) {
-                    c.labelEl.innerHTML = `w=${c.weight.toFixed(2)}`;
-                }
-            });
-            document.getElementById('gradient-summary').classList.add('hidden');
-        }
-
-        function updateWeightLabelWithGradient(conn) {
-            if (conn.labelEl) {
-                const gradClass = conn.gradient >= 0 ? '' : '';
-                conn.labelEl.innerHTML = `
-                    w=${conn.weight.toFixed(2)}<br>
-                    <span class="grad-value">∇=${conn.gradient.toFixed(4)}</span>
-                `;
-            }
-        }
-
-        function updateNeuronLabels() {
-            state.layerValues.forEach((layer, lIdx) => {
-                layer.forEach((val, nIdx) => {
-                    const el = document.getElementById(`val-${lIdx}-${nIdx}`);
-                    if (el) {
-                        el.innerText = val.toFixed(3);
-                        el.style.color = val >= 0 ? '#38bdf8' : '#f43f5e';
-                    }
-
-                    // Pre-activation
-                    const preEl = document.getElementById(`preact-${lIdx}-${nIdx}`);
-                    if (preEl && lIdx > 0) {
-                        preEl.innerText = `z=${state.preActivations[lIdx][nIdx].toFixed(3)}`;
-                    }
-                });
-            });
-        }
-
-        function updateStatsDisplay() {
-            document.getElementById('prediction-display').innerText = state.prediction.toFixed(4);
-            document.getElementById('loss-display').innerText = state.loss.toFixed(4);
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // MATH PANEL
-        // ═══════════════════════════════════════════════════════════════
-
-        function updateMathPanel(step) {
-            const title = document.getElementById('math-title');
-            const desc = document.getElementById('math-description');
-            const content = document.getElementById('math-content');
-            const g = state.gradients;
-
-            const stepInfo = BACKWARD_STEPS[step];
-            document.getElementById('step-counter').innerText = `Step ${step + 1}/6`;
-
-            if (step === 0) {
-                title.innerText = 'Step 1: Loss Gradient';
-                desc.innerText = 'How does the loss change when the prediction changes?';
-                content.innerHTML = `
-                    <div class="math-equation">
-                        <div class="text-slate-400 text-xs mb-2">Mean Squared Error derivative:</div>
-                        <div>
-                            <span class="var-red">∂L/∂ŷ</span> = (ŷ - t) = (${state.prediction.toFixed(3)} - ${state.target.toFixed(1)})
-                        </div>
-                        <div class="mt-2 text-lg">
-                            <span class="var-red">∂L/∂ŷ</span> = <span class="var-amber font-bold">${g.dL_dy.toFixed(4)}</span>
-                        </div>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-2">
-                        ${g.dL_dy < 0 ? 'Negative gradient: prediction is below target, need to increase ŷ' : 'Positive gradient: prediction is above target, need to decrease ŷ'}
-                    </p>
-                `;
-            }
-            else if (step === 1) {
-                title.innerText = 'Step 2: Output Delta';
-                desc.innerText = 'Chain through the sigmoid activation function.';
-                content.innerHTML = `
-                    <div class="math-equation">
-                        <div class="text-slate-400 text-xs mb-2">Sigmoid derivative: σ'(z) = σ(z)(1 - σ(z))</div>
-                        <div>
-                            <span class="var-purple">σ'(${state.preActivations[2][0].toFixed(3)})</span> = 
-                            ${state.prediction.toFixed(3)} × (1 - ${state.prediction.toFixed(3)}) = 
-                            <span class="var-purple">${g.dy_dz2.toFixed(4)}</span>
-                        </div>
-                    </div>
-                    <div class="math-equation">
-                        <div class="text-slate-400 text-xs mb-2">Chain rule multiplication:</div>
-                        <div>
-                            <span class="var-red">δ_out</span> = 
-                            <span class="var-amber">${g.dL_dy.toFixed(4)}</span> × 
-                            <span class="var-purple">${g.dy_dz2.toFixed(4)}</span>
-                        </div>
-                        <div class="mt-2 text-lg">
-                            <span class="var-red">δ_out</span> = <span class="var-red font-bold">${g.delta_out.toFixed(4)}</span>
-                        </div>
-                    </div>
-                `;
-            }
-            else if (step === 2) {
-                title.innerText = 'Step 3: Output Layer Weight Gradients';
-                desc.innerText = 'Compute ∂L/∂W₂ = δ_out × h (hidden values)';
-                let rows = '';
-                for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                    rows += `
-                        <div class="flex justify-between items-center py-1 border-b border-slate-700/30">
-                            <span class="text-slate-400">∂L/∂w(h${i+1}→ŷ)</span>
-                            <span>
-                                <span class="var-red">${g.delta_out.toFixed(3)}</span> × 
-                                <span class="var-blue">${state.layerValues[1][i].toFixed(3)}</span> = 
-                                <span class="var-red font-semibold">${g.dL_dW2[i]?.toFixed(4) || '...'}</span>
-                            </span>
-                        </div>
-                    `;
-                }
-                content.innerHTML = `
-                    <div class="math-equation">
-                        <div class="text-slate-400 text-xs mb-2">For each weight W₂:</div>
-                        ${rows}
-                        <div class="flex justify-between items-center py-1 mt-2">
-                            <span class="text-slate-400">∂L/∂b₂</span>
-                            <span class="var-red font-semibold">${g.dL_db2?.toFixed(4) || '...'}</span>
-                        </div>
-                    </div>
-                `;
-            }
-            else if (step === 3) {
-                title.innerText = 'Step 4: Gradient to Hidden Layer';
-                desc.innerText = 'Error flows backward: ∂L/∂h = δ_out × W₂';
-                let rows = '';
-                for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                    rows += `
-                        <div class="flex justify-between items-center py-1 border-b border-slate-700/30">
-                            <span class="text-slate-400">∂L/∂h${i+1}</span>
-                            <span>
-                                <span class="var-red">${g.delta_out.toFixed(3)}</span> × 
-                                <span class="var-blue">${state.weights[1][0][i].toFixed(2)}</span> = 
-                                <span class="var-amber font-semibold">${g.dL_dh[i]?.toFixed(4) || '...'}</span>
-                            </span>
-                        </div>
-                    `;
-                }
-                content.innerHTML = `
-                    <div class="math-equation">
-                        <div class="text-slate-400 text-xs mb-2">Gradient flows through weights:</div>
-                        ${rows}
-                    </div>
-                    <p class="text-xs text-slate-500 mt-2">
-                        Note: h₂'s weight is negative (-0.4), so the gradient flips sign!
-                    </p>
-                `;
-            }
-            else if (step === 4) {
-                title.innerText = 'Step 5: Hidden Layer Delta';
-                desc.innerText = 'Chain through ReLU: δ_h = ∂L/∂h × ReLU\'(z)';
-                let rows = '';
-                for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                    const z = state.preActivations[1][i];
-                    const reluDeriv = g.dh_dz1[i];
-                    rows += `
-                        <div class="flex justify-between items-center py-1 border-b border-slate-700/30">
-                            <span class="text-slate-400">δ_h${i+1}</span>
-                            <span>
-                                <span class="var-amber">${g.dL_dh[i]?.toFixed(4)}</span> × 
-                                <span class="var-purple">${reluDeriv}</span>
-                                <span class="text-slate-500 text-[10px]">(z=${z.toFixed(2)} ${z > 0 ? '> 0' : '≤ 0'})</span> = 
-                                <span class="var-red font-semibold">${g.delta_hidden[i]?.toFixed(4) || '...'}</span>
-                            </span>
-                        </div>
-                    `;
-                }
-                content.innerHTML = `
-                    <div class="math-equation">
-                        <div class="text-slate-400 text-xs mb-2">ReLU'(z) = 1 if z > 0, else 0:</div>
-                        ${rows}
-                    </div>
-                    <p class="text-xs text-slate-500 mt-2">
-                        Both pre-activations are positive, so ReLU passes gradients through unchanged.
-                    </p>
-                `;
-            }
-            else if (step === 5) {
-                title.innerText = 'Step 6: Hidden Layer Weight Gradients';
-                desc.innerText = 'Final step: ∂L/∂W₁ = δ_h × x (input values)';
-                let rows = '';
-                for (let j = 0; j < NETWORK_SHAPE[1]; j++) {
-                    for (let i = 0; i < NETWORK_SHAPE[0]; i++) {
-                        const grad = g.dL_dW1[j]?.[i];
-                        rows += `
-                            <div class="flex justify-between items-center py-1 border-b border-slate-700/30">
-                                <span class="text-slate-400">∂L/∂w(x${i+1}→h${j+1})</span>
-                                <span>
-                                    <span class="var-red">${g.delta_hidden[j]?.toFixed(4)}</span> × 
-                                    <span class="var-cyan">${state.inputs[i].toFixed(2)}</span> = 
-                                    <span class="var-red font-semibold">${grad?.toFixed(4) || '...'}</span>
-                                </span>
-                            </div>
-                        `;
-                    }
-                }
-                // Add biases
-                for (let j = 0; j < NETWORK_SHAPE[1]; j++) {
-                    rows += `
-                        <div class="flex justify-between items-center py-1 border-b border-slate-700/30">
-                            <span class="text-slate-400">∂L/∂b${j+1}</span>
-                            <span class="var-red font-semibold">${g.dL_db1[j]?.toFixed(4) || '...'}</span>
-                        </div>
-                    `;
-                }
-                content.innerHTML = `
-                    <div class="math-equation">
-                        <div class="text-slate-400 text-xs mb-2">For each weight W₁:</div>
-                        ${rows}
-                    </div>
-                `;
-            }
-        }
-
-        function showGradientSummary() {
-            const container = document.getElementById('gradient-summary');
-            const tableContainer = document.getElementById('gradient-table-container');
-            const g = state.gradients;
-
-            let rows = '';
-
-            // Layer 2 weights
-            for (let i = 0; i < NETWORK_SHAPE[1]; i++) {
-                const grad = g.dL_dW2[i];
-                rows += `
-                    <tr>
-                        <td class="param-name">w(h${i+1}→ŷ)</td>
-                        <td class="param-value">${state.weights[1][0][i].toFixed(2)}</td>
-                        <td class="param-grad ${grad >= 0 ? 'positive' : ''}">${grad.toFixed(4)}</td>
-                    </tr>
-                `;
-            }
-            rows += `
-                <tr>
-                    <td class="param-name">b₂</td>
-                    <td class="param-value">${state.biases[1][0].toFixed(2)}</td>
-                    <td class="param-grad ${g.dL_db2 >= 0 ? 'positive' : ''}">${g.dL_db2.toFixed(4)}</td>
-                </tr>
-            `;
-
-            // Layer 1 weights
-            for (let j = 0; j < NETWORK_SHAPE[1]; j++) {
-                for (let i = 0; i < NETWORK_SHAPE[0]; i++) {
-                    const grad = g.dL_dW1[j][i];
-                    rows += `
-                        <tr>
-                            <td class="param-name">w(x${i+1}→h${j+1})</td>
-                            <td class="param-value">${state.weights[0][j][i].toFixed(2)}</td>
-                            <td class="param-grad ${grad >= 0 ? 'positive' : ''}">${grad.toFixed(4)}</td>
-                        </tr>
-                    `;
-                }
-            }
-            for (let j = 0; j < NETWORK_SHAPE[1]; j++) {
-                const grad = g.dL_db1[j];
-                rows += `
-                    <tr>
-                        <td class="param-name">b${j+1}</td>
-                        <td class="param-value">${state.biases[0][j].toFixed(2)}</td>
-                        <td class="param-grad ${grad >= 0 ? 'positive' : ''}">${grad.toFixed(4)}</td>
-                    </tr>
-                `;
-            }
-
-            tableContainer.innerHTML = `
-                <table class="gradient-table">
-                    <thead>
-                        <tr>
-                            <th>Parameter</th>
-                            <th>Value</th>
-                            <th>∂L/∂param</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                <div class="mt-3 p-3 bg-green-900/20 border border-green-700/30 rounded-lg">
-                    <div class="text-green-400 text-xs font-semibold mb-1">✓ Backprop Complete</div>
-                    <div class="text-slate-400 text-[10px]">
-                        Negative gradient → increase parameter to reduce loss<br>
-                        Positive gradient → decrease parameter to reduce loss
-                    </div>
-                </div>
-            `;
-
-            container.classList.remove('hidden');
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // UI UPDATES
-        // ═══════════════════════════════════════════════════════════════
-
-        function updateUI() {
-            updatePhaseBadge();
-            updateStepIndicators();
-        }
-
-        function updatePhaseBadge() {
-            const badge = document.getElementById('phase-badge');
-            if (state.phase === 'idle') {
-                badge.className = 'phase-badge forward';
-                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-current"></span><span>Ready</span>';
-            } else if (state.phase === 'forward' || state.phase === 'forward_done') {
-                badge.className = 'phase-badge forward';
-                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-current"></span><span>Forward</span>';
-            } else if (state.phase === 'backward') {
-                badge.className = 'phase-badge backward';
-                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-current"></span><span>Backward</span>';
-            } else if (state.phase === 'complete') {
-                badge.className = 'phase-badge complete';
-                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-current"></span><span>Complete</span>';
-            }
-        }
-
-        function updateStepIndicators() {
-            // Forward steps
-            for (let i = 0; i < 3; i++) {
-                const dot = document.querySelector(`[data-step="f${i+1}"]`);
-                dot.classList.remove('active', 'completed', 'forward-phase');
-                if (state.phase === 'forward' && state.forwardStep === i) {
-                    dot.classList.add('active', 'forward-phase');
-                } else if (state.forwardStep > i || state.phase === 'forward_done' || state.phase === 'backward' || state.phase === 'complete') {
-                    dot.classList.add('completed');
-                }
-            }
-
-            // Backward steps
-            for (let i = 0; i < 6; i++) {
-                const dot = document.querySelector(`[data-step="b${i+1}"]`);
-                dot.classList.remove('active', 'completed');
-                if (state.phase === 'backward' && state.backwardStep === i) {
-                    dot.classList.add('active');
-                } else if (state.backwardStep > i || state.phase === 'complete') {
-                    dot.classList.add('completed');
-                }
-            }
-
-            // Update step description
-            const descEl = document.getElementById('step-description');
-            if (state.phase === 'forward') {
-                descEl.innerText = FORWARD_STEPS[state.forwardStep]?.desc || '';
-            } else if (state.phase === 'backward') {
-                descEl.innerText = BACKWARD_STEPS[state.backwardStep]?.desc || '';
-            } else if (state.phase === 'complete') {
-                descEl.innerText = 'All gradients computed! Ready for weight update (C3).';
-            } else if (state.phase === 'forward_done') {
-                descEl.innerText = 'Forward pass complete. Click Backpropagate to compute gradients.';
-            } else {
-                descEl.innerText = 'Press Forward Pass to begin';
-            }
-
-            updatePhaseBadge();
-        }
-
-        function updatePlayButton() {
-            const playIcon = document.getElementById('icon-play');
-            const pauseIcon = document.getElementById('icon-pause');
-            if (state.isPlaying) {
-                playIcon.classList.add('hidden');
-                pauseIcon.classList.remove('hidden');
-            } else {
-                playIcon.classList.remove('hidden');
-                pauseIcon.classList.add('hidden');
-            }
-        }
-
-        function enableBackpropButton() {
-            document.getElementById('btn-backprop').disabled = false;
-            document.getElementById('btn-play-pause').disabled = false;
-            document.getElementById('btn-next').disabled = false;
-            document.getElementById('btn-prev').disabled = false;
-        }
-
-        function updateLabelPositions() {
-            networkObjects.labels.forEach(item => {
-                const pos = item.mesh.position.clone().project(camera);
-                const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
-                const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
-                item.div.style.left = `${x}px`;
-                item.div.style.top = `${y + 55}px`;
-            });
-
-            networkObjects.gradientDisplays.forEach(item => {
-                const pos = item.mesh.position.clone().project(camera);
-                const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
-                const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
-                item.div.style.left = `${x}px`;
-                item.div.style.top = `${y - 60}px`;
-            });
-
-            networkObjects.weightLabels.forEach(({ div, connection }) => {
-                const midPos = new THREE.Vector3().lerpVectors(
-                    connection.startPos,
-                    connection.endPos,
-                    0.5
-                ).project(camera);
-                const x = (midPos.x * 0.5 + 0.5) * window.innerWidth;
-                const y = (-midPos.y * 0.5 + 0.5) * window.innerHeight;
-                div.style.left = `${x}px`;
-                div.style.top = `${y}px`;
-            });
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // INPUT CONTROLS
-        // ═══════════════════════════════════════════════════════════════
-
-        function createInputControls() {
-            document.getElementById('input1').value = state.inputs[0];
-            document.getElementById('input2').value = state.inputs[1];
-            document.getElementById('target').value = state.target;
+            neuron.inputSum = sum;
+            neuron.output = NeuralNetworkMath.sigmoid(sum);
             
-            document.getElementById('input1-display').innerText = state.inputs[0].toFixed(2);
-            document.getElementById('input2-display').innerText = state.inputs[1].toFixed(2);
-            document.getElementById('target-input-display').innerText = state.target.toFixed(2);
-            document.getElementById('target-display').innerText = state.target.toFixed(1);
+            // Animate neuron
+            setTimeout(() => {
+                this.pulseNeuron(neuron, CONFIG.colors.neuronActive);
+            }, 400 + idx * 200);
+        });
+
+        // Process output layer
+        const outputNeuron = this.neurons.find(n => n.type === 'output');
+        setTimeout(() => {
+            let sum = outputNeuron.bias;
+            outputNeuron.connectionsIn.forEach((conn, idx) => {
+                sum += conn.source.output * conn.weight;
+                this.animatePulse(conn, 'forward', idx * 100);
+            });
+            outputNeuron.inputSum = sum;
+            outputNeuron.output = NeuralNetworkMath.sigmoid(sum);
+            
+            setTimeout(() => {
+                this.pulseNeuron(outputNeuron, CONFIG.colors.neuronActive);
+                this.updateAllLabels();
+                this.updateNetworkValuesPanel();
+                this.showForwardResult();
+            }, 400);
+        }, 800);
+    }
+
+    showForwardResult() {
+        const output = this.neurons.find(n => n.type === 'output');
+        const loss = NeuralNetworkMath.squaredErrorLoss(this.targetValue, output.output);
+        
+        this.isForwardComplete = true;
+        
+        // Show math panel with loss
+        const panel = document.getElementById('math-panel');
+        panel.classList.add('visible');
+        
+        document.getElementById('math-title').textContent = 'Forward Pass Complete';
+        document.getElementById('math-eq').textContent = `Loss = ½(target - output)²`;
+        document.getElementById('math-sub').textContent = 
+            `= ½(${this.targetValue.toFixed(1)} - ${output.output.toFixed(4)})²`;
+        document.getElementById('math-res').textContent = `Loss = ${loss.toFixed(6)}`;
+        document.getElementById('math-desc').textContent = 
+            `Output: ${output.output.toFixed(4)} | Target: ${this.targetValue} | Error: ${(this.targetValue - output.output).toFixed(4)}`;
+
+        // Enable backprop
+        document.getElementById('btn-start-back').disabled = false;
+        this.setStatus('Forward pass complete! Click "Start Backprop" to compute gradients.', '#4cd964');
+    }
+
+    // --- BACKPROPAGATION ---
+    prepareBackprop() {
+        this.stepQueue = [];
+        const target = this.targetValue;
+        const outputNeuron = this.neurons.find(n => n.type === 'output');
+        const hiddenNeurons = this.neurons.filter(n => n.type === 'hidden');
+        const inputNeurons = this.neurons.filter(n => n.type === 'input');
+
+        // === Step 1: Output Error ===
+        const dL_dOut = NeuralNetworkMath.squaredErrorLossPrime(target, outputNeuron.output);
+        const dOut_dZ = NeuralNetworkMath.sigmoidPrime(outputNeuron.inputSum);
+        outputNeuron.delta = dL_dOut * dOut_dZ;
+
+        this.stepQueue.push({
+            type: 'output_delta',
+            neuron: outputNeuron,
+            title: 'Step 1: Output Error (δ₃)',
+            eq: 'δ₃ = ∂L/∂ŷ × ∂ŷ/∂z₃',
+            sub: `= (${outputNeuron.output.toFixed(4)} - ${target}) × σ'(${outputNeuron.inputSum.toFixed(4)})`,
+            detail: `= ${dL_dOut.toFixed(4)} × ${dOut_dZ.toFixed(4)}`,
+            res: `δ₃ = ${outputNeuron.delta.toFixed(6)}`,
+            desc: 'How much does changing the pre-activation z₃ affect the loss?',
+            highlightLocal: 'lg-loss'
+        });
+
+        // === Step 2: Output layer weight gradients ===
+        outputNeuron.connectionsIn.forEach((conn, idx) => {
+            conn.gradient = outputNeuron.delta * conn.source.output;
+            
+            this.stepQueue.push({
+                type: 'weight_gradient',
+                connection: conn,
+                title: `Step 2${String.fromCharCode(97 + idx)}: Weight Gradient (${conn.weightName})`,
+                eq: `∂L/∂${conn.weightName} = δ₃ × ${conn.source.name}`,
+                sub: `= ${outputNeuron.delta.toFixed(6)} × ${conn.source.output.toFixed(4)}`,
+                detail: '',
+                res: `∂L/∂${conn.weightName} = ${conn.gradient.toFixed(6)}`,
+                desc: `Gradient for ${conn.weightName}: how much this weight contributed to the error.`,
+                highlightLocal: 'lg-multiply'
+            });
+        });
+
+        // === Step 2c: Output bias gradient ===
+        outputNeuron.biasGradient = outputNeuron.delta;
+        this.stepQueue.push({
+            type: 'bias_gradient',
+            neuron: outputNeuron,
+            title: 'Step 2c: Bias Gradient (b₃)',
+            eq: '∂L/∂b₃ = δ₃ × 1',
+            sub: `= ${outputNeuron.delta.toFixed(6)}`,
+            detail: '',
+            res: `∂L/∂b₃ = ${outputNeuron.biasGradient.toFixed(6)}`,
+            desc: 'Bias gradient is simply the delta (since ∂z/∂b = 1).',
+            highlightLocal: 'lg-add'
+        });
+
+        // === Step 3: Propagate to hidden layer ===
+        hiddenNeurons.forEach((hNeuron, hIdx) => {
+            // Error flowing back through the weight
+            let errorSum = 0;
+            hNeuron.connectionsOut.forEach(conn => {
+                const contribution = conn.target.delta * conn.weight;
+                errorSum += contribution;
+                
+                this.stepQueue.push({
+                    type: 'error_flow',
+                    connection: conn,
+                    title: `Step 3: Error Flows Back to ${hNeuron.name}`,
+                    eq: `Error from output = δ₃ × ${conn.weightName}`,
+                    sub: `= ${conn.target.delta.toFixed(6)} × ${conn.weight.toFixed(2)}`,
+                    detail: '',
+                    res: `Contribution = ${contribution.toFixed(6)}`,
+                    desc: `The output error flows backward through ${conn.weightName}.`,
+                    highlightLocal: 'lg-multiply'
+                });
+            });
+
+            // Hidden neuron delta
+            const dH_dZ = NeuralNetworkMath.sigmoidPrime(hNeuron.inputSum);
+            hNeuron.delta = errorSum * dH_dZ;
+
+            this.stepQueue.push({
+                type: 'hidden_delta',
+                neuron: hNeuron,
+                title: `Step 4: Hidden Delta (δ for ${hNeuron.name})`,
+                eq: `δ_${hNeuron.name} = (Σ error_back) × σ'(z)`,
+                sub: `= ${errorSum.toFixed(6)} × ${dH_dZ.toFixed(4)}`,
+                detail: '',
+                res: `δ_${hNeuron.name} = ${hNeuron.delta.toFixed(6)}`,
+                desc: 'Accumulated error scaled by local activation derivative.',
+                highlightLocal: 'lg-sigmoid'
+            });
+
+            // Hidden layer weight gradients
+            hNeuron.connectionsIn.forEach((conn, cIdx) => {
+                conn.gradient = hNeuron.delta * conn.source.output;
+                
+                this.stepQueue.push({
+                    type: 'weight_gradient',
+                    connection: conn,
+                    title: `Step 5: Weight Gradient (${conn.weightName})`,
+                    eq: `∂L/∂${conn.weightName} = δ_${hNeuron.name} × ${conn.source.name}`,
+                    sub: `= ${hNeuron.delta.toFixed(6)} × ${conn.source.output.toFixed(2)}`,
+                    detail: '',
+                    res: `∂L/∂${conn.weightName} = ${conn.gradient.toFixed(6)}`,
+                    desc: `Gradient for input weight ${conn.weightName}.`,
+                    highlightLocal: 'lg-multiply'
+                });
+            });
+
+            // Hidden bias gradient
+            hNeuron.biasGradient = hNeuron.delta;
+            this.stepQueue.push({
+                type: 'bias_gradient',
+                neuron: hNeuron,
+                title: `Step 5: Bias Gradient (b for ${hNeuron.name})`,
+                eq: `∂L/∂b_${hNeuron.name} = δ_${hNeuron.name}`,
+                sub: `= ${hNeuron.delta.toFixed(6)}`,
+                detail: '',
+                res: `∂L/∂b = ${hNeuron.biasGradient.toFixed(6)}`,
+                desc: 'Bias gradient equals the delta.',
+                highlightLocal: 'lg-add'
+            });
+        });
+
+        // === Final Summary ===
+        this.stepQueue.push({
+            type: 'summary',
+            title: 'Backpropagation Complete!',
+            eq: 'All ∂L/∂w Computed',
+            sub: 'Ready for Gradient Descent',
+            detail: '',
+            res: `${this.connections.length} weight gradients + ${this.neurons.filter(n => n.type !== 'input').length} bias gradients`,
+            desc: 'We now know exactly how to nudge each weight to reduce the loss.',
+            highlightLocal: null
+        });
+
+        this.currentStepIndex = -1;
+        this.isBackpropActive = true;
+        
+        // Show progress
+        document.getElementById('progress-container').style.display = 'block';
+        this.updateProgress();
+        
+        document.getElementById('btn-next').disabled = false;
+        document.getElementById('btn-auto').disabled = false;
+        document.getElementById('btn-start-back').disabled = true;
+        
+        this.setStatus('Backprop initialized. Step through to see gradient computation.', '#ff6b6b');
+    }
+
+    executeStep(direction) {
+        if (this.isAnimating) return;
+        
+        if (direction === 'next' && this.currentStepIndex < this.stepQueue.length - 1) {
+            this.currentStepIndex++;
+        } else if (direction === 'prev' && this.currentStepIndex > 0) {
+            this.currentStepIndex--;
+        } else {
+            return;
+        }
+        
+        this.lockButtons();
+        const step = this.stepQueue[this.currentStepIndex];
+        this.renderStep(step);
+        this.updateProgress();
+        this.updateNetworkValuesPanel();
+    }
+
+    renderStep(step) {
+        // Update math panel
+        document.getElementById('math-title').textContent = step.title;
+        document.getElementById('math-eq').textContent = step.eq;
+        document.getElementById('math-sub').textContent = step.sub;
+        if (step.detail) {
+            document.getElementById('math-sub').textContent += '\n' + step.detail;
+        }
+        document.getElementById('math-res').textContent = step.res;
+        document.getElementById('math-desc').textContent = step.desc;
+        
+        // Highlight local gradient
+        document.querySelectorAll('.local-grad-item').forEach(el => el.classList.remove('active'));
+        if (step.highlightLocal) {
+            const el = document.getElementById(step.highlightLocal);
+            if (el) el.classList.add('active');
         }
 
-        document.getElementById('input1').addEventListener('input', (e) => {
-            state.inputs[0] = parseFloat(e.target.value);
-            document.getElementById('input1-display').innerText = state.inputs[0].toFixed(2);
-        });
+        // Visual effects based on step type
+        switch (step.type) {
+            case 'output_delta':
+            case 'hidden_delta':
+                this.pulseNeuron(step.neuron, CONFIG.colors.neuronBack);
+                step.neuron.gradLabelElement.textContent = `δ=${step.neuron.delta.toFixed(4)}`;
+                step.neuron.gradLabelElement.style.opacity = '1';
+                break;
+                
+            case 'weight_gradient':
+                this.pulseConnection(step.connection);
+                this.animatePulse(step.connection, 'backward');
+                // Update weight label to show gradient
+                if (step.connection.labelElement) {
+                    step.connection.labelElement.innerHTML = 
+                        `${step.connection.weightName}=${step.connection.weight.toFixed(2)}<br>` +
+                        `<span style="color:#ff6b6b">∇=${step.connection.gradient.toFixed(4)}</span>`;
+                }
+                break;
+                
+            case 'error_flow':
+                this.animatePulse(step.connection, 'backward');
+                this.pulseConnection(step.connection);
+                break;
+                
+            case 'bias_gradient':
+                this.pulseNeuron(step.neuron, CONFIG.colors.bias);
+                break;
+                
+            case 'summary':
+                // Flash all connections
+                this.connections.forEach((conn, i) => {
+                    setTimeout(() => this.pulseConnection(conn), i * 50);
+                });
+                break;
+        }
+    }
 
-        document.getElementById('input2').addEventListener('input', (e) => {
-            state.inputs[1] = parseFloat(e.target.value);
-            document.getElementById('input2-display').innerText = state.inputs[1].toFixed(2);
-        });
+    lockButtons() {
+        this.isAnimating = true;
+        document.getElementById('btn-next').disabled = true;
+        document.getElementById('btn-prev').disabled = true;
+        
+        setTimeout(() => {
+            this.isAnimating = false;
+            document.getElementById('btn-next').disabled = 
+                this.currentStepIndex >= this.stepQueue.length - 1;
+            document.getElementById('btn-prev').disabled = 
+                this.currentStepIndex <= 0;
+        }, CONFIG.animation.buttonLockTime);
+    }
 
-        document.getElementById('target').addEventListener('input', (e) => {
-            state.target = parseFloat(e.target.value);
-            document.getElementById('target-input-display').innerText = state.target.toFixed(2);
-            document.getElementById('target-display').innerText = state.target.toFixed(1);
-        });
+    updateProgress() {
+        const total = this.stepQueue.length;
+        const current = this.currentStepIndex + 1;
+        const percent = total > 0 ? (current / total) * 100 : 0;
+        
+        document.getElementById('step-counter').textContent = `${current} / ${total}`;
+        document.getElementById('progress-fill').style.width = `${percent}%`;
+    }
 
-        // ═══════════════════════════════════════════════════════════════
-        // EVENT HANDLERS
-        // ═══════════════════════════════════════════════════════════════
+    // --- ANIMATION HELPERS ---
+    pulseNeuron(neuron, color) {
+        if (!neuron || !neuron.mesh) return;
+        
+        const colorObj = new THREE.Color(color);
+        new TWEEN.Tween(neuron.mesh.material.emissive)
+            .to({ r: colorObj.r * 0.8, g: colorObj.g * 0.8, b: colorObj.b * 0.8 }, CONFIG.animation.pulseDuration)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .yoyo(true)
+            .repeat(CONFIG.animation.pulseRepeats)
+            .start();
+    }
+
+    pulseConnection(conn) {
+        if (!conn || !conn.mesh) return;
+        
+        new TWEEN.Tween(conn.mesh.material)
+            .to({ opacity: 1 }, CONFIG.animation.pulseDuration / 2)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .yoyo(true)
+            .repeat(1)
+            .start();
+    }
+
+    animatePulse(conn, direction, delay = 0) {
+        setTimeout(() => {
+            const geometry = new THREE.SphereGeometry(0.25, 12, 12);
+            const color = direction === 'forward' 
+                ? CONFIG.colors.signalForward 
+                : CONFIG.colors.signalBackward;
+            const material = new THREE.MeshBasicMaterial({ color });
+            const particle = new THREE.Mesh(geometry, material);
+            
+            const startPos = direction === 'forward' 
+                ? conn.source.position.clone() 
+                : conn.target.position.clone();
+            const endPos = direction === 'forward' 
+                ? conn.target.position.clone() 
+                : conn.source.position.clone();
+            
+            particle.position.copy(startPos);
+            this.scene.add(particle);
+
+            new TWEEN.Tween(particle.position)
+                .to({ x: endPos.x, y: endPos.y, z: endPos.z }, CONFIG.animation.particleSpeed)
+                .easing(TWEEN.Easing.Quadratic.InOut)
+                .onComplete(() => {
+                    this.scene.remove(particle);
+                    particle.geometry.dispose();
+                    particle.material.dispose();
+                })
+                .start();
+        }, delay);
+    }
+
+    // --- AUTO PLAY ---
+    toggleAutoPlay() {
+        if (this.autoPlayInterval) {
+            clearInterval(this.autoPlayInterval);
+            this.autoPlayInterval = null;
+            document.getElementById('btn-auto').textContent = '▶ Auto Play';
+        } else {
+            document.getElementById('btn-auto').textContent = '⏸ Pause';
+            this.autoPlayInterval = setInterval(() => {
+                if (this.currentStepIndex >= this.stepQueue.length - 1) {
+                    this.toggleAutoPlay();
+                    return;
+                }
+                this.executeStep('next');
+            }, CONFIG.animation.stepDelay);
+        }
+    }
+
+    // --- RESET ---
+    resetVisuals() {
+        this.neurons.forEach(n => {
+            if (n.mesh) n.mesh.material.emissive.setHex(0x000000);
+            if (n.gradLabelElement) n.gradLabelElement.style.opacity = '0';
+            n.delta = 0;
+            n.biasGradient = 0;
+        });
+        
+        this.connections.forEach(c => {
+            if (c.mesh) {
+                c.mesh.material.opacity = 0.4;
+                c.mesh.material.color.setHex(CONFIG.colors.connection);
+            }
+            c.gradient = 0;
+            if (c.labelElement) {
+                c.labelElement.textContent = `${c.weightName}=${c.weight.toFixed(2)}`;
+            }
+        });
+        
+        document.querySelectorAll('.local-grad-item').forEach(el => el.classList.remove('active'));
+        document.getElementById('math-panel').classList.remove('visible');
+        document.getElementById('progress-container').style.display = 'none';
+    }
+
+    resetAll() {
+        if (this.autoPlayInterval) {
+            clearInterval(this.autoPlayInterval);
+            this.autoPlayInterval = null;
+        }
+        
+        this.resetVisuals();
+        
+        // Reset neuron values
+        this.neurons.forEach(n => {
+            if (n.type !== 'input') {
+                n.output = 0;
+                n.inputSum = 0;
+            }
+        });
+        
+        this.isForwardComplete = false;
+        this.isBackpropActive = false;
+        this.stepQueue = [];
+        this.currentStepIndex = -1;
+        
+        document.getElementById('btn-start-back').disabled = true;
+        document.getElementById('btn-next').disabled = true;
+        document.getElementById('btn-prev').disabled = true;
+        document.getElementById('btn-auto').disabled = true;
+        document.getElementById('btn-auto').textContent = '▶ Auto Play';
+        
+        this.updateAllLabels();
+        this.updateNetworkValuesPanel();
+        this.setStatus('Reset complete. Ready to run forward pass.', '#888');
+    }
+
+    // --- UI HELPERS ---
+    updateNetworkValuesPanel() {
+        const content = document.getElementById('values-content');
+        let html = '';
+        
+        // Weights
+        this.connections.forEach(conn => {
+            const gradStr = conn.gradient !== 0 
+                ? `<span class="value-grad">${conn.gradient.toFixed(5)}</span>` 
+                : '-';
+            html += `<div class="value-row">
+                <span class="value-label">${conn.weightName}</span>
+                <span class="value-num">${conn.weight.toFixed(2)}</span>
+                ${gradStr}
+            </div>`;
+        });
+        
+        // Biases
+        this.neurons.filter(n => n.type !== 'input').forEach(n => {
+            const name = n.type === 'output' ? 'b₃' : `b${n.indexInLayer + 1}`;
+            const gradStr = n.biasGradient !== 0 
+                ? `<span class="value-grad">${n.biasGradient.toFixed(5)}</span>` 
+                : '-';
+            html += `<div class="value-row">
+                <span class="value-label">${name}</span>
+                <span class="value-num">${n.bias.toFixed(2)}</span>
+                ${gradStr}
+            </div>`;
+        });
+        
+        content.innerHTML = html;
+    }
+
+    setStatus(text, color = '#4facfe') {
+        const el = document.getElementById('status-text');
+        el.textContent = text;
+        el.parentElement.style.borderLeftColor = color;
+    }
+
+    // --- EVENT HANDLERS ---
+    initUI() {
+        document.getElementById('target-slider').addEventListener('input', (e) => {
+            this.targetValue = parseFloat(e.target.value);
+            document.getElementById('target-val').textContent = this.targetValue.toFixed(1);
+            
+            if (this.isForwardComplete || this.isBackpropActive) {
+                document.getElementById('btn-start-back').disabled = true;
+                this.setStatus('Target changed. Run forward pass again.', '#ffcc00');
+            }
+        });
 
         document.getElementById('btn-forward').addEventListener('click', () => {
-            resetNetwork();
-            state.isPlaying = true;
-            updatePlayButton();
-            runForwardPass();
+            this.resetAll();
+            this.runForwardPass();
         });
 
-        document.getElementById('btn-backprop').addEventListener('click', () => {
-            state.isPlaying = true;
-            updatePlayButton();
-            runBackwardPass();
-        });
-
-        document.getElementById('btn-reset').addEventListener('click', resetNetwork);
-
-        document.getElementById('btn-play-pause').addEventListener('click', () => {
-            state.isPlaying = !state.isPlaying;
-            updatePlayButton();
-
-            if (state.isPlaying) {
-                if (state.phase === 'forward_done') {
-                    runBackwardPass();
-                } else if (state.phase === 'backward') {
-                    state.backwardStep++;
-                    if (state.backwardStep <= 5) {
-                        executeBackwardStep();
-                    }
-                }
-            }
+        document.getElementById('btn-start-back').addEventListener('click', () => {
+            this.prepareBackprop();
+            this.executeStep('next');
         });
 
         document.getElementById('btn-next').addEventListener('click', () => {
-            state.isPlaying = false;
-            updatePlayButton();
-
-            if (state.phase === 'forward_done') {
-                runBackwardPass();
-            } else if (state.phase === 'backward' && state.backwardStep < 5) {
-                state.backwardStep++;
-                executeBackwardStep();
-            }
+            this.executeStep('next');
         });
 
         document.getElementById('btn-prev').addEventListener('click', () => {
-            state.isPlaying = false;
-            updatePlayButton();
-
-            if (state.phase === 'backward' && state.backwardStep > 0) {
-                state.backwardStep--;
-                executeBackwardStep();
-            }
+            this.executeStep('prev');
         });
 
-        document.getElementById('speed-slider').addEventListener('input', (e) => {
-            state.speed = parseFloat(e.target.value);
+        document.getElementById('btn-auto').addEventListener('click', () => {
+            this.toggleAutoPlay();
         });
 
-        function resetNetwork() {
-            state.phase = 'idle';
-            state.forwardStep = 0;
-            state.backwardStep = 0;
-            state.isPlaying = false;
-            state.layerValues = NETWORK_SHAPE.map(n => new Array(n).fill(0));
-            state.preActivations = NETWORK_SHAPE.map(n => new Array(n).fill(0));
-            state.prediction = 0;
-            state.loss = 0;
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            this.resetAll();
+        });
+    }
 
-            // Reset gradients
-            state.gradients = {
-                dL_dy: 0, dy_dz2: 0, delta_out: 0,
-                dL_dW2: [], dL_db2: 0, dL_dh: [],
-                dh_dz1: [], delta_hidden: [], dL_dW1: [], dL_db1: []
-            };
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.updateAllLabels();
+    }
 
-            // Reset visuals
-            networkObjects.neurons.flat().forEach(m => {
-                m.material.color.setHex(0x1e293b);
-                m.material.emissive.setHex(0x000000);
-                m.material.emissiveIntensity = 0;
-                m.userData.ring.material.opacity = 0;
-            });
+    onMouseMove(event) {
+        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        this.mouseRaw.x = event.clientX;
+        this.mouseRaw.y = event.clientY;
+    }
 
-            networkObjects.connections.forEach(c => {
-                c.gradient = 0;
-                const isPositive = c.weight >= 0;
-                c.mesh.material.color.setHex(isPositive ? 0x38bdf8 : 0xf43f5e);
-                c.mesh.material.opacity = 0.15 + Math.abs(c.weight) * 0.35;
-                if (c.labelEl) {
-                    c.labelEl.innerHTML = `w=${c.weight.toFixed(2)}`;
-                }
-            });
-
-            networkObjects.pulses.forEach(p => scene.remove(p.mesh));
-            networkObjects.pulses = [];
-
-            resetGradientDisplays();
-
-            // Reset labels
-            for (let l = 0; l < NETWORK_SHAPE.length; l++) {
-                for (let n = 0; n < NETWORK_SHAPE[l]; n++) {
-                    const el = document.getElementById(`val-${l}-${n}`);
-                    if (el) el.innerText = '—';
-                    const preEl = document.getElementById(`preact-${l}-${n}`);
-                    if (preEl) preEl.innerText = '';
+    // --- ANIMATION LOOP ---
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        TWEEN.update();
+        
+        // Tooltip on hover
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObjects(
+            this.neurons.map(n => n.mesh).filter(m => m), 
+            false
+        );
+        
+        const tooltip = document.getElementById('tooltip');
+        if (intersects.length > 0) {
+            const obj = intersects[0].object;
+            if (obj.userData.isNeuron) {
+                const neuron = this.neurons.find(n => n.id === obj.userData.id);
+                if (neuron) {
+                    tooltip.style.opacity = '1';
+                    tooltip.style.left = (this.mouseRaw.x + 15) + 'px';
+                    tooltip.style.top = (this.mouseRaw.y + 15) + 'px';
+                    
+                    let html = `<strong>${neuron.name} (${neuron.type})</strong>`;
+                    if (neuron.type !== 'input') {
+                        html += `
+                            <div class="tt-row"><span class="tt-label">z (input sum):</span><span class="tt-val">${neuron.inputSum.toFixed(4)}</span></div>
+                            <div class="tt-row"><span class="tt-label">a (output):</span><span class="tt-val">${neuron.output.toFixed(4)}</span></div>
+                            <div class="tt-row"><span class="tt-label">bias:</span><span class="tt-val">${neuron.bias.toFixed(2)}</span></div>
+                            <div class="tt-row"><span class="tt-label">δ (delta):</span><span class="tt-val">${neuron.delta.toFixed(6)}</span></div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="tt-row"><span class="tt-label">value:</span><span class="tt-val">${neuron.output.toFixed(2)}</span></div>
+                        `;
+                    }
+                    tooltip.innerHTML = html;
                 }
             }
-
-            document.getElementById('prediction-display').innerText = '—';
-            document.getElementById('loss-display').innerText = '—';
-
-            // Reset UI
-            document.getElementById('btn-backprop').disabled = true;
-            document.getElementById('btn-play-pause').disabled = true;
-            document.getElementById('btn-next').disabled = true;
-            document.getElementById('btn-prev').disabled = true;
-            updatePlayButton();
-            updateUI();
-
-            // Reset math panel
-            document.getElementById('math-title').innerText = 'Ready to Begin';
-            document.getElementById('math-description').innerText = 'Run forward pass first, then click Backpropagate to trace gradients.';
-            document.getElementById('math-content').innerHTML = '';
-            document.getElementById('step-counter').innerText = 'Step 0/6';
+        } else {
+            tooltip.style.opacity = '0';
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // ANIMATION LOOP
-        // ═══════════════════════════════════════════════════════════════
+        this.controls.update();
+        this.updateAllLabels();
+        this.renderer.render(this.scene, this.camera);
+    }
+}
 
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-
-            // Update pulses
-            for (let i = networkObjects.pulses.length - 1; i >= 0; i--) {
-                const p = networkObjects.pulses[i];
-                p.progress += p.speed;
-                if (p.progress >= 1) {
-                    p.onComplete();
-                    networkObjects.pulses.splice(i, 1);
-                } else {
-                    p.mesh.position.lerpVectors(p.start, p.end, p.progress);
-                }
-            }
-
-            // Billboard rings
-            networkObjects.neurons.flat().forEach(m => {
-                if (m.userData.ring) {
-                    m.userData.ring.lookAt(camera.position);
-                }
-            });
-
-            updateLabelPositions();
-            renderer.render(scene, camera);
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // STARTUP
-        // ═══════════════════════════════════════════════════════════════
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        initNetwork();
-        animate();
-
-    </script>
+// Initialize
+window.addEventListener('DOMContentLoaded', () => {
+    new BackpropVisualization();
+});
+</script>
 </body>
 </html>

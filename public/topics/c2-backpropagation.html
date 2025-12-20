@@ -10,6 +10,163 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+
+    /* Table styles for content */
+    .content-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.9rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .content-table th, .content-table td {
+      padding: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: left;
+    }
+    .content-table th {
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+    }
+    .content-table tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +194,418 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-c">Neural Network Ops</a>
-        <span>›</span>
-        <span>C2</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-c)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-c)">C2</span>
-          <span class="topic-category">Neural Network Operations</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/C2-backprop-visualization.html" title="Backpropagation Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Backpropagation Walkthrough</h1>
-        <p class="topic-description">Error gradients flowing backwards. Chain rule at each node, accumulating gradients.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-c">Neural Network Ops</a>
+          <span>›</span>
+          <span>C2</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-c)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-c)">C2</span>
+            <span class="topic-category">Neural Network Operations</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Backpropagation Walkthrough</h1>
+          <p class="topic-description">Computing Gradients Layer by Layer</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <p>You've seen data flow forward through a network, transforming inputs into outputs. Now we reverse direction. Backpropagation sends error signals backward, computing exactly how much each weight contributed to the mistake. This is how neural networks learn.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>The Goal of Backpropagation</h2>
+              <p>A neural network starts with random weights. It makes predictions, and those predictions are wrong. The question is: <strong>how do we fix the weights?</strong></p>
+              <p>We need to know, for every single weight in the network:</p>
+              <blockquote>"If I nudge this weight up slightly, will the error go up or down? And by how much?"</blockquote>
+              <p>Mathematically, we want <strong>∂Loss/∂w</strong> for every weight <strong>w</strong>. This is the partial derivative of the loss with respect to each weight—the gradient.</p>
+              <p>Once we have these gradients, we can adjust weights in the direction that reduces error. But computing them is the challenge. A network might have millions of weights. How do we efficiently compute millions of derivatives?</p>
+              <p><strong>Backpropagation</strong> is the answer.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Why Backwards?</h2>
+              <p>Here's a key insight: we could compute gradients going forward, but it would be incredibly wasteful.</p>
+              <p>Imagine computing "how does weight w₁ affect the loss?" You'd trace w₁'s influence through every layer, through every neuron it touches, all the way to the output and loss. Then you'd do it again for w₂, and again for w₃, and so on. For each weight, you'd traverse the entire network.</p>
+              <p><strong>Backward is better.</strong> Start at the loss and work backward. At each layer, you compute how the loss depends on that layer's outputs. Then you use that to compute how it depends on the layer's inputs and weights. One backward pass gives you gradients for ALL weights simultaneously.</p>
+              <p>This is called <strong>reverse-mode automatic differentiation</strong>, and it's the mathematical foundation of backpropagation.</p>
+              <p>Think of it like this: if you want to know how a river's source affects every downstream town, you could start at the source and trace every tributary. Or you could start at each town and trace back to the source—but that's inefficient if there are many towns. The backward approach traces from the final destination (the loss) back toward all sources (the weights) in one sweep.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>The Chain Rule Connection</h2>
+              <p>Backpropagation is the chain rule, applied systematically.</p>
+              <p>Remember from calculus: if <strong>y = f(g(x))</strong>, then:</p>
+              <div class="formula-box">dy/dx = (dy/dg) × (dg/dx)</div>
+              <p>A neural network is just nested functions. Let's trace the dependencies:</p>
+              <div class="formula-box">
+                Loss depends on → Output (y)<br>
+                Output depends on → Pre-activation (z₂)<br>
+                Pre-activation depends on → Hidden values (h) and Weights (W₂)<br>
+                Hidden values depend on → Pre-activation (z₁)<br>
+                Pre-activation depends on → Inputs (x) and Weights (W₁)
+              </div>
+              <p>To find how Loss depends on W₁, we chain through every intermediate step:</p>
+              <div class="formula-box">∂Loss/∂W₁ = (∂Loss/∂y) × (∂y/∂z₂) × (∂z₂/∂h) × (∂h/∂z₁) × (∂z₁/∂W₁)</div>
+              <p>Each factor is a "local gradient"—how one quantity directly affects the next. Backprop computes these local gradients and multiplies them together as it moves backward.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>The Local Gradient</h2>
+              <p>Every operation in a neural network has a local gradient—the derivative of its output with respect to its input.</p>
+              <p>Here are the local gradients for operations we'll encounter:</p>
+              
+              <table class="content-table">
+                <thead>
+                  <tr>
+                    <th>Operation</th>
+                    <th>Forward</th>
+                    <th>Local Gradient (∂out/∂in)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Weighted sum: z = wx + b</td>
+                    <td>z = wx + b</td>
+                    <td>∂z/∂w = x, ∂z/∂x = w, ∂z/∂b = 1</td>
+                  </tr>
+                  <tr>
+                    <td>ReLU: h = max(0, z)</td>
+                    <td>h = max(0, z)</td>
+                    <td>1 if z > 0, else 0</td>
+                  </tr>
+                  <tr>
+                    <td>Sigmoid: h = σ(z)</td>
+                    <td>h = 1/(1+e⁻ᶻ)</td>
+                    <td>h(1 - h)</td>
+                  </tr>
+                  <tr>
+                    <td>MSE Loss: L = ½(y - t)²</td>
+                    <td>L = ½(y - t)²</td>
+                    <td>∂L/∂y = (y - t)</td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <p>During the backward pass, each node receives a gradient from above (how the loss changes with its output) and multiplies by its local gradient to pass the signal backward.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Step-by-Step Backpropagation</h2>
+              <p>Let's walk through the backward pass conceptually before we crunch numbers.</p>
+              
+              <h3>Step 1: Compute Loss Gradient</h3>
+              <p>Start at the loss function. For Mean Squared Error with target <strong>t</strong> and prediction <strong>y</strong>:</p>
+              <div class="formula-box">∂Loss/∂y = (y - t)</div>
+              <p>This tells us: "For each unit the prediction is off, the loss changes by that amount."</p>
+
+              <h3>Step 2: Backprop Through Output Activation</h3>
+              <p>The output <strong>y</strong> came from an activation function applied to <strong>z₂</strong>:</p>
+              <div class="formula-box">y = activation(z₂)</div>
+              <p>Using the chain rule:</p>
+              <div class="formula-box">∂Loss/∂z₂ = (∂Loss/∂y) × (∂y/∂z₂)</div>
+              <p>The second factor is the activation derivative. For sigmoid: <strong>∂y/∂z₂ = y(1 - y)</strong></p>
+
+              <h3>Step 3: Compute Weight Gradients for Output Layer</h3>
+              <p>The pre-activation <strong>z₂</strong> was computed as:</p>
+              <div class="formula-box">z₂ = W₂ · h + b₂</div>
+              <p>So:</p>
+              <ul>
+                <li><strong>∂z₂/∂W₂ = h</strong> (the hidden layer values)</li>
+                <li><strong>∂z₂/∂b₂ = 1</strong></li>
+                <li><strong>∂z₂/∂h = W₂</strong> (the weights, for passing gradient backward)</li>
+              </ul>
+              <p>Weight gradient:</p>
+              <div class="formula-box">∂Loss/∂W₂ = (∂Loss/∂z₂) × h</div>
+              <p>Bias gradient:</p>
+              <div class="formula-box">∂Loss/∂b₂ = ∂Loss/∂z₂</div>
+
+              <h3>Step 4: Backprop to Hidden Layer</h3>
+              <p>To continue backward, we need the gradient with respect to the hidden layer outputs:</p>
+              <div class="formula-box">∂Loss/∂h = (∂Loss/∂z₂) × W₂</div>
+
+              <h3>Step 5: Backprop Through Hidden Activation</h3>
+              <p>The hidden values <strong>h</strong> came from activating <strong>z₁</strong>:</p>
+              <div class="formula-box">∂Loss/∂z₁ = (∂Loss/∂h) × (∂h/∂z₁)</div>
+              <p>For ReLU, <strong>∂h/∂z₁</strong> is 1 if z₁ > 0, else 0.</p>
+
+              <h3>Step 6: Compute Weight Gradients for Hidden Layer</h3>
+              <p>Finally:</p>
+              <div class="formula-box">
+                ∂Loss/∂W₁ = (∂Loss/∂z₁) × x<br>
+                ∂Loss/∂b₁ = ∂Loss/∂z₁
+              </div>
+              <p>We now have gradients for every weight and bias in the network.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Gradient Accumulation</h2>
+              <p>What happens when one neuron sends its output to multiple neurons in the next layer? The gradients <strong>add up</strong>.</p>
+              <p>If hidden neuron h₁ feeds into both output neurons, the gradient flowing back to h₁ is the <strong>sum</strong> of gradients from both paths:</p>
+              <div class="formula-box">∂Loss/∂h₁ = (∂Loss/∂z₂₁) × w₁₁ + (∂Loss/∂z₂₂) × w₂₁</div>
+              <p>This is the multivariate chain rule in action. When a variable affects the output through multiple paths, you sum the contributions from each path.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Worked Example with Numbers</h2>
+              <p>Let's compute exact gradients for the network from our forward pass example.</p>
+              
+              <h3>Network Recap (from C1)</h3>
+              <p><strong>Architecture</strong>: 2 inputs → 2 hidden neurons → 1 output</p>
+              <p><strong>Forward Pass Results</strong> (with inputs x = [0.5, 0.8]):</p>
+              
+              <table class="content-table">
+                <thead>
+                  <tr>
+                    <th>Layer</th>
+                    <th>Pre-activation (z)</th>
+                    <th>After Activation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Input</td>
+                    <td>—</td>
+                    <td>x = [0.5, 0.8]</td>
+                  </tr>
+                  <tr>
+                    <td>Hidden</td>
+                    <td>z₁ = [0.54, 0.20]</td>
+                    <td>h = [0.54, 0.20] (ReLU)</td>
+                  </tr>
+                  <tr>
+                    <td>Output</td>
+                    <td>z₂ = [0.444]</td>
+                    <td>y = [0.609] (Sigmoid)</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <p><strong>Weights and Biases</strong>:</p>
+              <div class="formula-box">
+W₁ = | 0.4   0.3 |    b₁ = [0.1, -0.1]
+     |-0.2   0.5 |
+
+W₂ = | 0.6  -0.4 |    b₂ = [0.2]
+              </div>
+              <p><strong>Target</strong>: Let's say the true label is <strong>t = 1.0</strong></p>
+              <p><strong>Loss</strong> (Mean Squared Error):</p>
+              <div class="formula-box">L = ½(y - t)² = ½(0.609 - 1.0)² = ½(-0.391)² = ½(0.153) = 0.0765</div>
+              <p>Now let's backpropagate!</p>
+
+              <h3>Backward Pass Step 1: Loss → Output</h3>
+              <p><strong>Gradient of Loss with respect to y:</strong></p>
+              <div class="formula-box">∂L/∂y = (y - t) = 0.609 - 1.0 = -0.391</div>
+              <p>This is negative, meaning: to reduce loss, we need y to <strong>increase</strong> (since it's below the target).</p>
+
+              <h3>Backward Pass Step 2: Output Activation</h3>
+              <p><strong>Gradient through sigmoid:</strong> The sigmoid derivative is <strong>y(1 - y)</strong>:</p>
+              <div class="formula-box">∂y/∂z₂ = y × (1 - y) = 0.609 × (1 - 0.609) = 0.609 × 0.391 = 0.238</div>
+              <p><strong>Chain rule to get ∂L/∂z₂:</strong></p>
+              <div class="formula-box">
+∂L/∂z₂ = (∂L/∂y) × (∂y/∂z₂)
+       = (-0.391) × (0.238)
+       = -0.093
+              </div>
+
+              <h3>Backward Pass Step 3: Output Layer Weights</h3>
+              <p>Recall: <strong>z₂ = W₂ · h + b₂ = 0.6×h₁ + (-0.4)×h₂ + 0.2</strong></p>
+              <p><strong>Gradient for W₂:</strong></p>
+              <p>For the weight connecting h₁ to output (w = 0.6):</p>
+              <div class="formula-box">
+∂L/∂w₂₁ = (∂L/∂z₂) × (∂z₂/∂w₂₁)
+        = (∂L/∂z₂) × h₁
+        = (-0.093) × (0.54)
+        = -0.050
+              </div>
+              <p>For the weight connecting h₂ to output (w = -0.4):</p>
+              <div class="formula-box">
+∂L/∂w₂₂ = (∂L/∂z₂) × h₂
+        = (-0.093) × (0.20)
+        = -0.019
+              </div>
+              <p><strong>Gradient for b₂:</strong></p>
+              <div class="formula-box">∂L/∂b₂ = ∂L/∂z₂ = -0.093</div>
+              <p><strong>Summary of output layer gradients:</strong></p>
+              <div class="formula-box">
+∂L/∂W₂ = [-0.050, -0.019]
+∂L/∂b₂ = -0.093
+              </div>
+
+              <h3>Backward Pass Step 4: Hidden Layer Values</h3>
+              <p><strong>Gradient flowing back to hidden layer:</strong></p>
+              <div class="formula-box">
+∂L/∂h₁ = (∂L/∂z₂) × (∂z₂/∂h₁) = (-0.093) × (0.6) = -0.056
+∂L/∂h₂ = (∂L/∂z₂) × (∂z₂/∂h₂) = (-0.093) × (-0.4) = 0.037
+              </div>
+              <p>Note how h₂'s weight is negative (-0.4), so the gradient flips sign!</p>
+
+              <h3>Backward Pass Step 5: Hidden Activation (ReLU)</h3>
+              <p><strong>Gradient through ReLU:</strong> ReLU derivative is 1 if z > 0, else 0.</p>
+              <p>Both z₁₁ = 0.54 and z₁₂ = 0.20 are positive, so ReLU passes gradients through unchanged:</p>
+              <div class="formula-box">
+∂L/∂z₁₁ = (∂L/∂h₁) × 1 = -0.056
+∂L/∂z₁₂ = (∂L/∂h₂) × 1 = 0.037
+              </div>
+              <p>If either pre-activation had been negative (and thus ReLU'd to zero), its gradient would be zero—the "dying ReLU" phenomenon.</p>
+
+              <h3>Backward Pass Step 6: Hidden Layer Weights</h3>
+              <p><strong>Gradients for W₁:</strong></p>
+              <p>For h₁'s weights (first row of W₁):</p>
+              <div class="formula-box">
+∂L/∂w₁₁ = (∂L/∂z₁₁) × x₁ = (-0.056) × (0.5) = -0.028
+∂L/∂w₁₂ = (∂L/∂z₁₁) × x₂ = (-0.056) × (0.8) = -0.045
+              </div>
+              <p>For h₂'s weights (second row of W₁):</p>
+              <div class="formula-box">
+∂L/∂w₂₁ = (∂L/∂z₁₂) × x₁ = (0.037) × (0.5) = 0.019
+∂L/∂w₂₂ = (∂L/∂z₁₂) × x₂ = (0.037) × (0.8) = 0.030
+              </div>
+              <p><strong>Gradients for b₁:</strong></p>
+              <div class="formula-box">
+∂L/∂b₁₁ = ∂L/∂z₁₁ = -0.056
+∂L/∂b₁₂ = ∂L/∂z₁₂ = 0.037
+              </div>
+
+              <h3>Complete Gradient Summary</h3>
+              <table class="content-table">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Value</th>
+                    <th>Gradient (∂L/∂param)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>w₁₁ (x₁ → h₁)</td><td>0.4</td><td><strong>-0.028</strong></td></tr>
+                  <tr><td>w₁₂ (x₂ → h₁)</td><td>0.3</td><td><strong>-0.045</strong></td></tr>
+                  <tr><td>w₂₁ (x₁ → h₂)</td><td>-0.2</td><td><strong>+0.019</strong></td></tr>
+                  <tr><td>w₂₂ (x₂ → h₂)</td><td>0.5</td><td><strong>+0.030</strong></td></tr>
+                  <tr><td>b₁₁</td><td>0.1</td><td><strong>-0.056</strong></td></tr>
+                  <tr><td>b₁₂</td><td>-0.1</td><td><strong>+0.037</strong></td></tr>
+                  <tr><td>w₂₁ (h₁ → y)</td><td>0.6</td><td><strong>-0.050</strong></td></tr>
+                  <tr><td>w₂₂ (h₂ → y)</td><td>-0.4</td><td><strong>-0.019</strong></td></tr>
+                  <tr><td>b₂</td><td>0.2</td><td><strong>-0.093</strong></td></tr>
+                </tbody>
+              </table>
+
+              <p><strong>Interpreting the gradients:</strong></p>
+              <ul>
+                <li>Negative gradients mean "increase this weight to reduce loss"</li>
+                <li>Positive gradients mean "decrease this weight to reduce loss"</li>
+                <li>Larger magnitude = this weight has more influence on the error</li>
+              </ul>
+              <p>For example, w₁₂ has gradient -0.045. If we increase w₁₂, the loss will decrease. This makes sense: we want a higher output (to get closer to target 1.0), and increasing weights along the positive-valued path helps achieve that.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>The Weight Update (Preview of Gradient Descent)</h2>
+              <p>With gradients computed, updating weights is simple:</p>
+              <div class="formula-box">w_new = w_old - learning_rate × gradient</div>
+              <p>If learning rate = 0.1:</p>
+              <div class="formula-box">w₁₂_new = 0.3 - (0.1 × -0.045) = 0.3 + 0.0045 = 0.3045</div>
+              <p>The weight increases slightly, nudging the network toward better predictions. Repeat this for all weights, run another forward pass, compute new gradients, update again. This is training.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Why This Matters for ML/AI</h2>
+              <h3>Backprop Enables Deep Learning</h3>
+              <p>Without backpropagation, we couldn't train deep networks. Computing gradients by other methods (like finite differences) would require forward passes proportional to the number of weights—impossibly slow for networks with millions of parameters.</p>
+              <p>Backprop computes all gradients in roughly the same time as one forward pass. This efficiency unlocked modern deep learning.</p>
+              
+              <h3>Automatic Differentiation</h3>
+              <p>You rarely implement backprop manually. Libraries like PyTorch and TensorFlow implement <strong>automatic differentiation</strong>—they build a computational graph during the forward pass and automatically apply the chain rule backward.</p>
+              <p>When you write:</p>
+              <div class="formula-box">loss.backward()  # PyTorch</div>
+              <p>The library traverses the graph in reverse, computing exactly the gradients we calculated manually.</p>
+              
+              <h3>Understanding Helps Debugging</h3>
+              <p>Even though it's automated, understanding backprop helps you:</p>
+              <ul>
+                <li>Debug vanishing/exploding gradients</li>
+                <li>Understand why certain architectures train better</li>
+                <li>Interpret gradient-based analysis (saliency maps, adversarial examples)</li>
+                <li>Design custom layers with correct gradient computations</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>Common Confusions</h2>
+              <h3>Backprop ≠ Gradient Descent</h3>
+              <p><strong>Backpropagation</strong> computes gradients. It answers: "What is ∂Loss/∂w for each weight?"</p>
+              <p><strong>Gradient descent</strong> uses those gradients to update weights. It's the optimization algorithm.</p>
+              <p>They work together, but they're distinct concepts. You could compute gradients with backprop and use a different optimizer (Adam, RMSprop, etc.) to update weights.</p>
+              
+              <h3>Why Multiply, Not Add?</h3>
+              <p>Some students wonder: "Why do we multiply gradients along the path instead of adding them?"</p>
+              <p>The chain rule requires multiplication. If f(x) = 2x and g(f) = 3f, then:</p>
+              <ul>
+                <li>A small change δ in x causes change 2δ in f</li>
+                <li>That 2δ change in f causes change 3×2δ = 6δ in g</li>
+              </ul>
+              <p>The effects <strong>compound</strong>, they don't just sum. The chain rule captures this compounding through multiplication.</p>
+              <p>We only <strong>add</strong> gradients when a single variable affects the loss through multiple independent paths (gradient accumulation).</p>
+              
+              <h3>Gradients Flow Backward, Updates Happen Later</h3>
+              <p>Don't confuse the backward pass with weight updates. During backprop, weights don't change—we're just computing gradients. The weights update afterward, typically after processing a batch of examples.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Key Takeaways</h2>
+              <ol>
+                <li><strong>Backprop computes ∂Loss/∂w for every weight</strong> in one backward pass</li>
+                <li><strong>Backward is efficient</strong>: one pass gives all gradients, versus one pass per weight going forward</li>
+                <li><strong>It's the chain rule applied systematically</strong>: multiply local gradients as you move backward</li>
+                <li><strong>Each operation has a local gradient</strong>: the derivative of its output with respect to input</li>
+                <li><strong>Gradients accumulate (add) across multiple paths</strong> from a single source</li>
+                <li><strong>Negative gradient means "increase weight"</strong>; positive means "decrease weight"</li>
+                <li><strong>Autodiff libraries do this automatically</strong>, but understanding helps debugging and architecture design</li>
+              </ol>
+              <p>In your visualization, watch the gradients flow backward—starting at the loss, multiplying through each layer, accumulating at weights. Each colored path shows the chain rule in action, computing how the tiniest weight change would ripple forward to affect the final loss.</p>
+            </section>
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="c1-forward-pass.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← C1: Forward Pass</span>
+          </a>
+          <a href="c3-computational-graph.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">C3: Computational Graph →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="c1-forward-pass.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← C1: Forward Pass</span>
-        </a>
-        <a href="c3-computational-graph.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">C3: Computational Graph →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>
