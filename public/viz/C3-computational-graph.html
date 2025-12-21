@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C3: Computational Graph Visualizer</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #0a0a0f; 
+            font-family: 'Segoe UI', -apple-system, sans-serif; 
+            color: white; 
+        }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* Top Header */
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 25px;
+            background: linear-gradient(to bottom, rgba(10,10,15,0.95), transparent);
+            pointer-events: auto;
+        }
+        h1 { 
+            margin: 0; 
+            font-size: 1.4rem; 
+            font-weight: 600;
+            color: #4facfe; 
+            text-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
+            letter-spacing: -0.02em;
+        }
+        .subtitle { 
+            margin: 6px 0 0; 
+            color: #666; 
+            font-size: 0.85rem; 
+            max-width: 500px;
+        }
+
+        /* Left Controls Panel */
+        #controls {
+            position: absolute;
+            top: 90px;
+            left: 20px;
+            background: rgba(15, 15, 20, 0.95);
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            pointer-events: auto;
+            width: 280px;
+            backdrop-filter: blur(10px);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+        #controls::-webkit-scrollbar { width: 4px; }
+        #controls::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+        .section-title { 
+            font-size: 0.7rem; 
+            color: #555; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            margin: 18px 0 10px; 
+            padding-bottom: 6px;
+            border-bottom: 1px solid #1a1a1a;
+            font-weight: 600;
+        }
+        .section-title:first-child { margin-top: 0; }
+
+        .control-group { margin-bottom: 10px; }
+        
+        label { 
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem; 
+            color: #888; 
+            margin-bottom: 6px; 
+        }
+        label span { color: #4facfe; font-family: 'SF Mono', Monaco, monospace; }
+        
+        input[type="text"] { 
+            width: 100%; 
+            padding: 10px 12px; 
+            background: #111; 
+            border: 1px solid #2a2a2a; 
+            color: white; 
+            border-radius: 6px; 
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { 
+            outline: none; 
+            border-color: #4facfe; 
+        }
+        
+        input[type="range"] { 
+            width: 100%; 
+            cursor: pointer; 
+            margin: 5px 0;
+            accent-color: #4facfe;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px 14px;
+            margin-top: 6px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            color: #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        button:hover:not(:disabled) { 
+            background: #222; 
+            border-color: #444;
+            color: white;
+        }
+        button.primary { 
+            background: linear-gradient(135deg, #0066cc, #0055aa); 
+            border-color: #0077dd;
+            color: white;
+        }
+        button.primary:hover:not(:disabled) { 
+            background: linear-gradient(135deg, #0077dd, #0066cc); 
+        }
+        button:disabled { 
+            opacity: 0.4; 
+            cursor: not-allowed; 
+        }
+        
+        .btn-row { display: flex; gap: 6px; }
+        .btn-row button { flex: 1; }
+
+        .presets { 
+            display: flex; 
+            gap: 6px; 
+            margin: 8px 0; 
+            flex-wrap: wrap;
+        }
+        .presets button { 
+            flex: 1;
+            min-width: 70px;
+            padding: 6px 8px; 
+            font-size: 0.75rem;
+            background: #151515;
+        }
+
+        /* Status Box */
+        .status-box {
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: rgba(79, 172, 254, 0.08);
+            border-left: 3px solid #4facfe;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.8rem;
+            color: #888;
+            transition: all 0.3s;
+        }
+        .status-box.error { 
+            background: rgba(255, 107, 107, 0.1);
+            border-left-color: #ff6b6b;
+        }
+        .status-box.success {
+            background: rgba(76, 217, 100, 0.1);
+            border-left-color: #4cd964;
+        }
+
+        /* Progress indicator */
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: #111;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #666;
+        }
+        .progress-info .step-count { color: #4facfe; font-weight: 600; }
+
+        /* Right Panel - Rule Reference */
+        #rule-panel {
+            position: absolute;
+            top: 90px;
+            right: 20px;
+            background: rgba(15, 15, 20, 0.95);
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            pointer-events: auto;
+            width: 240px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rule-title {
+            font-size: 0.7rem;
+            color: #ff6b6b;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .rule-item {
+            padding: 8px 10px;
+            margin: 4px 0;
+            background: #111;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .rule-item.active {
+            background: rgba(255, 107, 107, 0.1);
+            border-left-color: #ff6b6b;
+        }
+        .rule-item .op-name {
+            color: #4facfe;
+            font-weight: 600;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        .rule-item .op-rule {
+            color: #666;
+            font-size: 0.75rem;
+            margin-top: 3px;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        /* Gradient Summary Panel */
+        #gradient-summary {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 15, 20, 0.95);
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            pointer-events: auto;
+            min-width: 200px;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+        }
+        #gradient-summary.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .summary-title {
+            font-size: 0.7rem;
+            color: #4cd964;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .gradient-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #1a1a1a;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+        }
+        .gradient-row:last-child { border-bottom: none; }
+        .gradient-row .var-name { color: #4facfe; }
+        .gradient-row .grad-value { color: #ff6b6b; font-weight: 600; }
+        .gradient-row .breakdown { 
+            color: #555; 
+            font-size: 0.7rem; 
+            margin-top: 2px;
+        }
+
+        /* Math Panel (Bottom Center) */
+        #math-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(10, 10, 15, 0.98);
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            min-width: 400px;
+            text-align: center;
+            pointer-events: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        #math-panel.visible { 
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .math-mode {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .math-mode.forward { background: rgba(79, 172, 254, 0.2); color: #4facfe; }
+        .math-mode.backward { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+        
+        .math-title { 
+            color: #888; 
+            font-size: 0.85rem; 
+            margin-bottom: 8px;
+        }
+        .equation { 
+            font-size: 1.4rem; 
+            font-family: 'SF Mono', Monaco, monospace; 
+            margin: 12px 0; 
+            color: #fff;
+            line-height: 1.4;
+        }
+        .rule-desc { 
+            font-size: 0.85rem; 
+            color: #555; 
+            font-style: italic;
+            margin-top: 8px;
+        }
+        .highlight { color: #4facfe; font-weight: 600; }
+        .highlight-grad { color: #ff6b6b; font-weight: 600; }
+        .highlight-val { color: #4cd964; }
+
+        /* Node Labels (HTML Overlays) */
+        .node-label {
+            position: absolute;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+            z-index: 10;
+        }
+        .node-symbol {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            color: white;
+        }
+        .node-val-box {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-family: 'SF Mono', Monaco, monospace;
+            border: 1px solid #222;
+            color: #555;
+            white-space: nowrap;
+            transform: translate(-50%, 0);
+            transition: all 0.3s;
+        }
+        .node-val-box.forward { 
+            border-color: #4facfe; 
+            color: #4facfe; 
+            box-shadow: 0 0 15px rgba(79, 172, 254, 0.3);
+        }
+        .node-val-box.backward { 
+            border-color: #ff6b6b; 
+            color: #ff6b6b; 
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.3);
+        }
+
+        /* Legend */
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(15, 15, 20, 0.9);
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            border: 1px solid #222;
+        }
+        .legend-item { 
+            display: flex; 
+            align-items: center; 
+            margin: 5px 0;
+            color: #666;
+        }
+        .legend-item:first-child { margin-top: 0; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .dot { 
+            width: 12px; 
+            height: 12px; 
+            margin-right: 10px; 
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .dot.circle { border-radius: 50%; }
+        .dot.diamond { 
+            transform: rotate(45deg) scale(0.8);
+        }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="ui-layer">
+    <header>
+        <h1>C3: Computational Graph Visualizer</h1>
+        <p class="subtitle">Build expressions and watch Autodiff traverse the graph step-by-step.</p>
+    </header>
+
+    <div id="controls">
+        <div class="section-title">Expression</div>
+        <div class="control-group">
+            <input type="text" id="expr-input" value="x^2 + x*y" spellcheck="false" placeholder="Enter expression...">
+            <button id="btn-build" class="primary" style="margin-top:8px;">Build Graph</button>
+        </div>
+        <div class="presets">
+            <button onclick="app.loadPreset('x^2 + y')">x² + y</button>
+            <button onclick="app.loadPreset('x*y + sin(x)')">xy + sin</button>
+            <button onclick="app.loadPreset('(x+y)^2')">Sum²</button>
+        </div>
+
+        <div class="section-title">Input Values</div>
+        <div id="input-sliders"></div>
+
+        <div class="section-title">Forward Pass</div>
+        <div class="control-group">
+            <button id="btn-forward" class="primary">▶ Run Forward</button>
+            <div class="btn-row" style="margin-top: 6px;">
+                <button id="btn-step-fwd" disabled>Step →</button>
+                <button id="btn-auto-fwd" disabled>Auto ▶</button>
+            </div>
+        </div>
+
+        <div class="section-title">Backward Pass</div>
+        <div class="control-group">
+            <button id="btn-backward" disabled>◀ Run Backward</button>
+            <div class="btn-row" style="margin-top: 6px;">
+                <button id="btn-step-bwd" disabled>← Step</button>
+                <button id="btn-auto-bwd" disabled>◀ Auto</button>
+            </div>
+        </div>
+
+        <div class="control-group" style="margin-top: 15px;">
+            <button id="btn-reset">Reset</button>
+        </div>
+
+        <div class="progress-info" id="progress-info" style="display: none;">
+            <span>Progress:</span>
+            <span class="step-count" id="step-count">0 / 0</span>
+        </div>
+
+        <div class="status-box" id="status-box">
+            Ready. Enter an expression and click Build Graph.
+        </div>
+    </div>
+
+    <!-- Rule Reference Panel -->
+    <div id="rule-panel">
+        <div class="rule-title">Local Gradient Rules</div>
+        <div class="rule-item" data-op="+">
+            <div class="op-name">y = a + b</div>
+            <div class="op-rule">∂y/∂a = 1, ∂y/∂b = 1</div>
+        </div>
+        <div class="rule-item" data-op="-">
+            <div class="op-name">y = a − b</div>
+            <div class="op-rule">∂y/∂a = 1, ∂y/∂b = −1</div>
+        </div>
+        <div class="rule-item" data-op="*">
+            <div class="op-name">y = a × b</div>
+            <div class="op-rule">∂y/∂a = b, ∂y/∂b = a</div>
+        </div>
+        <div class="rule-item" data-op="/">
+            <div class="op-name">y = a / b</div>
+            <div class="op-rule">∂y/∂a = 1/b, ∂y/∂b = −a/b²</div>
+        </div>
+        <div class="rule-item" data-op="^">
+            <div class="op-name">y = xⁿ</div>
+            <div class="op-rule">∂y/∂x = n·xⁿ⁻¹</div>
+        </div>
+        <div class="rule-item" data-op="sin">
+            <div class="op-name">y = sin(x)</div>
+            <div class="op-rule">∂y/∂x = cos(x)</div>
+        </div>
+        <div class="rule-item" data-op="cos">
+            <div class="op-name">y = cos(x)</div>
+            <div class="op-rule">∂y/∂x = −sin(x)</div>
+        </div>
+        <div class="rule-item" data-op="exp">
+            <div class="op-name">y = eˣ</div>
+            <div class="op-rule">∂y/∂x = eˣ</div>
+        </div>
+    </div>
+
+    <!-- Gradient Summary (shown after backward pass) -->
+    <div id="gradient-summary">
+        <div class="summary-title">Accumulated Gradients</div>
+        <div id="gradient-list"></div>
+    </div>
+
+    <!-- Math Panel -->
+    <div id="math-panel">
+        <div class="math-mode forward" id="math-mode">Forward</div>
+        <div class="math-title" id="math-title">Operation</div>
+        <div class="equation" id="math-eq">...</div>
+        <div class="rule-desc" id="math-desc">...</div>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+        <div class="legend-item"><div class="dot circle" style="background:#666"></div>Input Variable</div>
+        <div class="legend-item"><div class="dot" style="background:#444"></div>Operation</div>
+        <div class="legend-item"><div class="dot diamond" style="background:#4facfe"></div>Output (Root)</div>
+        <div class="legend-item"><div class="dot" style="background:#4facfe"></div>Forward Value</div>
+        <div class="legend-item"><div class="dot" style="background:#ff6b6b"></div>Backward Gradient</div>
+    </div>
+</div>
+
+<script>
+/**
+ * COMPUTATIONAL GRAPH VISUALIZER - IMPROVED VERSION
+ * 
+ * Features:
+ * - Complete forward/backward pass for all operations
+ * - Accumulated gradient display
+ * - Step-by-step mode
+ * - Proper edge arrows
+ * - Rule reference panel with highlighting
+ * - Memory management (geometry/material disposal)
+ */
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+const CONFIG = {
+    colors: {
+        background: 0x0a0a0f,
+        nodeInput: 0x666666,
+        nodeOp: 0x333340,
+        nodeRoot: 0x4facfe,
+        edge: 0x333333,
+        edgeArrow: 0x555555,
+        forward: 0x4facfe,
+        backward: 0xff6b6b,
+        success: 0x4cd964
+    },
+    sizes: {
+        nodeInput: 0.9,
+        nodeOp: 1.6,
+        nodeOpHeight: 1.1,
+        edgeWidth: 0.06,
+        arrowSize: 0.3,
+        particleSize: 0.3
+    },
+    layout: {
+        levelHeight: 5,
+        baseWidth: 25
+    },
+    animation: {
+        stepDuration: 600,
+        particleDuration: 800,
+        autoPlayDelay: 1000
+    }
+};
+
+// ============================================================================
+// DATA STRUCTURES
+// ============================================================================
+class GraphNode {
+    constructor(id, type, label, op = null) {
+        this.id = id;
+        this.type = type;           // 'input', 'const', 'op'
+        this.label = label;         // Display text
+        this.op = op;               // Operation name for math
+        this.children = [];         // Inputs to this node
+        this.isRoot = false;
+        
+        // Computed values
+        this.value = null;
+        this.grad = 0;
+        
+        // Layout
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+        this.depth = 0;
+        
+        // Three.js objects
+        this.mesh = null;
+        this.edgeMeshes = [];       // Edges TO this node from children
+        this.arrowMeshes = [];
+        
+        // DOM elements
+        this.labelEl = null;
+        this.valueEl = null;
+    }
+    
+    dispose() {
+        if (this.mesh) {
+            this.mesh.geometry?.dispose();
+            this.mesh.material?.dispose();
+        }
+        this.edgeMeshes.forEach(e => {
+            e.geometry?.dispose();
+            e.material?.dispose();
+        });
+        this.arrowMeshes.forEach(a => {
+            a.geometry?.dispose();
+            a.material?.dispose();
+        });
+        if (this.labelEl) this.labelEl.remove();
+        if (this.valueEl) this.valueEl.remove();
+    }
+}
+
+// ============================================================================
+// EXPRESSION PARSER
+// ============================================================================
+class ExpressionParser {
+    constructor() {
+        this.tokens = [];
+        this.pos = 0;
+        this.nodeId = 0;
+        this.variables = new Set();
+    }
+
+    parse(expr) {
+        this.tokens = this.tokenize(expr);
+        this.pos = 0;
+        this.nodeId = 0;
+        this.variables.clear();
+        
+        if (this.tokens.length === 0) {
+            throw new Error("Empty expression");
+        }
+        
+        const root = this.parseExpression();
+        root.isRoot = true;
+        
+        if (this.pos < this.tokens.length) {
+            throw new Error(`Unexpected token: ${this.tokens[this.pos]}`);
+        }
+        
+        return { 
+            root, 
+            variables: Array.from(this.variables).sort() 
+        };
+    }
+
+    tokenize(expr) {
+        // Handle negative numbers and unary minus
+        const normalized = expr.replace(/\s+/g, '');
+        const tokens = [];
+        let i = 0;
+        
+        while (i < normalized.length) {
+            const char = normalized[i];
+            
+            // Number (including negative)
+            if (/[0-9]/.test(char) || 
+                (char === '-' && (tokens.length === 0 || /[\+\-\*\/\^\(,]/.test(tokens[tokens.length-1])))) {
+                let num = '';
+                if (char === '-') {
+                    num = '-';
+                    i++;
+                }
+                while (i < normalized.length && /[0-9.]/.test(normalized[i])) {
+                    num += normalized[i++];
+                }
+                tokens.push(num);
+            }
+            // Identifier (variable or function)
+            else if (/[a-zA-Z_]/.test(char)) {
+                let ident = '';
+                while (i < normalized.length && /[a-zA-Z0-9_]/.test(normalized[i])) {
+                    ident += normalized[i++];
+                }
+                tokens.push(ident);
+            }
+            // Operators and parens
+            else if (/[\+\-\*\/\^\(\),]/.test(char)) {
+                tokens.push(char);
+                i++;
+            }
+            else {
+                throw new Error(`Unknown character: ${char}`);
+            }
+        }
+        return tokens;
+    }
+
+    peek() { return this.tokens[this.pos]; }
+    consume() { return this.tokens[this.pos++]; }
+    
+    createNode(type, label, op = null) {
+        return new GraphNode(this.nodeId++, type, label, op);
+    }
+
+    // Expression -> Term { (+|-) Term }
+    parseExpression() {
+        let left = this.parseTerm();
+        
+        while (this.pos < this.tokens.length && (this.peek() === '+' || this.peek() === '-')) {
+            const op = this.consume();
+            const right = this.parseTerm();
+            const node = this.createNode('op', op, op);
+            node.children = [left, right];
+            left = node;
+        }
+        return left;
+    }
+
+    // Term -> Power { (*|/) Power }
+    parseTerm() {
+        let left = this.parsePower();
+        
+        while (this.pos < this.tokens.length && (this.peek() === '*' || this.peek() === '/')) {
+            const op = this.consume();
+            const right = this.parsePower();
+            const node = this.createNode('op', op === '*' ? '×' : '÷', op);
+            node.children = [left, right];
+            left = node;
+        }
+        return left;
+    }
+
+    // Power -> Unary { ^ Unary }
+    parsePower() {
+        let left = this.parseUnary();
+        
+        if (this.pos < this.tokens.length && this.peek() === '^') {
+            this.consume();
+            const right = this.parseUnary();
+            const node = this.createNode('op', '^', '^');
+            node.children = [left, right];
+            left = node;
+        }
+        return left;
+    }
+
+    // Unary -> [-] Base
+    parseUnary() {
+        if (this.peek() === '-') {
+            this.consume();
+            const arg = this.parseBase();
+            const negOne = this.createNode('const', '-1', null);
+            negOne.value = -1;
+            const node = this.createNode('op', '×', '*');
+            node.children = [negOne, arg];
+            return node;
+        }
+        return this.parseBase();
+    }
+
+    // Base -> Number | Variable | (Expr) | Function(Expr)
+    parseBase() {
+        const token = this.consume();
+        
+        if (token === undefined) {
+            throw new Error("Unexpected end of expression");
+        }
+        
+        // Number
+        if (/^-?[0-9]+\.?[0-9]*$/.test(token)) {
+            const node = this.createNode('const', token, null);
+            node.value = parseFloat(token);
+            return node;
+        }
+        
+        // Parenthesized expression
+        if (token === '(') {
+            const expr = this.parseExpression();
+            if (this.consume() !== ')') {
+                throw new Error("Missing closing parenthesis");
+            }
+            return expr;
+        }
+        
+        // Function call
+        const funcs = ['sin', 'cos', 'tan', 'exp', 'log', 'sqrt', 'abs', 'relu'];
+        if (funcs.includes(token)) {
+            if (this.consume() !== '(') {
+                throw new Error(`Expected '(' after ${token}`);
+            }
+            const arg = this.parseExpression();
+            if (this.consume() !== ')') {
+                throw new Error("Missing closing parenthesis");
+            }
+            const node = this.createNode('op', token, token);
+            node.children = [arg];
+            return node;
+        }
+        
+        // Variable
+        this.variables.add(token);
+        return this.createNode('input', token, null);
+    }
+}
+
+// ============================================================================
+// MATH ENGINE
+// ============================================================================
+const MathEngine = {
+    // Forward computation
+    compute(op, values) {
+        const [a, b] = values;
+        switch (op) {
+            case '+': return a + b;
+            case '-': return a - b;
+            case '*': return a * b;
+            case '/': return b !== 0 ? a / b : NaN;
+            case '^': return Math.pow(a, b);
+            case 'sin': return Math.sin(a);
+            case 'cos': return Math.cos(a);
+            case 'tan': return Math.tan(a);
+            case 'exp': return Math.exp(a);
+            case 'log': return a > 0 ? Math.log(a) : NaN;
+            case 'sqrt': return a >= 0 ? Math.sqrt(a) : NaN;
+            case 'abs': return Math.abs(a);
+            case 'relu': return Math.max(0, a);
+            default: return NaN;
+        }
+    },
+    
+    // Backward: compute local gradients for each child
+    // Returns array of gradients, one per child
+    backward(op, values, outputGrad) {
+        const [a, b] = values;
+        switch (op) {
+            case '+': 
+                return [outputGrad, outputGrad];
+            case '-': 
+                return [outputGrad, -outputGrad];
+            case '*': 
+                return [b * outputGrad, a * outputGrad];
+            case '/': 
+                return [outputGrad / b, -a * outputGrad / (b * b)];
+            case '^': 
+                // d/da(a^b) = b * a^(b-1)
+                // d/db(a^b) = a^b * ln(a)
+                const powVal = Math.pow(a, b);
+                return [
+                    b * Math.pow(a, b - 1) * outputGrad,
+                    powVal * Math.log(a) * outputGrad
+                ];
+            case 'sin': 
+                return [Math.cos(a) * outputGrad];
+            case 'cos': 
+                return [-Math.sin(a) * outputGrad];
+            case 'tan': 
+                const sec = 1 / Math.cos(a);
+                return [sec * sec * outputGrad];
+            case 'exp': 
+                return [Math.exp(a) * outputGrad];
+            case 'log': 
+                return [(1 / a) * outputGrad];
+            case 'sqrt': 
+                return [(0.5 / Math.sqrt(a)) * outputGrad];
+            case 'abs': 
+                return [(a >= 0 ? 1 : -1) * outputGrad];
+            case 'relu': 
+                return [(a > 0 ? 1 : 0) * outputGrad];
+            default: 
+                return values.map(() => 0);
+        }
+    },
+    
+    // Get human-readable rule description
+    getRuleDescription(op, childIndex, values, grad) {
+        const [a, b] = values;
+        switch (op) {
+            case '+': return `Pass gradient through: ${grad.toFixed(4)} × 1`;
+            case '-': return childIndex === 0 
+                ? `Pass gradient through: ${grad.toFixed(4)} × 1`
+                : `Negate gradient: ${grad.toFixed(4)} × (−1)`;
+            case '*': return childIndex === 0
+                ? `Multiply by other input: ${grad.toFixed(4)} × ${b.toFixed(2)}`
+                : `Multiply by other input: ${grad.toFixed(4)} × ${a.toFixed(2)}`;
+            case '/': return childIndex === 0
+                ? `Divide by divisor: ${grad.toFixed(4)} / ${b.toFixed(2)}`
+                : `Power rule for denominator`;
+            case '^': return childIndex === 0
+                ? `Power rule: ${b} × ${a.toFixed(2)}^${b-1}`
+                : `Exponential rule`;
+            case 'sin': return `cos(${a.toFixed(2)}) = ${Math.cos(a).toFixed(4)}`;
+            case 'cos': return `−sin(${a.toFixed(2)}) = ${(-Math.sin(a)).toFixed(4)}`;
+            case 'exp': return `exp(${a.toFixed(2)}) = ${Math.exp(a).toFixed(4)}`;
+            case 'log': return `1/${a.toFixed(2)} = ${(1/a).toFixed(4)}`;
+            default: return 'Chain rule application';
+        }
+    }
+};
+
+// ============================================================================
+// MAIN APPLICATION
+// ============================================================================
+class App {
+    constructor() {
+        this.container = document.getElementById('canvas-container');
+        
+        // Three.js
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.controls = null;
+        
+        // Graph
+        this.parser = new ExpressionParser();
+        this.root = null;
+        this.allNodes = [];
+        this.variableNodes = {};    // varName -> [nodes]
+        this.inputValues = { x: 2, y: 3, z: 1 };
+        
+        // Animation state
+        this.animationQueue = [];
+        this.currentStepIndex = 0;
+        this.isAnimating = false;
+        this.autoPlayTimer = null;
+        this.activeParticles = [];
+        this.mode = null;           // 'forward' or 'backward'
+        
+        this.init();
+    }
+
+    init() {
+        this.initThree();
+        this.initUI();
+        this.animate();
+        
+        // Build initial graph
+        setTimeout(() => this.buildGraph(), 100);
+    }
+
+    initThree() {
+        // Scene
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(CONFIG.colors.background);
+        
+        // Camera
+        const aspect = window.innerWidth / window.innerHeight;
+        this.camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+        this.camera.position.set(0, 0, 30);
+
+        // Renderer
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.container.appendChild(this.renderer.domElement);
+
+        // Controls
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.minDistance = 10;
+        this.controls.maxDistance = 80;
+        
+        // Lights
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(10, 20, 15);
+        this.scene.add(dirLight);
+        
+        // Resize handler
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    initUI() {
+        // Build button
+        document.getElementById('btn-build').onclick = () => this.buildGraph();
+        document.getElementById('expr-input').onkeydown = (e) => {
+            if (e.key === 'Enter') this.buildGraph();
+        };
+        
+        // Forward buttons
+        document.getElementById('btn-forward').onclick = () => this.startForward();
+        document.getElementById('btn-step-fwd').onclick = () => this.stepForward();
+        document.getElementById('btn-auto-fwd').onclick = () => this.toggleAutoPlay('forward');
+        
+        // Backward buttons
+        document.getElementById('btn-backward').onclick = () => this.startBackward();
+        document.getElementById('btn-step-bwd').onclick = () => this.stepBackward();
+        document.getElementById('btn-auto-bwd').onclick = () => this.toggleAutoPlay('backward');
+        
+        // Reset
+        document.getElementById('btn-reset').onclick = () => this.resetState();
+    }
+
+    loadPreset(expr) {
+        document.getElementById('expr-input').value = expr;
+        this.buildGraph();
+    }
+
+    // ========================================================================
+    // GRAPH CONSTRUCTION
+    // ========================================================================
+    
+    buildGraph() {
+        // Clear old graph
+        this.clearGraph();
+        
+        const exprText = document.getElementById('expr-input').value.trim();
+        if (!exprText) {
+            this.setStatus('Please enter an expression.', 'error');
+            return;
+        }
+        
+        try {
+            const result = this.parser.parse(exprText);
+            this.root = result.root;
+            
+            // Collect all nodes and build variable map
+            this.collectNodes(this.root);
+            
+            // Layout
+            this.layoutGraph();
+            
+            // Create visuals
+            this.createVisuals();
+            
+            // Setup input sliders
+            this.setupInputSliders(result.variables);
+            
+            // Center camera
+            this.centerCamera();
+            
+            // Reset state
+            this.resetState();
+            
+            this.setStatus(`Graph built: ${this.allNodes.length} nodes, ${result.variables.length} variables`, 'success');
+            
+        } catch (e) {
+            this.setStatus(`Parse error: ${e.message}`, 'error');
+            console.error(e);
+        }
+    }
+
+    clearGraph() {
+        // Stop any animation
+        this.stopAutoPlay();
+        this.isAnimating = false;
+        
+        // Dispose old nodes
+        this.allNodes.forEach(node => node.dispose());
+        this.allNodes.forEach(node => {
+            if (node.mesh) this.scene.remove(node.mesh);
+            node.edgeMeshes.forEach(e => this.scene.remove(e));
+            node.arrowMeshes.forEach(a => this.scene.remove(a));
+        });
+        
+        // Clear particles
+        this.activeParticles.forEach(p => {
+            this.scene.remove(p);
+            p.geometry?.dispose();
+            p.material?.dispose();
+        });
+        this.activeParticles = [];
+        
+        this.allNodes = [];
+        this.variableNodes = {};
+        this.root = null;
+        
+        // Hide panels
+        document.getElementById('math-panel').classList.remove('visible');
+        document.getElementById('gradient-summary').classList.remove('visible');
+        document.getElementById('progress-info').style.display = 'none';
+    }
+
+    collectNodes(node, visited = new Set()) {
+        if (visited.has(node.id)) return;
+        visited.add(node.id);
+        
+        this.allNodes.push(node);
+        
+        // Track variable nodes for gradient accumulation
+        if (node.type === 'input') {
+            if (!this.variableNodes[node.label]) {
+                this.variableNodes[node.label] = [];
+            }
+            this.variableNodes[node.label].push(node);
+        }
+        
+        node.children.forEach(child => this.collectNodes(child, visited));
+    }
+
+    layoutGraph() {
+        // Calculate depths (distance from root)
+        const setDepth = (node, depth) => {
+            node.depth = depth;
+            node.children.forEach(child => setDepth(child, depth + 1));
+        };
+        setDepth(this.root, 0);
+        
+        // Find max depth
+        const maxDepth = Math.max(...this.allNodes.map(n => n.depth));
+        
+        // Position nodes by depth, root at top
+        const nodesAtDepth = {};
+        this.allNodes.forEach(node => {
+            if (!nodesAtDepth[node.depth]) nodesAtDepth[node.depth] = [];
+            nodesAtDepth[node.depth].push(node);
+        });
+        
+        // Layout each level
+        for (let d = 0; d <= maxDepth; d++) {
+            const nodes = nodesAtDepth[d] || [];
+            const width = nodes.length * 4;
+            nodes.forEach((node, i) => {
+                node.x = (i - (nodes.length - 1) / 2) * 4;
+                node.y = -d * CONFIG.layout.levelHeight;
+                node.z = 0;
+            });
+        }
+    }
+
+    createVisuals() {
+        this.allNodes.forEach(node => {
+            this.createNodeMesh(node);
+            this.createNodeLabels(node);
+            this.createEdges(node);
+        });
+    }
+
+    createNodeMesh(node) {
+        let geometry, material;
+        
+        if (node.isRoot) {
+            // Diamond shape for root/output
+            geometry = new THREE.OctahedronGeometry(CONFIG.sizes.nodeInput * 1.2);
+            material = new THREE.MeshStandardMaterial({
+                color: CONFIG.colors.nodeRoot,
+                roughness: 0.3,
+                metalness: 0.6,
+                emissive: 0x000000
+            });
+        } else if (node.type === 'input' || node.type === 'const') {
+            // Sphere for inputs/constants
+            geometry = new THREE.SphereGeometry(CONFIG.sizes.nodeInput, 32, 32);
+            material = new THREE.MeshStandardMaterial({
+                color: CONFIG.colors.nodeInput,
+                roughness: 0.4,
+                metalness: 0.5,
+                emissive: 0x000000
+            });
+        } else {
+            // Rounded box for operations
+            geometry = new THREE.BoxGeometry(
+                CONFIG.sizes.nodeOp, 
+                CONFIG.sizes.nodeOpHeight, 
+                0.5
+            );
+            material = new THREE.MeshStandardMaterial({
+                color: CONFIG.colors.nodeOp,
+                roughness: 0.4,
+                metalness: 0.5,
+                emissive: 0x000000
+            });
+        }
+        
+        node.mesh = new THREE.Mesh(geometry, material);
+        node.mesh.position.set(node.x, node.y, node.z);
+        node.mesh.userData = { nodeId: node.id };
+        this.scene.add(node.mesh);
+    }
+
+    createNodeLabels(node) {
+        // Symbol label
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'node-label';
+        labelDiv.innerHTML = `<div class="node-symbol">${node.label}</div>`;
+        document.body.appendChild(labelDiv);
+        node.labelEl = labelDiv;
+        
+        // Value box
+        const valueDiv = document.createElement('div');
+        valueDiv.className = 'node-val-box';
+        valueDiv.textContent = '—';
+        document.body.appendChild(valueDiv);
+        node.valueEl = valueDiv;
+    }
+
+    createEdges(node) {
+        node.children.forEach(child => {
+            // Edge line (child -> node, data flows up)
+            const start = new THREE.Vector3(child.x, child.y, child.z);
+            const end = new THREE.Vector3(node.x, node.y, node.z);
+            
+            const direction = end.clone().sub(start);
+            const length = direction.length();
+            const midpoint = start.clone().add(direction.clone().multiplyScalar(0.5));
+            
+            // Tube for edge
+            const curve = new THREE.LineCurve3(start, end);
+            const tubeGeo = new THREE.TubeGeometry(curve, 1, CONFIG.sizes.edgeWidth, 8, false);
+            const tubeMat = new THREE.MeshBasicMaterial({ 
+                color: CONFIG.colors.edge,
+                transparent: true,
+                opacity: 0.6
+            });
+            const tube = new THREE.Mesh(tubeGeo, tubeMat);
+            this.scene.add(tube);
+            node.edgeMeshes.push(tube);
+            
+            // Arrow head
+            const arrowGeo = new THREE.ConeGeometry(CONFIG.sizes.arrowSize, CONFIG.sizes.arrowSize * 2, 8);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.edgeArrow });
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+            
+            // Position arrow at 70% along edge (closer to target)
+            const arrowPos = start.clone().lerp(end, 0.7);
+            arrow.position.copy(arrowPos);
+            
+            // Rotate to point along edge
+            arrow.quaternion.setFromUnitVectors(
+                new THREE.Vector3(0, 1, 0),
+                direction.normalize()
+            );
+            
+            this.scene.add(arrow);
+            node.arrowMeshes.push(arrow);
+        });
+    }
+
+    setupInputSliders(variables) {
+        const container = document.getElementById('input-sliders');
+        container.innerHTML = '';
+        
+        if (variables.length === 0) {
+            container.innerHTML = '<div style="color:#555;font-size:0.8rem;">No variables</div>';
+            return;
+        }
+        
+        variables.forEach(v => {
+            const val = this.inputValues[v] ?? 1;
+            this.inputValues[v] = val;
+            
+            const div = document.createElement('div');
+            div.className = 'control-group';
+            div.innerHTML = `
+                <label>${v} <span id="val-${v}">${val.toFixed(1)}</span></label>
+                <input type="range" min="-5" max="5" step="0.1" value="${val}" data-var="${v}">
+            `;
+            container.appendChild(div);
+            
+            div.querySelector('input').oninput = (e) => {
+                const newVal = parseFloat(e.target.value);
+                this.inputValues[v] = newVal;
+                document.getElementById(`val-${v}`).textContent = newVal.toFixed(1);
+                this.invalidateForward();
+            };
+        });
+    }
+
+    centerCamera() {
+        // Find bounding box
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+        
+        this.allNodes.forEach(n => {
+            minX = Math.min(minX, n.x);
+            maxX = Math.max(maxX, n.x);
+            minY = Math.min(minY, n.y);
+            maxY = Math.max(maxY, n.y);
+        });
+        
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        const size = Math.max(maxX - minX, maxY - minY, 10);
+        
+        this.camera.position.set(centerX, centerY, size * 1.5 + 15);
+        this.controls.target.set(centerX, centerY, 0);
+    }
+
+    // ========================================================================
+    // FORWARD PASS
+    // ========================================================================
+
+    startForward() {
+        if (this.isAnimating) return;
+        
+        this.resetNodeValues();
+        this.mode = 'forward';
+        this.animationQueue = [];
+        this.currentStepIndex = 0;
+        
+        // Build animation queue using post-order traversal (leaves first)
+        const buildQueue = (node) => {
+            node.children.forEach(child => buildQueue(child));
+            
+            if (node.type === 'input') {
+                node.value = this.inputValues[node.label] ?? 0;
+            } else if (node.type === 'const') {
+                // Value already set by parser
+            } else {
+                const childValues = node.children.map(c => c.value);
+                node.value = MathEngine.compute(node.op, childValues);
+            }
+            
+            this.animationQueue.push({
+                type: 'forward_node',
+                node: node,
+                value: node.value
+            });
+        };
+        
+        buildQueue(this.root);
+        
+        this.animationQueue.push({ type: 'forward_complete' });
+        
+        // Enable step controls
+        this.updateStepButtons();
+        document.getElementById('progress-info').style.display = 'flex';
+        this.updateProgress();
+        
+        this.setStatus('Forward pass ready. Click Step or Auto to proceed.', 'success');
+    }
+
+    stepForward() {
+        if (this.currentStepIndex >= this.animationQueue.length) return;
+        
+        const action = this.animationQueue[this.currentStepIndex++];
+        this.executeAction(action);
+        this.updateProgress();
+        this.updateStepButtons();
+    }
+
+    // ========================================================================
+    // BACKWARD PASS
+    // ========================================================================
+
+    startBackward() {
+        if (this.isAnimating) return;
+        
+        this.mode = 'backward';
+        this.animationQueue = [];
+        this.currentStepIndex = 0;
+        
+        // Reset gradients
+        this.allNodes.forEach(n => n.grad = 0);
+        
+        // Start at root with gradient 1
+        this.root.grad = 1;
+        
+        this.animationQueue.push({
+            type: 'backward_node',
+            node: this.root,
+            grad: 1,
+            description: '∂Output/∂Output = 1 (Start here)'
+        });
+        
+        // Build queue using pre-order traversal (root first)
+        const buildQueue = (node) => {
+            if (node.type === 'input' || node.type === 'const') return;
+            
+            const childValues = node.children.map(c => c.value);
+            const localGrads = MathEngine.backward(node.op, childValues, node.grad);
+            
+            node.children.forEach((child, i) => {
+                child.grad += localGrads[i];
+                
+                this.animationQueue.push({
+                    type: 'backward_edge',
+                    from: node,
+                    to: child,
+                    localGrad: localGrads[i],
+                    op: node.op,
+                    description: MathEngine.getRuleDescription(node.op, i, childValues, node.grad)
+                });
+                
+                this.animationQueue.push({
+                    type: 'backward_node',
+                    node: child,
+                    grad: child.grad,
+                    description: `Accumulated gradient`
+                });
+            });
+            
+            node.children.forEach(child => buildQueue(child));
+        };
+        
+        buildQueue(this.root);
+        
+        this.animationQueue.push({ type: 'backward_complete' });
+        
+        // Enable step controls
+        this.updateStepButtons();
+        document.getElementById('progress-info').style.display = 'flex';
+        this.updateProgress();
+        
+        this.setStatus('Backward pass ready. Click Step or Auto to proceed.', 'success');
+    }
+
+    stepBackward() {
+        if (this.currentStepIndex >= this.animationQueue.length) return;
+        
+        const action = this.animationQueue[this.currentStepIndex++];
+        this.executeAction(action);
+        this.updateProgress();
+        this.updateStepButtons();
+    }
+
+    // ========================================================================
+    // ACTION EXECUTION
+    // ========================================================================
+
+    executeAction(action) {
+        const panel = document.getElementById('math-panel');
+        const modeEl = document.getElementById('math-mode');
+        
+        switch (action.type) {
+            case 'forward_node':
+                this.highlightNode(action.node, CONFIG.colors.forward);
+                action.node.valueEl.textContent = `val: ${action.value.toFixed(3)}`;
+                action.node.valueEl.className = 'node-val-box forward';
+                
+                panel.classList.add('visible');
+                modeEl.className = 'math-mode forward';
+                modeEl.textContent = 'Forward';
+                
+                if (action.node.type === 'op') {
+                    const childVals = action.node.children.map(c => c.value.toFixed(2)).join(', ');
+                    document.getElementById('math-title').textContent = `Computing ${action.node.label}`;
+                    document.getElementById('math-eq').innerHTML = 
+                        `${action.node.label}(${childVals}) = <span class="highlight-val">${action.value.toFixed(4)}</span>`;
+                    document.getElementById('math-desc').textContent = 
+                        `Evaluate operation: ${action.node.op}`;
+                } else {
+                    document.getElementById('math-title').textContent = 
+                        action.node.type === 'input' ? 'Input Variable' : 'Constant';
+                    document.getElementById('math-eq').innerHTML = 
+                        `${action.node.label} = <span class="highlight-val">${action.value.toFixed(4)}</span>`;
+                    document.getElementById('math-desc').textContent = 
+                        action.node.type === 'input' ? 'Value from slider' : 'Constant value';
+                }
+                break;
+                
+            case 'forward_complete':
+                this.setStatus('Forward pass complete! Ready for backward pass.', 'success');
+                document.getElementById('btn-backward').disabled = false;
+                document.getElementById('btn-step-bwd').disabled = true;
+                document.getElementById('btn-auto-bwd').disabled = true;
+                document.getElementById('btn-step-fwd').disabled = true;
+                document.getElementById('btn-auto-fwd').disabled = true;
+                this.stopAutoPlay();
+                break;
+                
+            case 'backward_node':
+                this.highlightNode(action.node, CONFIG.colors.backward);
+                action.node.valueEl.textContent = `∂: ${action.grad.toFixed(4)}`;
+                action.node.valueEl.className = 'node-val-box backward';
+                
+                panel.classList.add('visible');
+                modeEl.className = 'math-mode backward';
+                modeEl.textContent = 'Backward';
+                
+                document.getElementById('math-title').textContent = `Gradient at ${action.node.label}`;
+                document.getElementById('math-eq').innerHTML = 
+                    `∂L/∂${action.node.label} = <span class="highlight-grad">${action.grad.toFixed(4)}</span>`;
+                document.getElementById('math-desc').textContent = action.description;
+                break;
+                
+            case 'backward_edge':
+                this.highlightRule(action.op);
+                this.animateParticle(action.from, action.to, CONFIG.colors.backward);
+                
+                panel.classList.add('visible');
+                modeEl.className = 'math-mode backward';
+                modeEl.textContent = 'Backward';
+                
+                document.getElementById('math-title').textContent = `${action.op} gradient rule`;
+                document.getElementById('math-eq').innerHTML = 
+                    `Local gradient: <span class="highlight-grad">${action.localGrad.toFixed(4)}</span>`;
+                document.getElementById('math-desc').textContent = action.description;
+                break;
+                
+            case 'backward_complete':
+                this.setStatus('Backward pass complete! Gradients computed.', 'success');
+                this.showGradientSummary();
+                document.getElementById('btn-step-bwd').disabled = true;
+                document.getElementById('btn-auto-bwd').disabled = true;
+                this.stopAutoPlay();
+                break;
+        }
+    }
+
+    // ========================================================================
+    // VISUAL EFFECTS
+    // ========================================================================
+
+    highlightNode(node, color) {
+        if (!node.mesh) return;
+        
+        const colorObj = new THREE.Color(color);
+        new TWEEN.Tween(node.mesh.material.emissive)
+            .to({ r: colorObj.r * 0.5, g: colorObj.g * 0.5, b: colorObj.b * 0.5 }, 200)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .yoyo(true)
+            .repeat(1)
+            .start();
+    }
+
+    highlightRule(op) {
+        document.querySelectorAll('.rule-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.op === op);
+        });
+    }
+
+    animateParticle(fromNode, toNode, color) {
+        const geometry = new THREE.SphereGeometry(CONFIG.sizes.particleSize, 12, 12);
+        const material = new THREE.MeshBasicMaterial({ color });
+        const particle = new THREE.Mesh(geometry, material);
+        
+        particle.position.set(fromNode.x, fromNode.y, fromNode.z);
+        this.scene.add(particle);
+        this.activeParticles.push(particle);
+        
+        new TWEEN.Tween(particle.position)
+            .to({ x: toNode.x, y: toNode.y, z: toNode.z }, CONFIG.animation.particleDuration)
+            .easing(TWEEN.Easing.Quadratic.InOut)
+            .onComplete(() => {
+                this.scene.remove(particle);
+                geometry.dispose();
+                material.dispose();
+                const idx = this.activeParticles.indexOf(particle);
+                if (idx > -1) this.activeParticles.splice(idx, 1);
+            })
+            .start();
+    }
+
+    showGradientSummary() {
+        const container = document.getElementById('gradient-list');
+        container.innerHTML = '';
+        
+        // Accumulate gradients per variable
+        const accumulated = {};
+        for (const [varName, nodes] of Object.entries(this.variableNodes)) {
+            const grads = nodes.map(n => n.grad);
+            const total = grads.reduce((a, b) => a + b, 0);
+            accumulated[varName] = { total, breakdown: grads };
+        }
+        
+        // Build display
+        for (const [varName, data] of Object.entries(accumulated)) {
+            const row = document.createElement('div');
+            row.className = 'gradient-row';
+            
+            let breakdownStr = '';
+            if (data.breakdown.length > 1) {
+                breakdownStr = `<div class="breakdown">(${data.breakdown.map(g => g.toFixed(3)).join(' + ')})</div>`;
+            }
+            
+            row.innerHTML = `
+                <div>
+                    <span class="var-name">∂f/∂${varName}</span>
+                    ${breakdownStr}
+                </div>
+                <span class="grad-value">${data.total.toFixed(4)}</span>
+            `;
+            container.appendChild(row);
+        }
+        
+        document.getElementById('gradient-summary').classList.add('visible');
+    }
+
+    // ========================================================================
+    // AUTO PLAY
+    // ========================================================================
+
+    toggleAutoPlay(mode) {
+        if (this.autoPlayTimer) {
+            this.stopAutoPlay();
+        } else {
+            this.startAutoPlay(mode);
+        }
+    }
+
+    startAutoPlay(mode) {
+        const step = mode === 'forward' ? () => this.stepForward() : () => this.stepBackward();
+        const btnId = mode === 'forward' ? 'btn-auto-fwd' : 'btn-auto-bwd';
+        
+        document.getElementById(btnId).textContent = '⏸ Pause';
+        
+        this.autoPlayTimer = setInterval(() => {
+            if (this.currentStepIndex >= this.animationQueue.length) {
+                this.stopAutoPlay();
+                return;
+            }
+            step();
+        }, CONFIG.animation.autoPlayDelay);
+    }
+
+    stopAutoPlay() {
+        if (this.autoPlayTimer) {
+            clearInterval(this.autoPlayTimer);
+            this.autoPlayTimer = null;
+        }
+        document.getElementById('btn-auto-fwd').textContent = 'Auto ▶';
+        document.getElementById('btn-auto-bwd').textContent = '◀ Auto';
+    }
+
+    // ========================================================================
+    // STATE MANAGEMENT
+    // ========================================================================
+
+    resetState() {
+        this.stopAutoPlay();
+        this.isAnimating = false;
+        this.animationQueue = [];
+        this.currentStepIndex = 0;
+        this.mode = null;
+        
+        this.resetNodeValues();
+        
+        // Reset UI
+        document.getElementById('btn-forward').disabled = false;
+        document.getElementById('btn-backward').disabled = true;
+        document.getElementById('btn-step-fwd').disabled = true;
+        document.getElementById('btn-step-bwd').disabled = true;
+        document.getElementById('btn-auto-fwd').disabled = true;
+        document.getElementById('btn-auto-bwd').disabled = true;
+        
+        document.getElementById('math-panel').classList.remove('visible');
+        document.getElementById('gradient-summary').classList.remove('visible');
+        document.getElementById('progress-info').style.display = 'none';
+        
+        document.querySelectorAll('.rule-item').forEach(el => el.classList.remove('active'));
+        
+        this.setStatus('Ready. Click "Run Forward" to begin.', '');
+    }
+
+    resetNodeValues() {
+        this.allNodes.forEach(node => {
+            node.value = node.type === 'const' ? node.value : null;
+            node.grad = 0;
+            
+            if (node.valueEl) {
+                node.valueEl.textContent = '—';
+                node.valueEl.className = 'node-val-box';
+            }
+            if (node.mesh) {
+                node.mesh.material.emissive.setHex(0x000000);
+            }
+        });
+    }
+
+    invalidateForward() {
+        // Input changed, need to re-run forward
+        this.resetState();
+        this.setStatus('Input changed. Run Forward Pass again.', '');
+    }
+
+    updateStepButtons() {
+        const hasMoreSteps = this.currentStepIndex < this.animationQueue.length;
+        
+        if (this.mode === 'forward') {
+            document.getElementById('btn-step-fwd').disabled = !hasMoreSteps;
+            document.getElementById('btn-auto-fwd').disabled = !hasMoreSteps;
+        } else if (this.mode === 'backward') {
+            document.getElementById('btn-step-bwd').disabled = !hasMoreSteps;
+            document.getElementById('btn-auto-bwd').disabled = !hasMoreSteps;
+        }
+    }
+
+    updateProgress() {
+        const total = this.animationQueue.length;
+        const current = this.currentStepIndex;
+        document.getElementById('step-count').textContent = `${current} / ${total}`;
+    }
+
+    setStatus(message, type = '') {
+        const box = document.getElementById('status-box');
+        box.textContent = message;
+        box.className = 'status-box' + (type ? ` ${type}` : '');
+    }
+
+    // ========================================================================
+    // ANIMATION LOOP
+    // ========================================================================
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        
+        TWEEN.update();
+        this.controls.update();
+        
+        // Update label positions
+        this.allNodes.forEach(node => {
+            if (!node.labelEl || !node.valueEl) return;
+            
+            const pos = new THREE.Vector3(node.x, node.y, node.z);
+            pos.project(this.camera);
+            
+            const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(pos.y * 0.5) + 0.5) * window.innerHeight;
+            
+            node.labelEl.style.left = `${x}px`;
+            node.labelEl.style.top = `${y}px`;
+            
+            node.valueEl.style.left = `${x}px`;
+            node.valueEl.style.top = `${y + 30}px`;
+        });
+        
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+// Initialize
+const app = new App();
+</script>
+</body>
+</html>
