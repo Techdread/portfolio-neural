@@ -10,6 +10,124 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      aspect-ratio: 4 / 3; 
+      background: #0f1115;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21;
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6;
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        min-height: 100vh;
+      }
+
+      .viz-panel {
+        width: 60%;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: #050505;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+      }
+
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        padding-bottom: 6rem;
+      }
+
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,53 +155,163 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-d">Optimisation</a>
-        <span>›</span>
-        <span>D1</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-d)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-d)">D1</span>
-          <span class="topic-category">Optimisation Concepts</span>
+    <div class="split-layout-container">
+      
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/D1-gradient-descent-optimizers-visualisation.html" title="Gradient Descent Optimizers Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Gradient Descent Variants</h1>
-        <p class="topic-description">Compare vanilla, momentum, RMSprop, Adam on same surface. Show momentum escaping local minima.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <div class="content-panel">
+        
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-d">Optimisation</a>
+          <span>›</span>
+          <span>D1</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-d)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-d)">D1</span>
+            <span class="topic-category">Optimisation Concepts</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Gradient Descent Variants</h1>
+          <p class="topic-description">From vanilla to Adam: comparing optimizers on the same terrain.</p>
+        </header>
+
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <h2>The Journey Down the Mountain</h2>
+              <p>Imagine you're blindfolded on a mountainside, trying to reach the lowest valley. You can only feel the slope directly beneath your feet. Gradient descent is exactly this — taking steps downhill based on local information, hoping to find the bottom.</p>
+              <p>But <em>how</em> you take those steps matters enormously. Step too cautiously and you'll take forever. Step too aggressively and you'll overshoot and oscillate. Step without memory and you'll get stuck in every small dip along the way.</p>
+              <p>This is why we have different optimizers. Each represents a different strategy for navigating that mountain — and watching them race across the same terrain reveals their personalities beautifully.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>1. Vanilla Gradient Descent</h2>
+              <p>The most straightforward approach: measure the slope, step downhill. Repeat.</p>
+              <div class="formula-box">θ = θ - α∇L</div>
+              <p>In plain English: <em>new position = old position - (learning rate × gradient)</em></p>
+              
+              <h3>Where It Struggles</h3>
+              <p>Watch vanilla SGD on the "Ravine" surface. You'll see it <strong>oscillating back and forth</strong> across the narrow valley while making slow progress along the valley floor.</p>
+              <p>Why? The gradient points toward the nearest downhill direction, which is often <em>across</em> the ravine rather than <em>along</em> it.</p>
+              <p><strong>Three core problems:</strong></p>
+              <ul>
+                <li><strong>Ravines cause oscillation:</strong> Steep in one direction, shallow in another → bouncing between walls</li>
+                <li><strong>Local minima are traps:</strong> No memory means stopping at any flat spot</li>
+                <li><strong>Learning rate is critical:</strong> Too high = diverge, too low = forever</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>2. Momentum: The Rolling Ball</h2>
+              <p>Instead of a cautious walker, imagine a ball rolling downhill. It has <strong>velocity</strong> — it accumulates speed when rolling consistently and resists sudden changes.</p>
+              <div class="formula-box">v = βv + ∇L<br>θ = θ - αv</div>
+              <p>The β (typically 0.9) means we keep 90% of previous velocity.</p>
+              
+              <h3>Why This Helps</h3>
+              <ul>
+                <li><strong>Dampens oscillations:</strong> Side-to-side movements cancel out; consistent downhill direction accumulates</li>
+                <li><strong>Escapes shallow minima:</strong> Momentum carries through small bumps</li>
+                <li><strong>Accelerates in consistent directions:</strong> Velocity builds up, effectively increasing learning rate</li>
+              </ul>
+              <p>Think of β as controlling ball "weight": 0.9 = bowling ball (smooth), 0.99 = boulder (massive momentum, can overshoot).</p>
+            </section>
+
+            <section class="content-section">
+              <h2>3. RMSprop: The Adaptive Walker</h2>
+              <p>Different parameters need different learning rates. Frequent-feature weights get large gradients; rare-feature weights get small ones. Same learning rate for both = problems.</p>
+              <div class="formula-box">S = ρS + (1-ρ)g²<br>θ = θ - α × g / √(S + ε)</div>
+              <p><strong>S</strong> tracks running average of squared gradients. We divide the gradient by √S to normalize.</p>
+              
+              <h3>The Effect</h3>
+              <ul>
+                <li>Large gradients → large S → smaller effective learning rate</li>
+                <li>Small gradients → small S → larger effective learning rate</li>
+              </ul>
+              <p>All parameters make roughly similar proportional progress, regardless of gradient magnitudes.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>4. Adam: Best of Both Worlds</h2>
+              <p>Why choose between momentum and adaptive learning rates? Adam maintains two running averages:</p>
+              <ul>
+                <li><strong>First moment (m):</strong> Mean of gradients — this is momentum</li>
+                <li><strong>Second moment (v):</strong> Mean of squared gradients — this is RMSprop</li>
+              </ul>
+              <div class="formula-box">m = β₁m + (1-β₁)g<br>v = β₂v + (1-β₂)g²<br>θ = θ - α × m̂ / (√v̂ + ε)</div>
+              <p>Adam also includes <strong>bias correction</strong> (m̂, v̂) to handle initialization — early steps aren't too small.</p>
+              
+              <h3>Default Hyperparameters</h3>
+              <ul>
+                <li><strong>α = 0.001</strong> (learning rate)</li>
+                <li><strong>β₁ = 0.9</strong> (momentum decay)</li>
+                <li><strong>β₂ = 0.999</strong> (RMSprop decay)</li>
+              </ul>
+              <p>These defaults work surprisingly well across many problems. Adam is the "just works" optimizer.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Comparison at a Glance</h2>
+              <table>
+                <thead>
+                  <tr><th>Aspect</th><th>Vanilla</th><th>Momentum</th><th>RMSprop</th><th>Adam</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Memory</td><td>None</td><td>1 buffer</td><td>1 buffer</td><td>2 buffers</td></tr>
+                  <tr><td>Handles ravines</td><td>Poorly</td><td>Well</td><td>Moderately</td><td>Well</td></tr>
+                  <tr><td>Escapes minima</td><td>Poorly</td><td>Well</td><td>Moderately</td><td>Well</td></tr>
+                  <tr><td>Adaptive per-param</td><td>No</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="content-section highlight-section">
+              <h2>Why This Matters for ML/AI</h2>
+              <p><strong>Start with Adam.</strong> It handles most situations competently without much tuning.</p>
+              <p><strong>Try SGD with momentum</strong> if you need absolute best final performance or are fine-tuning a pretrained model.</p>
+              <p><strong>Use RMSprop</strong> for RNNs or problems where the loss landscape shifts during training.</p>
+              
+              <h3>Diagnosing Training Problems</h3>
+              <ul>
+                <li><strong>Loss oscillating wildly?</strong> Learning rate too high, or try momentum</li>
+                <li><strong>Loss decreasing painfully slowly?</strong> Rate too low, or stuck in plateau</li>
+                <li><strong>Some weights exploding, others dead?</strong> Switch to adaptive optimizer</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>Key Takeaways</h2>
+              <ol>
+                <li><strong>Momentum</strong> = "remember which way I've been going"</li>
+                <li><strong>RMSprop</strong> = "scale steps by how much each parameter usually changes"</li>
+                <li><strong>Adam</strong> = "do both"</li>
+                <li>Watch the visualization — see how they behave differently on different terrains</li>
+                <li>The choice of optimizer affects <em>what</em> your model learns, not just speed</li>
+              </ol>
+            </section>
+
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="c6-softmax-cross-entropy.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← C6: Softmax & Cross-Entropy</span>
+          </a>
+          <a href="d2-learning-rate.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">D2: Learning Rate Effects →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="c6-softmax-cross-entropy.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← C6: Softmax & Cross-Entropy</span>
-        </a>
-        <a href="d2-learning-rate.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">D2: Learning Rate Effects →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
@@ -93,11 +321,5 @@
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>

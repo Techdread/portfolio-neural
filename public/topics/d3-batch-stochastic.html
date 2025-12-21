@@ -10,6 +10,124 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      aspect-ratio: 4 / 3; 
+      background: #0f1115;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21;
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6;
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        min-height: 100vh;
+      }
+
+      .viz-panel {
+        width: 60%;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: #050505;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+      }
+
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        padding-bottom: 6rem;
+      }
+
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,53 +155,188 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-d">Optimisation</a>
-        <span>›</span>
-        <span>D3</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-d)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-d)">D3</span>
-          <span class="topic-category">Optimisation Concepts</span>
+    <div class="split-layout-container">
+      
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/D3-batch-stochastic-minibatch-visualisation.html" title="Batch vs Stochastic vs Mini-batch Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Batch vs Stochastic vs Mini-batch</h1>
-        <p class="topic-description">Gradient estimate noise/accuracy differences affecting descent path.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <div class="content-panel">
+        
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-d">Optimisation</a>
+          <span>›</span>
+          <span>D3</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-d)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-d)">D3</span>
+            <span class="topic-category">Optimisation Concepts</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Batch vs Stochastic vs Mini-batch</h1>
+          <p class="topic-description">The noise-accuracy trade-off: how much data per gradient estimate?</p>
+        </header>
+
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <h2>The Noise-Accuracy Trade-off</h2>
+              <p>So far, we've treated gradient descent as if there's one clean gradient pointing downhill. But in real machine learning, the gradient depends on your <em>data</em> — and how much data you use to estimate that gradient changes everything.</p>
+              <p>Use all your data? You get a perfect gradient but wait forever. Use one sample? Lightning fast but wildly noisy. The sweet spot in the middle is where all of modern deep learning lives.</p>
+              <div class="formula-box">∇L(θ) = (1/N) Σᵢ ∇Lᵢ(θ)</div>
+              <p>The gradient is the average of individual gradients for each data point. Do you need <em>all</em> N to take one step?</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Batch (Full) Gradient Descent</h2>
+              <p>Compute the gradient using <strong>every single data point</strong> before taking one step. With 50,000 training images, process all 50,000 to update weights once.</p>
+              
+              <h3>The Pros</h3>
+              <ul>
+                <li><strong>Accurate gradient:</strong> True direction of steepest descent</li>
+                <li><strong>Smooth convergence:</strong> Clean, direct paths — no zigzagging</li>
+                <li><strong>Deterministic:</strong> Same starting point, same path, every time</li>
+              </ul>
+              
+              <h3>The Cons</h3>
+              <ul>
+                <li><strong>Painfully slow:</strong> Each update requires the entire dataset</li>
+                <li><strong>Memory hungry:</strong> Often need whole dataset in memory</li>
+                <li><strong>Gets stuck easily:</strong> Follows gradient precisely into local minima</li>
+              </ul>
+              <p>Rarely used in modern deep learning — primarily a teaching tool.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Stochastic Gradient Descent (SGD)</h2>
+              <p>The opposite extreme: compute gradient from <strong>one randomly chosen sample</strong>, then immediately update.</p>
+              <p>With 50,000 images, you make 50,000 weight updates per epoch instead of one.</p>
+              
+              <h3>The Pros</h3>
+              <ul>
+                <li><strong>Blazingly fast updates:</strong> Process just one sample per step</li>
+                <li><strong>Memory efficient:</strong> Only one sample in memory at a time</li>
+                <li><strong>Escapes local minima:</strong> The noise lets the optimizer jump out of shallow traps</li>
+              </ul>
+              
+              <h3>The Cons</h3>
+              <ul>
+                <li><strong>Extremely noisy:</strong> Single sample = terrible gradient estimate</li>
+                <li><strong>Erratic path:</strong> Two steps forward, one sideways, half back</li>
+                <li><strong>Wastes hardware:</strong> GPUs designed for parallel batches</li>
+              </ul>
+              
+              <h3>The Noise Advantage</h3>
+              <p>SGD's noise is genuinely helpful. Research shows stochastic methods find <em>better</em> minima — the noise acts like regularisation, preventing overfitting. Like shaking a box of sand to find stable arrangement.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Mini-batch: The Practical Middle Ground</h2>
+              <p>Compute gradient using a <strong>subset of data</strong> — typically 32 to 512 samples — then update.</p>
+              <p>With 50,000 images and batch size 64, you make ~780 updates per epoch.</p>
+              
+              <h3>Why Mini-batch Wins</h3>
+              <ul>
+                <li><strong>Good gradient estimates:</strong> 64 samples much better than 1, still noisy enough to escape minima</li>
+                <li><strong>Hardware utilisation:</strong> GPUs process batches nearly as fast as single images</li>
+                <li><strong>Memory balance:</strong> 64 samples fit comfortably in GPU memory</li>
+                <li><strong>Regularisation effect:</strong> Controlled noise still provides benefits</li>
+              </ul>
+              
+              <h3>The Universal Standard</h3>
+              <p>When practitioners say "SGD" today, they almost always mean mini-batch gradient descent. True single-sample SGD is rarely used.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Batch Size Effects</h2>
+              <p>Batch size isn't just about speed — it affects what your model learns.</p>
+              
+              <h3>Larger Batches</h3>
+              <ul>
+                <li>More accurate gradients, more stable training</li>
+                <li>Faster wall-clock time (better GPU utilisation)</li>
+                <li>Higher memory usage</li>
+                <li><strong>Worse generalisation:</strong> Can find "sharp" minima that don't transfer</li>
+              </ul>
+              
+              <h3>Smaller Batches</h3>
+              <ul>
+                <li>Noisier gradients = more regularisation</li>
+                <li>More updates per epoch</li>
+                <li>Lower memory usage</li>
+                <li><strong>Better generalisation:</strong> Often finds "flat" minima</li>
+              </ul>
+              
+              <h3>Common Choices</h3>
+              <table>
+                <thead>
+                  <tr><th>Batch Size</th><th>Use Case</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>16-32</td><td>Limited GPU memory, want more noise</td></tr>
+                  <tr><td>64-128</td><td>General-purpose default</td></tr>
+                  <tr><td>256-512</td><td>Large-scale training with big GPUs</td></tr>
+                  <tr><td>1000+</td><td>Distributed training across many GPUs</td></tr>
+                </tbody>
+              </table>
+              <p><strong>Learning rate connection:</strong> When you increase batch size, increase learning rate too. Double batch → try doubling LR.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>What You'll See in the Visualization</h2>
+              <ul>
+                <li><strong>Batch GD:</strong> Smooth curve directly toward minimum — elegant but slow</li>
+                <li><strong>Stochastic GD:</strong> Zigzags wildly but explores broadly — noise is visible as jitter</li>
+                <li><strong>Mini-batch GD:</strong> Controlled wobble — the practical compromise</li>
+              </ul>
+              <p>Adjust the batch size slider and watch paths smooth toward batch GD behaviour or add SGD-like noise.</p>
+            </section>
+
+            <section class="content-section highlight-section">
+              <h2>Why This Matters for ML/AI</h2>
+              <p><strong>Mini-batch is universal.</strong> Virtually every neural network uses it.</p>
+              <p><strong>Batch size is a hyperparameter</strong> that affects:</p>
+              <ul>
+                <li>Training speed (larger = faster per epoch)</li>
+                <li>Memory requirements</li>
+                <li>Generalisation performance</li>
+                <li>Optimal learning rate</li>
+              </ul>
+              <p><strong>Noise as regularisation:</strong> The noise from stochastic methods isn't just tolerated — it's beneficial. Even with infinite compute, you wouldn't necessarily want true batch GD.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>The Terminology Trap</h2>
+              <ul>
+                <li>When papers say <strong>"SGD"</strong>, they usually mean mini-batch with momentum</li>
+                <li>When tutorials say <strong>"batch"</strong>, they sometimes mean mini-batch</li>
+                <li>When frameworks offer <strong>"batch_size"</strong>, they mean mini-batch size</li>
+                <li>True single-sample updates are called <strong>"online learning"</strong></li>
+              </ul>
+              <p>In practice, everything is mini-batch, regardless of what it's called.</p>
+            </section>
+
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="d2-learning-rate.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← D2: Learning Rate Effects</span>
+          </a>
+          <a href="d4-regularisation.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">D4: Regularisation Visualised →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="d2-learning-rate.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← D2: Learning Rate Effects</span>
-        </a>
-        <a href="d4-regularisation.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">D4: Regularisation Visualised →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
@@ -93,11 +346,5 @@
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>

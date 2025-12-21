@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch vs Stochastic vs Mini-batch Gradient Descent</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-100: #f1f5f9;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-400: #60a5fa;
+      --green-500: #22c55e;
+      --green-400: #4ade80;
+      --red-500: #ef4444;
+      --red-400: #f87171;
+      --amber-500: #f59e0b;
+      --purple-500: #a855f7;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--slate-900);
+      color: var(--slate-100);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .panel {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Header */
+    .header-panel {
+      width: 300px;
+    }
+
+    .header-panel h1 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .header-panel p {
+      font-size: 0.75rem;
+      color: var(--slate-400);
+    }
+
+    /* Right sidebar */
+    .sidebar {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      pointer-events: auto;
+    }
+
+    /* Control sections */
+    .control-group {
+      margin-bottom: 1rem;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--slate-400);
+      margin-bottom: 0.375rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .control-label .value {
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: none;
+    }
+
+    /* Mode toggle buttons */
+    .mode-toggle {
+      display: flex;
+      background: var(--slate-800);
+      border-radius: 0.375rem;
+      padding: 0.25rem;
+      gap: 0.25rem;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: var(--slate-400);
+    }
+
+    .mode-btn:hover {
+      background: var(--slate-700);
+      color: var(--slate-200);
+    }
+
+    .mode-btn.active {
+      background: var(--blue-600);
+      color: white;
+    }
+
+    .scenario-desc {
+      font-size: 0.625rem;
+      color: var(--slate-500);
+      margin-top: 0.5rem;
+      line-height: 1.4;
+    }
+
+    /* Sliders */
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      background: var(--slate-700);
+      border-radius: 2px;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--blue-500);
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--slate-900);
+    }
+
+    /* Buttons */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      flex: 1;
+      background: var(--blue-600);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--blue-500);
+    }
+
+    .btn-primary.playing {
+      background: var(--amber-500);
+    }
+
+    .btn-secondary {
+      padding: 0.625rem;
+      background: var(--slate-700);
+      color: var(--slate-300);
+    }
+
+    .btn-secondary:hover {
+      background: var(--slate-600);
+    }
+
+    .playback-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      text-align: center;
+    }
+
+    .stat-column {
+      padding: 0.5rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0.375rem;
+    }
+
+    .stat-column .label {
+      font-size: 0.625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-column .label.batch { color: var(--blue-400); }
+    .stat-column .label.mini { color: var(--green-400); }
+    .stat-column .label.sgd { color: var(--red-400); }
+
+    .stat-column .loss {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      margin-bottom: 0.125rem;
+    }
+
+    .stat-column .steps {
+      font-size: 0.625rem;
+      color: var(--slate-500);
+    }
+
+    .stat-column .status {
+      font-size: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.25rem;
+      padding: 0.125rem 0.25rem;
+      border-radius: 0.125rem;
+    }
+
+    .stat-column .status.running {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--blue-400);
+    }
+
+    .stat-column .status.converged {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--green-400);
+    }
+
+    .stat-column .status.stuck {
+      background: rgba(251, 191, 36, 0.2);
+      color: var(--amber-500);
+    }
+
+    /* Explanation panel */
+    .explanation-panel {
+      font-size: 0.75rem;
+      padding: 0.75rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0.5rem;
+      border-left: 3px solid var(--blue-500);
+    }
+
+    .explanation-panel .title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .explanation-panel p {
+      color: var(--slate-400);
+      line-height: 1.4;
+    }
+
+    /* Bottom left panels */
+    .bottom-left {
+      position: absolute;
+      bottom: 1rem;
+      left: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      pointer-events: auto;
+    }
+
+    /* Data canvas */
+    .data-panel {
+      width: 280px;
+    }
+
+    #dataCanvas {
+      width: 100%;
+      height: 140px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 0.375rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+      font-size: 0.625rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.batch { background: var(--blue-500); box-shadow: 0 0 6px var(--blue-500); }
+    .legend-dot.mini { background: var(--green-500); box-shadow: 0 0 6px var(--green-500); }
+    .legend-dot.sgd { background: var(--red-500); box-shadow: 0 0 6px var(--red-500); }
+
+    /* Info panel */
+    .info-panel {
+      width: 280px;
+      background: rgba(30, 58, 138, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .info-panel .content {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .info-panel svg {
+      flex-shrink: 0;
+      color: var(--blue-400);
+    }
+
+    .info-panel .text {
+      font-size: 0.75rem;
+      color: #bfdbfe;
+    }
+
+    .info-panel .text strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    /* Step counter */
+    .step-counter {
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .step-counter .panel {
+      text-align: center;
+    }
+
+    .step-counter .epoch {
+      font-size: 0.625rem;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .step-counter .steps {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    /* Icons */
+    .icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    .icon-sm {
+      width: 16px;
+      height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div class="ui-layer">
+    <!-- Header -->
+    <div class="panel header-panel">
+      <h1>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Batch Size Explorer
+      </h1>
+      <p>See how the amount of data per gradient update affects the descent path.</p>
+    </div>
+
+    <!-- Step Counter -->
+    <div class="step-counter">
+      <div class="panel">
+        <div class="epoch">Epoch <span id="epochCount">0</span></div>
+        <div class="steps">Step: <span id="stepCount">0</span></div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="sidebar">
+      <!-- Controls Panel -->
+      <div class="panel">
+        <div class="control-group">
+          <div class="control-label">Scenario</div>
+          <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="regression">Regression</button>
+            <button class="mode-btn" data-mode="trap">Local Trap</button>
+          </div>
+          <p class="scenario-desc" id="scenarioDesc">
+            Convex loss surface from linear regression. All methods converge, but watch the paths differ.
+          </p>
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Learning Rate</span>
+            <span class="value" id="lrValue">0.010</span>
+          </div>
+          <input type="range" id="lrSlider" min="0.001" max="0.1" step="0.001" value="0.01">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Mini-batch Size</span>
+            <span class="value" id="batchValue">16</span>
+          </div>
+          <input type="range" id="batchSlider" min="2" max="50" step="1" value="16">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Animation Speed</span>
+            <span class="value" id="speedValue">1x</span>
+          </div>
+          <input type="range" id="speedSlider" min="1" max="10" step="1" value="1">
+        </div>
+
+        <div class="playback-row">
+          <button class="btn btn-primary" id="playBtn">
+            <svg class="icon-sm" id="playIcon" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <svg class="icon-sm" id="pauseIcon" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+              <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+            </svg>
+            <span id="playBtnText">Start</span>
+          </button>
+          <button class="btn btn-secondary" id="resetBtn" title="Reset">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Panel -->
+      <div class="panel">
+        <div class="stats-grid">
+          <div class="stat-column">
+            <div class="label batch">Batch</div>
+            <div class="loss" id="lossBatch">0.00</div>
+            <div class="steps" id="stepsBatch">0 steps</div>
+            <div class="status running" id="statusBatch">Running</div>
+          </div>
+          <div class="stat-column">
+            <div class="label mini">Mini-batch</div>
+            <div class="loss" id="lossMini">0.00</div>
+            <div class="steps" id="stepsMini">0 steps</div>
+            <div class="status running" id="statusMini">Running</div>
+          </div>
+          <div class="stat-column">
+            <div class="label sgd">SGD</div>
+            <div class="loss" id="lossSgd">0.00</div>
+            <div class="steps" id="stepsSgd">0 steps</div>
+            <div class="status running" id="statusSgd">Running</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Explanation Panel -->
+      <div class="panel">
+        <div class="explanation-panel" id="explanationPanel">
+          <div class="title">Understanding the Trade-offs</div>
+          <p>Batch GD uses all 100 points per step (accurate but slow). SGD uses 1 point (fast but noisy). Mini-batch balances both.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Left -->
+    <div class="bottom-left">
+      <!-- Data View -->
+      <div class="panel data-panel" id="dataPanel">
+        <div class="control-label">Dataset & Fit Lines</div>
+        <canvas id="dataCanvas" width="260" height="140"></canvas>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-dot batch"></div>
+            <span>Batch (all 100)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot mini"></div>
+            <span>Mini (16)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot sgd"></div>
+            <span>SGD (1)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Box -->
+      <div class="panel info-panel">
+        <div class="content">
+          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <div class="text">
+            <strong>Why Noise Helps</strong>
+            SGD's noisy gradient can escape local minima where batch GD gets stuck. Try the "Local Trap" scenario!
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // CONSTANTS
+    // ============================================
+    
+    const CONFIG = {
+      POINT_COUNT: 100,
+      X_RANGE: [-2, 2],
+      TRUE_SLOPE: 1.5,
+      TRUE_BIAS: -0.5,
+      NOISE_LEVEL: 0.8,
+      GRID_SIZE: 60,
+      MAX_PATH_POINTS: 3000,
+      CONVERGENCE_THRESHOLD: 0.0001,
+      PHYSICS_FPS: 30,
+      START_POS: { m: -3.5, b: 3.5 }
+    };
+
+    const COLORS = {
+      batch: 0x3b82f6,
+      mini: 0x22c55e,
+      sgd: 0xef4444
+    };
+
+    const SCENARIOS = {
+      regression: {
+        desc: "Convex loss surface from linear regression. All methods converge to the global minimum, but watch how paths differ."
+      },
+      trap: {
+        desc: "Non-convex surface with a local trap. SGD's noise helps it escape where batch GD gets stuck!"
+      }
+    };
+
+    // ============================================
+    // STATE
+    // ============================================
+
+    const state = {
+      isRunning: false,
+      mode: 'regression',
+      learningRate: 0.01,
+      miniBatchSize: 16,
+      stepsPerFrame: 1,
+      totalSteps: 0,
+      epoch: 0
+    };
+
+    // Data points for regression
+    let dataPoints = [];
+    
+    // Shuffled indices for proper epoch-based sampling
+    let shuffledIndices = [];
+    let sampleIndex = 0;
+
+    // Optimizers
+    const optimizers = {
+      batch: createOptimizer('batch', COLORS.batch),
+      mini: createOptimizer('mini', COLORS.mini),
+      sgd: createOptimizer('sgd', COLORS.sgd)
+    };
+
+    function createOptimizer(name, color) {
+      return {
+        name,
+        color,
+        m: CONFIG.START_POS.m,
+        b: CONFIG.START_POS.b,
+        loss: 0,
+        steps: 0,
+        status: 'running',
+        path: [],
+        pathIndex: 0,
+        // Three.js objects (assigned later)
+        ball: null,
+        trail: null,
+        trailGeo: null,
+        arrow: null
+      };
+    }
+
+    // ============================================
+    // DATA GENERATION
+    // ============================================
+
+    function generateData() {
+      dataPoints = [];
+      for (let i = 0; i < CONFIG.POINT_COUNT; i++) {
+        const x = CONFIG.X_RANGE[0] + Math.random() * (CONFIG.X_RANGE[1] - CONFIG.X_RANGE[0]);
+        const noise = (Math.random() - 0.5) * CONFIG.NOISE_LEVEL * 2;
+        const y = CONFIG.TRUE_SLOPE * x + CONFIG.TRUE_BIAS + noise;
+        dataPoints.push({ x, y });
+      }
+      shuffleData();
+    }
+
+    function shuffleData() {
+      shuffledIndices = [...Array(CONFIG.POINT_COUNT).keys()];
+      // Fisher-Yates shuffle
+      for (let i = shuffledIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledIndices[i], shuffledIndices[j]] = [shuffledIndices[j], shuffledIndices[i]];
+      }
+      sampleIndex = 0;
+    }
+
+    function getNextSamples(count) {
+      const samples = [];
+      for (let i = 0; i < count; i++) {
+        if (sampleIndex >= shuffledIndices.length) {
+          shuffleData();
+          state.epoch++;
+        }
+        samples.push(dataPoints[shuffledIndices[sampleIndex]]);
+        sampleIndex++;
+      }
+      return samples;
+    }
+
+    // ============================================
+    // LOSS & GRADIENT FUNCTIONS
+    // ============================================
+
+    function calculateLoss(m, b) {
+      if (state.mode === 'trap') {
+        // Synthetic trap surface
+        // Global minimum near (0, 0), local trap near (2.5, 2.5)
+        const distGlobal = m * m + b * b;
+        const distTrap = Math.pow(m - 2.5, 2) + Math.pow(b - 2.5, 2);
+        return 0.1 * distGlobal - 1.2 * Math.exp(-distTrap * 2) + 1.5;
+      } else {
+        // MSE for regression
+        let sum = 0;
+        for (const p of dataPoints) {
+          const pred = m * p.x + b;
+          sum += Math.pow(pred - p.y, 2);
+        }
+        return sum / dataPoints.length;
+      }
+    }
+
+    function calculateGradient(m, b, samples) {
+      if (state.mode === 'trap') {
+        // Analytical gradient for trap function
+        const distTrap = Math.pow(m - 2.5, 2) + Math.pow(b - 2.5, 2);
+        const expTerm = Math.exp(-distTrap * 2);
+        
+        const dm = 0.2 * m + 1.2 * expTerm * 4 * (m - 2.5);
+        const db = 0.2 * b + 1.2 * expTerm * 4 * (b - 2.5);
+        
+        return { dm, db };
+      } else {
+        // Gradient from samples
+        let dm = 0;
+        let db = 0;
+        const n = samples.length;
+        
+        for (const p of samples) {
+          const pred = m * p.x + b;
+          const error = pred - p.y;
+          dm += 2 * error * p.x;
+          db += 2 * error;
+        }
+        
+        return { dm: dm / n, db: db / n };
+      }
+    }
+
+    function getGradientMagnitude(grad) {
+      return Math.sqrt(grad.dm * grad.dm + grad.db * grad.db);
+    }
+
+    // ============================================
+    // THREE.JS SETUP
+    // ============================================
+
+    let scene, camera, renderer, controls, surfaceMesh, wireMesh;
+
+    function initThree() {
+      const canvas = document.getElementById('canvas');
+
+      // Scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f172a);
+      scene.fog = new THREE.FogExp2(0x0f172a, 0.04);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(8, 8, 8);
+      camera.lookAt(0, 0, 0);
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      // Controls
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2 - 0.05;
+      controls.minDistance = 4;
+      controls.maxDistance = 20;
+
+      // Lighting
+      const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambient);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(5, 15, 5);
+      scene.add(dirLight);
+
+      const fillLight = new THREE.DirectionalLight(0x6366f1, 0.15);
+      fillLight.position.set(-5, 5, -5);
+      scene.add(fillLight);
+
+      // Grid
+      const grid = new THREE.GridHelper(12, 12, 0x334155, 0x1e293b);
+      grid.position.y = -0.2;
+      scene.add(grid);
+
+      // Surface
+      createSurface();
+
+      // Optimizer visuals
+      Object.values(optimizers).forEach(opt => {
+        createOptimizerVisuals(opt);
+      });
+
+      // Resize handler
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function createSurface() {
+      const geometry = new THREE.PlaneGeometry(8, 8, CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
+      geometry.rotateX(-Math.PI / 2);
+
+      const material = new THREE.MeshPhongMaterial({
+        vertexColors: true,
+        side: THREE.DoubleSide,
+        flatShading: true,
+        shininess: 10
+      });
+
+      const wireMaterial = new THREE.MeshBasicMaterial({
+        color: 0x475569,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.15
+      });
+
+      surfaceMesh = new THREE.Mesh(geometry, material);
+      wireMesh = new THREE.Mesh(geometry.clone(), wireMaterial);
+
+      scene.add(surfaceMesh);
+      scene.add(wireMesh);
+
+      updateSurface();
+    }
+
+    function updateSurface() {
+      const positions = surfaceMesh.geometry.attributes.position;
+      const wirePositions = wireMesh.geometry.attributes.position;
+      const count = positions.count;
+      const colors = [];
+
+      let minH = Infinity, maxH = -Infinity;
+
+      // First pass: compute heights
+      for (let i = 0; i < count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getZ(i);
+        const y = calculateLoss(x, z);
+        positions.setY(i, y);
+        wirePositions.setY(i, y);
+        if (y < minH) minH = y;
+        if (y > maxH) maxH = y;
+      }
+
+      // Second pass: colors
+      const colorLow = new THREE.Color(0x1e40af);
+      const colorMid = new THREE.Color(0x22c55e);
+      const colorHigh = new THREE.Color(0xf43f5e);
+
+      for (let i = 0; i < count; i++) {
+        const h = positions.getY(i);
+        const t = (h - minH) / (maxH - minH + 0.001);
+
+        let color;
+        if (t < 0.5) {
+          color = colorLow.clone().lerp(colorMid, t * 2);
+        } else {
+          color = colorMid.clone().lerp(colorHigh, (t - 0.5) * 2);
+        }
+        colors.push(color.r, color.g, color.b);
+      }
+
+      surfaceMesh.geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      surfaceMesh.geometry.attributes.position.needsUpdate = true;
+      surfaceMesh.geometry.computeVertexNormals();
+      wireMesh.geometry.attributes.position.needsUpdate = true;
+    }
+
+    function createOptimizerVisuals(opt) {
+      // Ball
+      const ballGeo = new THREE.SphereGeometry(0.15, 20, 20);
+      const ballMat = new THREE.MeshStandardMaterial({
+        color: opt.color,
+        emissive: opt.color,
+        emissiveIntensity: 0.4,
+        roughness: 0.3,
+        metalness: 0.5
+      });
+      opt.ball = new THREE.Mesh(ballGeo, ballMat);
+      opt.ball.castShadow = true;
+      scene.add(opt.ball);
+
+      // Trail
+      opt.trailGeo = new THREE.BufferGeometry();
+      const positions = new Float32Array(CONFIG.MAX_PATH_POINTS * 3);
+      opt.trailGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      opt.trailGeo.setDrawRange(0, 0);
+
+      const trailMat = new THREE.LineBasicMaterial({
+        color: opt.color,
+        transparent: true,
+        opacity: 0.8
+      });
+      opt.trail = new THREE.Line(opt.trailGeo, trailMat);
+      scene.add(opt.trail);
+
+      // Gradient arrow
+      opt.arrow = new THREE.ArrowHelper(
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 0, 0),
+        0.5,
+        opt.color,
+        0.12,
+        0.08
+      );
+      scene.add(opt.arrow);
+    }
+
+    function updateOptimizerVisuals() {
+      Object.values(optimizers).forEach(opt => {
+        const y = opt.loss + 0.15;
+
+        // Ball position
+        opt.ball.position.set(opt.m, y, opt.b);
+        opt.ball.visible = opt.status !== 'diverged';
+
+        // Trail
+        const positions = opt.trailGeo.attributes.position.array;
+        const pathLen = Math.min(opt.path.length, CONFIG.MAX_PATH_POINTS);
+
+        for (let i = 0; i < pathLen; i++) {
+          const p = opt.path[i];
+          positions[i * 3] = p.m;
+          positions[i * 3 + 1] = p.loss + 0.05;
+          positions[i * 3 + 2] = p.b;
+        }
+
+        opt.trailGeo.setDrawRange(0, pathLen);
+        opt.trailGeo.attributes.position.needsUpdate = true;
+
+        // Arrow
+        if (opt.status === 'running') {
+          const samples = opt.name === 'batch' ? dataPoints :
+                          opt.name === 'mini' ? dataPoints.slice(0, state.miniBatchSize) :
+                          [dataPoints[0]];
+          const grad = calculateGradient(opt.m, opt.b, samples);
+          const gradMag = getGradientMagnitude(grad);
+
+          if (gradMag > 0.001) {
+            const dir = new THREE.Vector3(-grad.dm, 0, -grad.db).normalize();
+            const len = Math.min(gradMag * 2, 1.5);
+            opt.arrow.position.set(opt.m, y + 0.1, opt.b);
+            opt.arrow.setDirection(dir);
+            opt.arrow.setLength(len, 0.12, 0.08);
+            opt.arrow.visible = true;
+          } else {
+            opt.arrow.visible = false;
+          }
+        } else {
+          opt.arrow.visible = false;
+        }
+      });
+    }
+
+    // ============================================
+    // SIMULATION
+    // ============================================
+
+    function resetSimulation() {
+      state.isRunning = false;
+      state.totalSteps = 0;
+      state.epoch = 0;
+
+      shuffleData();
+
+      Object.values(optimizers).forEach(opt => {
+        opt.m = CONFIG.START_POS.m;
+        opt.b = CONFIG.START_POS.b;
+        opt.loss = calculateLoss(opt.m, opt.b);
+        opt.steps = 0;
+        opt.status = 'running';
+        opt.path = [];
+        opt.pathIndex = 0;
+
+        // Record initial position
+        opt.path.push({ m: opt.m, b: opt.b, loss: opt.loss });
+      });
+
+      updateOptimizerVisuals();
+      updateUI();
+      updateDataCanvas();
+      updatePlayButton();
+    }
+
+    function stepSimulation() {
+      Object.entries(optimizers).forEach(([key, opt]) => {
+        if (opt.status !== 'running') return;
+
+        // Get samples based on optimizer type
+        let samples;
+        let noiseScale = 0;
+
+        if (key === 'batch') {
+          samples = dataPoints; // All data
+        } else if (key === 'mini') {
+          if (state.mode === 'trap') {
+            samples = dataPoints;
+            noiseScale = 2.0 / Math.sqrt(state.miniBatchSize);
+          } else {
+            samples = getNextSamples(state.miniBatchSize);
+          }
+        } else { // sgd
+          if (state.mode === 'trap') {
+            samples = dataPoints;
+            noiseScale = 3.0;
+          } else {
+            samples = getNextSamples(1);
+          }
+        }
+
+        // Calculate gradient
+        let grad = calculateGradient(opt.m, opt.b, samples);
+
+        // Add noise for trap mode (simulating variance from sampling)
+        if (state.mode === 'trap' && noiseScale > 0) {
+          grad.dm += (Math.random() - 0.5) * noiseScale;
+          grad.db += (Math.random() - 0.5) * noiseScale;
+        }
+
+        // Update parameters
+        const newM = opt.m - state.learningRate * grad.dm;
+        const newB = opt.b - state.learningRate * grad.db;
+        const newLoss = calculateLoss(newM, newB);
+
+        // Check for divergence
+        if (Math.abs(newM) > 10 || Math.abs(newB) > 10 || !isFinite(newLoss)) {
+          opt.status = 'diverged';
+          return;
+        }
+
+        // Update state
+        opt.m = newM;
+        opt.b = newB;
+        opt.loss = newLoss;
+        opt.steps++;
+
+        // Record path (with ring buffer)
+        if (opt.path.length >= CONFIG.MAX_PATH_POINTS) {
+          opt.path.shift();
+        }
+        opt.path.push({ m: opt.m, b: opt.b, loss: opt.loss });
+
+        // Check convergence
+        const gradMag = getGradientMagnitude(grad);
+        if (gradMag < CONFIG.CONVERGENCE_THRESHOLD) {
+          opt.status = 'converged';
+        }
+
+        // Check if stuck in local minimum (for trap mode)
+        if (state.mode === 'trap' && key === 'batch' && opt.steps > 100) {
+          const distToTrap = Math.sqrt(Math.pow(opt.m - 2.5, 2) + Math.pow(opt.b - 2.5, 2));
+          if (distToTrap < 0.3 && gradMag < 0.01) {
+            opt.status = 'stuck';
+          }
+        }
+      });
+
+      state.totalSteps++;
+    }
+
+    // ============================================
+    // UI UPDATES
+    // ============================================
+
+    function updateUI() {
+      // Step counter
+      document.getElementById('stepCount').textContent = state.totalSteps;
+      document.getElementById('epochCount').textContent = state.epoch;
+
+      // Per-optimizer stats
+      Object.entries(optimizers).forEach(([key, opt]) => {
+        const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+        document.getElementById(`loss${suffix}`).textContent = opt.loss.toFixed(3);
+        document.getElementById(`steps${suffix}`).textContent = `${opt.steps} steps`;
+
+        const statusEl = document.getElementById(`status${suffix}`);
+        statusEl.textContent = opt.status;
+        statusEl.className = `status ${opt.status}`;
+      });
+
+      // Update mini-batch legend
+      document.querySelector('.legend-item:nth-child(2) span').textContent = 
+        `Mini (${state.miniBatchSize})`;
+    }
+
+    function updatePlayButton() {
+      const btn = document.getElementById('playBtn');
+      const playIcon = document.getElementById('playIcon');
+      const pauseIcon = document.getElementById('pauseIcon');
+      const text = document.getElementById('playBtnText');
+
+      if (state.isRunning) {
+        btn.classList.add('playing');
+        playIcon.style.display = 'none';
+        pauseIcon.style.display = 'block';
+        text.textContent = 'Pause';
+      } else {
+        btn.classList.remove('playing');
+        playIcon.style.display = 'block';
+        pauseIcon.style.display = 'none';
+        text.textContent = 'Start';
+      }
+    }
+
+    function updateDataCanvas() {
+      const canvas = document.getElementById('dataCanvas');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Map functions
+      const mapX = (x) => ((x + 3) / 6) * w;
+      const mapY = (y) => h - ((y + 3) / 6) * h;
+
+      // Draw data points (only in regression mode)
+      if (state.mode === 'regression') {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        dataPoints.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(mapX(p.x), mapY(p.y), 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      } else {
+        // Show "abstract" message
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Parameter space (not data space)', w / 2, h / 2);
+      }
+
+      // Draw fit lines
+      const x1 = -3, x2 = 3;
+
+      Object.values(optimizers).forEach(opt => {
+        if (opt.status === 'diverged') return;
+
+        const y1 = opt.m * x1 + opt.b;
+        const y2 = opt.m * x2 + opt.b;
+
+        ctx.strokeStyle = '#' + new THREE.Color(opt.color).getHexString();
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = opt.name === 'sgd' ? 0.6 : 0.9;
+        ctx.beginPath();
+        ctx.moveTo(mapX(x1), mapY(y1));
+        ctx.lineTo(mapX(x2), mapY(y2));
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+
+      // True line (if regression)
+      if (state.mode === 'regression') {
+        const ty1 = CONFIG.TRUE_SLOPE * x1 + CONFIG.TRUE_BIAS;
+        const ty2 = CONFIG.TRUE_SLOPE * x2 + CONFIG.TRUE_BIAS;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(mapX(x1), mapY(ty1));
+        ctx.lineTo(mapX(x2), mapY(ty2));
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+
+      // Update button states
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+
+      // Update description
+      document.getElementById('scenarioDesc').textContent = SCENARIOS[mode].desc;
+
+      // Update data panel opacity
+      document.getElementById('dataPanel').style.opacity = mode === 'trap' ? '0.5' : '1';
+
+      // Rebuild surface and reset
+      updateSurface();
+      resetSimulation();
+    }
+
+    // ============================================
+    // EVENT HANDLERS
+    // ============================================
+
+    function setupEventHandlers() {
+      // Play/Pause
+      document.getElementById('playBtn').addEventListener('click', () => {
+        state.isRunning = !state.isRunning;
+        updatePlayButton();
+      });
+
+      // Reset
+      document.getElementById('resetBtn').addEventListener('click', resetSimulation);
+
+      // Mode buttons
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => setMode(btn.dataset.mode));
+      });
+
+      // Learning rate
+      document.getElementById('lrSlider').addEventListener('input', (e) => {
+        state.learningRate = parseFloat(e.target.value);
+        document.getElementById('lrValue').textContent = state.learningRate.toFixed(3);
+      });
+
+      // Batch size
+      document.getElementById('batchSlider').addEventListener('input', (e) => {
+        state.miniBatchSize = parseInt(e.target.value);
+        document.getElementById('batchValue').textContent = state.miniBatchSize;
+      });
+
+      // Speed
+      document.getElementById('speedSlider').addEventListener('input', (e) => {
+        state.stepsPerFrame = parseInt(e.target.value);
+        document.getElementById('speedValue').textContent = state.stepsPerFrame + 'x';
+      });
+    }
+
+    // ============================================
+    // MAIN LOOP
+    // ============================================
+
+    let lastTime = 0;
+    const PHYSICS_INTERVAL = 1000 / CONFIG.PHYSICS_FPS;
+    let accumulator = 0;
+
+    function animate(currentTime) {
+      requestAnimationFrame(animate);
+
+      // Fixed timestep physics
+      const delta = currentTime - lastTime;
+      lastTime = currentTime;
+
+      if (state.isRunning) {
+        accumulator += delta;
+
+        while (accumulator >= PHYSICS_INTERVAL) {
+          for (let i = 0; i < state.stepsPerFrame; i++) {
+            stepSimulation();
+          }
+          accumulator -= PHYSICS_INTERVAL;
+        }
+
+        updateOptimizerVisuals();
+        updateUI();
+        updateDataCanvas();
+
+        // Check if all done
+        const allDone = Object.values(optimizers).every(o => o.status !== 'running');
+        if (allDone) {
+          state.isRunning = false;
+          updatePlayButton();
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+
+    function init() {
+      generateData();
+      initThree();
+      resetSimulation();
+      setupEventHandlers();
+      requestAnimationFrame(animate);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

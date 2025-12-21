@@ -10,6 +10,124 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      aspect-ratio: 4 / 3; 
+      background: #0f1115;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21;
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6;
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        min-height: 100vh;
+      }
+
+      .viz-panel {
+        width: 60%;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: #050505;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+      }
+
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        padding-bottom: 6rem;
+      }
+
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,53 +155,167 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-d">Optimisation</a>
-        <span>›</span>
-        <span>D2</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-d)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-d)">D2</span>
-          <span class="topic-category">Optimisation Concepts</span>
+    <div class="split-layout-container">
+      
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/D2-learning-rate-explorer-visualisation.html" title="Learning Rate Effects Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Learning Rate Effects</h1>
-        <p class="topic-description">Interactive slider: too small, just right, too large (divergence). Real-time path.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <div class="content-panel">
+        
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-d">Optimisation</a>
+          <span>›</span>
+          <span>D2</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-d)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-d)">D2</span>
+            <span class="topic-category">Optimisation Concepts</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Learning Rate Effects</h1>
+          <p class="topic-description">The most important hyperparameter: too small, just right, or explosive.</p>
+        </header>
+
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <h2>The Goldilocks Problem</h2>
+              <p>If neural network training were a fairy tale, learning rate would be the porridge. Too hot and you burn everything. Too cold and you wait forever. Getting it just right is often the difference between a model that works and one that doesn't.</p>
+              <p>The learning rate is typically the <strong>first thing practitioners tune</strong>, and the wrong value can make training fail completely.</p>
+              <div class="formula-box">θ = θ - α∇L</div>
+              <p>The learning rate (α) controls how big each step is. The gradient tells you <em>which direction</em>; the learning rate tells you <em>how far</em>.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Too Small: The Eternal Descent</h2>
+              <p>When the learning rate is too small, the optimizer creeps toward the minimum at a glacial pace. Each step is so tiny that progress is barely visible.</p>
+              
+              <h3>The Symptoms</h3>
+              <ul>
+                <li>Loss decreases in tiny increments (0.5001 → 0.5000 → 0.4999)</li>
+                <li>Training takes far longer than expected</li>
+                <li>The marker barely moves between steps in the visualization</li>
+              </ul>
+              
+              <h3>The Danger</h3>
+              <p>You might terminate training early, thinking the model has converged when it's actually just moving too slowly. You end up with a model worse than it could have been.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Just Right: The Smooth Descent</h2>
+              <p>A well-chosen learning rate produces steady, consistent progress. The loss decreases in meaningful increments without oscillating or crawling.</p>
+              
+              <h3>The Symptoms</h3>
+              <ul>
+                <li>Loss decreases steadily in a smooth curve</li>
+                <li>Training completes in reasonable epochs</li>
+                <li>The marker moves purposefully toward the minimum</li>
+              </ul>
+              
+              <h3>What "Just Right" Means</h3>
+              <p>There's no single correct learning rate — it depends on:</p>
+              <ul>
+                <li>Your model architecture</li>
+                <li>Your optimizer (Adam needs lower rates than SGD)</li>
+                <li>Your batch size (larger batches tolerate higher rates)</li>
+                <li>The specific loss landscape of your problem</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>Too Large: The Explosion</h2>
+              <p>When the learning rate is too large, the optimizer overshoots the minimum and lands on the other side. Then it overcorrects, overshooting again. At worst, the loss explodes toward infinity.</p>
+              
+              <h3>The Symptoms</h3>
+              <ul>
+                <li>Loss bounces around: 0.5 → 0.3 → 0.8 → 0.2 → 1.5</li>
+                <li>Loss suddenly spikes to <code>inf</code> or <code>NaN</code></li>
+                <li>The marker jumps dramatically, zig-zags wildly, or flies off</li>
+              </ul>
+              
+              <h3>Why It Happens</h3>
+              <p>When your step is larger than the distance to the minimum, you overshoot. If the gradient on the other side is steep, you take another big step — overshooting again. This positive feedback loop amplifies until values overflow.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Typical Ranges by Optimizer</h2>
+              <table>
+                <thead>
+                  <tr><th>Optimizer</th><th>Typical Range</th><th>Default</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Vanilla SGD</td><td>0.01 - 0.1</td><td>0.01</td></tr>
+                  <tr><td>SGD + Momentum</td><td>0.001 - 0.1</td><td>0.01</td></tr>
+                  <tr><td>RMSprop</td><td>0.0001 - 0.01</td><td>0.001</td></tr>
+                  <tr><td>Adam</td><td>0.00001 - 0.001</td><td>0.001</td></tr>
+                </tbody>
+              </table>
+              <p><strong>Batch size connection:</strong> If you double the batch size, try increasing the learning rate by √2 (about 1.4x).</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Learning Rate Schedules</h2>
+              <p>A fixed learning rate is often not optimal throughout training. Early on, take big steps. Later, smaller steps to settle precisely.</p>
+              
+              <h3>Step Decay</h3>
+              <p>Reduce by fixed factor at specific epochs:</p>
+              <pre><code>Epoch 1-30:   α = 0.01
+Epoch 31-60:  α = 0.001
+Epoch 61+:    α = 0.0001</code></pre>
+              
+              <h3>Cosine Annealing</h3>
+              <p>Learning rate follows a cosine curve — aggressive reduction in middle, slows as you approach minimum. Some variants restart at intervals ("warm restarts").</p>
+              
+              <h3>Warmup</h3>
+              <p>Start very small and gradually increase before main schedule. Important for large batch training and transformers. Early gradients can be unstable with random weights.</p>
+            </section>
+
+            <section class="content-section highlight-section">
+              <h2>Why This Matters for ML/AI</h2>
+              <p>When training goes wrong, learning rate is often the culprit. Before investigating complex issues:</p>
+              <ul>
+                <li><strong>Loss not decreasing?</strong> Try a higher learning rate</li>
+                <li><strong>Loss unstable or exploding?</strong> Try a lower learning rate</li>
+                <li><strong>Training suddenly failed?</strong> Check for learning rate issues</li>
+              </ul>
+              <p>Adam and similar adaptive optimizers are more forgiving, but you still need to choose a base rate. Some research suggests well-tuned SGD with a good schedule can outperform Adam.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Building Your Intuition</h2>
+              <p>Play with the learning rate slider in the visualization:</p>
+              <ul>
+                <li><strong>At 0.001:</strong> Count how many steps to converge</li>
+                <li><strong>At 0.05:</strong> See smooth progress</li>
+                <li><strong>At 0.3:</strong> Watch the oscillation begin</li>
+                <li><strong>At 0.5+:</strong> See divergence in action</li>
+              </ul>
+              <p>Try on different surfaces — the "just right" rate depends on terrain. The ravine punishes high learning rates more than the simple bowl.</p>
+              <p>The goal isn't to memorise numbers. It's to recognise patterns: the sluggish creep of too-small, the erratic bouncing of too-large, and the purposeful descent of just-right.</p>
+            </section>
+
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="d1-gradient-descent-variants.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← D1: Gradient Descent Variants</span>
+          </a>
+          <a href="d3-batch-stochastic.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">D3: Batch vs Stochastic →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="d1-gradient-descent-variants.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← D1: Gradient Descent Variants</span>
-        </a>
-        <a href="d3-batch-stochastic.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">D3: Batch vs Stochastic →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
@@ -93,11 +325,5 @@
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>
