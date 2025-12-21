@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C5: Loss Function Landscapes</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 15px 20px;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+            pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: #4facfe;
+            text-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px;
+            border-radius: 20px;
+        }
+
+        .nav-tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            color: #aaa;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-tab.active {
+            background: #4facfe;
+            color: #111;
+            font-weight: bold;
+        }
+
+        /* Sidebar Controls */
+        #controls {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            width: 300px;
+            background: rgba(20, 20, 30, 0.9);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            border-bottom: 1px solid #444;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            margin-top: 15px;
+        }
+
+        .section-title:first-child {
+            margin-top: 0;
+        }
+
+        .control-row {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #ccc;
+            margin-bottom: 4px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        select {
+            width: 100%;
+            padding: 6px;
+            background: #222;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            padding: 8px;
+            background: #222;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        button:hover {
+            background: #333;
+            border-color: #666;
+        }
+
+        button.primary {
+            background: #0066cc;
+            border-color: #0055aa;
+        }
+
+        button.primary:hover {
+            background: #0077dd;
+        }
+
+        .val-display {
+            color: #4facfe;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .grad-display {
+            color: #ff6b6b;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        /* Stats Panel */
+        #stats-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 15, 0.9);
+            border: 1px solid #4facfe;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 300px;
+            pointer-events: auto;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .stat-val {
+            font-family: monospace;
+        }
+
+        /* Legend for 2D */
+        #legend-2d {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            text-align: left;
+            pointer-events: none;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            display: inline-block;
+            margin-right: 5px;
+            border-radius: 50%;
+        }
+    </style>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tween.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+</head>
+
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <header>
+            <h1>C5: Loss Function Landscapes</h1>
+            <div class="nav-tabs">
+                <div class="nav-tab active" id="tab-1d" onclick="app.setMode('1d')">1D Curves</div>
+                <div class="nav-tab" id="tab-2d" onclick="app.setMode('2d')">2D Landscapes</div>
+            </div>
+        </header>
+
+        <div id="controls">
+            <div class="section-title">Configuration</div>
+            <div class="control-row">
+                <label>Loss Function</label>
+                <select id="loss-selector">
+                    <option value="mse">MSE (Regression)</option>
+                    <option value="mae">MAE (Regression)</option>
+                    <option value="bce">Binary Cross-Entropy (Class)</option>
+                    <option value="hinge">Hinge Loss (SVM)</option>
+                </select>
+            </div>
+
+            <!-- 1D Specific Controls -->
+            <div id="controls-1d">
+                <div class="section-title">Prediction</div>
+                <div class="control-row">
+                    <label>Target Value (y) <span id="lbl-target" class="val-display">1.0</span></label>
+                    <!-- Target is mostly fixed for simplicity, or toggleable -->
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="app.setTarget(0)">y=0</button>
+                        <button onclick="app.setTarget(1)">y=1</button>
+                        <button onclick="app.setTarget(0.5)">y=0.5</button>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <label>Predicted (ŷ) <span id="lbl-pred" class="val-display">0.00</span></label>
+                    <input type="range" id="slider-pred" min="-2" max="2" step="0.01" value="0">
+                </div>
+            </div>
+
+            <!-- 2D Specific Controls -->
+            <div id="controls-2d" style="display:none;">
+                <div class="section-title">Training Landscape</div>
+                <p style="font-size:0.8rem; color:#aaa; margin-bottom:10px;">
+                    Surface of a simple linear model: <em>y = w*x + b</em> fitted to 3 data points.
+                </p>
+                <div class="control-row">
+                    <button class="primary" id="btn-train">Run Gradient Descent</button>
+                    <button id="btn-reset">Reset Weights</button>
+                </div>
+                <div class="control-row">
+                    <label>Learning Rate <span id="lbl-lr" class="val-display">0.1</span></label>
+                    <input type="range" id="slider-lr" min="0.01" max="1.0" step="0.01" value="0.1">
+                </div>
+            </div>
+        </div>
+
+        <div id="stats-panel">
+            <div class="stat-row">
+                <span>Loss L(ŷ, y):</span>
+                <span id="stat-loss" class="stat-val">0.000</span>
+            </div>
+            <div class="stat-row">
+                <span>Gradient ∇L:</span>
+                <span id="stat-grad" class="stat-val grad-display">0.000</span>
+            </div>
+            <div id="stat-desc" style="font-size: 0.8rem; color:#888; margin-top:5px; font-style:italic;">
+                Description of current state...
+            </div>
+        </div>
+
+        <div id="legend-2d" style="display:none;">
+            <div><span class="legend-dot" style="background:#ff3333"></span>High Loss</div>
+            <div><span class="legend-dot" style="background:#33cc33"></span>Low Loss</div>
+            <div><span class="legend-dot" style="background:#ffffff"></span>Current Weights</div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * LOSS FUNCTION LANDSCAPES
+         * * Architecture:
+         * 1. Loss Classes: Define math for f(y_pred, y_true) and f'(y_pred, y_true).
+         * 2. Visualizer 1D: Plots curve using Three.js lines.
+         * 3. Visualizer 2D: Generates a PlaneGeometry where Z height = Loss(w, b).
+         * 4. Optimization Loop: Updates weights iteratively.
+         */
+
+        // --- MATH & LOSS LOGIC ---
+
+        class LossMSE {
+            name = "Mean Squared Error";
+            desc = "L = (y - ŷ)²";
+            isClassification = false;
+            range = [-3, 3]; // Typical input range for visualization
+
+            loss(pred, target) { return Math.pow(pred - target, 2); }
+            grad(pred, target) { return 2 * (pred - target); }
+        }
+
+        class LossMAE {
+            name = "Mean Absolute Error";
+            desc = "L = |y - ŷ|";
+            isClassification = false;
+            range = [-3, 3];
+
+            loss(pred, target) { return Math.abs(pred - target); }
+            grad(pred, target) { return pred > target ? 1 : (pred < target ? -1 : 0); }
+        }
+
+        class LossBCE {
+            name = "Binary Cross-Entropy";
+            desc = "L = -y*log(ŷ) - (1-y)*log(1-ŷ)";
+            isClassification = true; // Input must be [0, 1]
+            range = [0.01, 0.99]; // Clamp for log safety
+
+            loss(pred, target) {
+                // Clamp to avoid log(0)
+                const p = Math.max(0.0001, Math.min(0.9999, pred));
+                return -(target * Math.log(p) + (1 - target) * Math.log(1 - p));
+            }
+            grad(pred, target) {
+                const p = Math.max(0.0001, Math.min(0.9999, pred));
+                return (p - target) / (p * (1 - p));
+            }
+        }
+
+        class LossHinge {
+            name = "Hinge Loss";
+            desc = "L = max(0, 1 - y*ŷ) (Target y is ±1)";
+            isClassification = true; // But takes raw scores, not probs
+            range = [-3, 3];
+
+            // Hinge expects y in {-1, 1}. We'll map UI target (0/1) to (-1/1) internally
+            mapTarget(t) { return t >= 0.5 ? 1 : -1; }
+
+            loss(pred, target) {
+                const t = this.mapTarget(target);
+                return Math.max(0, 1 - t * pred);
+            }
+            grad(pred, target) {
+                const t = this.mapTarget(target);
+                if (1 - t * pred > 0) return -t;
+                return 0;
+            }
+        }
+
+        // --- APP & VISUALIZATION ---
+
+        class App {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.losses = {
+                    'mse': new LossMSE(),
+                    'mae': new LossMAE(),
+                    'bce': new LossBCE(),
+                    'hinge': new LossHinge()
+                };
+                this.currentLossId = 'mse';
+                this.mode = '1d';
+
+                // State 1D
+                this.target = 1.0;
+                this.prediction = 0.0;
+
+                // State 2D (Model: y = w*x + b)
+                // Fixed simple dataset
+                this.dataset = [
+                    { x: 1, y: 1 },
+                    { x: 2, y: 2 },
+                    { x: 3, y: 3 } // Perfect fit is w=1, b=0
+                ];
+                this.weights = { w: -2, b: 2 }; // Start far off
+                this.learningRate = 0.1;
+                this.isTraining = false;
+
+                this.initThree();
+                this.initUI();
+                this.setMode('1d');
+                this.animate();
+            }
+
+            get lossFn() { return this.losses[this.currentLossId]; }
+
+            initThree() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x111111);
+
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.container.appendChild(this.renderer.domElement);
+
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+
+                // Lights
+                const amb = new THREE.AmbientLight(0xffffff, 0.5);
+                this.scene.add(amb);
+                const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+                dir.position.set(5, 10, 5);
+                this.scene.add(dir);
+
+                // Group containers
+                this.group1d = new THREE.Group();
+                this.group2d = new THREE.Group();
+                this.scene.add(this.group1d);
+                this.scene.add(this.group2d);
+
+                // --- 1D Assets ---
+                this.setup1DVisuals();
+
+                // --- 2D Assets ---
+                this.setup2DVisuals();
+            }
+
+            setup1DVisuals() {
+                // Grid
+                const grid = new THREE.GridHelper(10, 10, 0x444444, 0x222222);
+                grid.rotation.x = Math.PI / 2;
+                this.group1d.add(grid);
+
+                // Curve line
+                const geometry = new THREE.BufferGeometry();
+                // pre-allocate max points
+                geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(303 * 3), 3));
+                const material = new THREE.LineBasicMaterial({ color: 0x4facfe, linewidth: 2 });
+                this.curveMesh = new THREE.Line(geometry, material);
+                this.group1d.add(this.curveMesh);
+
+                // Current Point Marker
+                this.pointMesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.15, 16, 16),
+                    new THREE.MeshBasicMaterial({ color: 0xffffff })
+                );
+                this.group1d.add(this.pointMesh);
+
+                // Target Line
+                const targetGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -5, 0), new THREE.Vector3(0, 5, 0)]);
+                this.targetLine = new THREE.Line(targetGeo, new THREE.LineDashedMaterial({ color: 0x00ff88, dashSize: 0.2, gapSize: 0.1 }));
+                this.targetLine.computeLineDistances();
+                this.group1d.add(this.targetLine);
+
+                // Gradient Arrow
+                this.gradArrow = new THREE.ArrowHelper(
+                    new THREE.Vector3(1, 0, 0),
+                    new THREE.Vector3(0, 0, 0),
+                    1, 0xff6b6b, 0.2, 0.1
+                );
+                this.group1d.add(this.gradArrow);
+            }
+
+            setup2DVisuals() {
+                // Surface Mesh
+                // Grid range: w [-3, 3], b [-3, 3]
+                const size = 60; // 60x60 grid
+                const geometry = new THREE.PlaneGeometry(6, 6, size, size);
+                const material = new THREE.MeshStandardMaterial({
+                    vertexColors: true,
+                    roughness: 0.4,
+                    metalness: 0.2,
+                    side: THREE.DoubleSide
+                });
+                this.surfaceMesh = new THREE.Mesh(geometry, material);
+                this.surfaceMesh.rotation.x = -Math.PI / 2;
+                this.surfaceMesh.position.y = -1; // Lower it slightly
+                this.group2d.add(this.surfaceMesh);
+
+                // Optimization Ball
+                this.ballMesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222 })
+                );
+                this.group2d.add(this.ballMesh);
+
+                // Path Line (Trail)
+                this.pathGeo = new THREE.BufferGeometry();
+                this.pathGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(1000 * 3), 3));
+                this.pathMesh = new THREE.Line(this.pathGeo, new THREE.LineBasicMaterial({ color: 0xffffff }));
+                this.pathMesh.frustumCulled = false; // Always render
+                this.group2d.add(this.pathMesh);
+                this.pathCount = 0;
+                this.pathPoints = [];
+            }
+
+            initUI() {
+                // Mode Select
+                const updateLoss = () => {
+                    this.currentLossId = document.getElementById('loss-selector').value;
+                    this.update1DCurve();
+                    this.update2DSurface();
+                    this.update1DState();
+                    this.updateStats();
+                };
+                document.getElementById('loss-selector').addEventListener('change', updateLoss);
+
+                // 1D Controls
+                document.getElementById('slider-pred').addEventListener('input', (e) => {
+                    this.prediction = parseFloat(e.target.value);
+                    document.getElementById('lbl-pred').textContent = this.prediction.toFixed(2);
+                    this.update1DState();
+                });
+
+                // 2D Controls
+                document.getElementById('slider-lr').addEventListener('input', (e) => {
+                    this.learningRate = parseFloat(e.target.value);
+                    document.getElementById('lbl-lr').textContent = this.learningRate.toFixed(2);
+                });
+                document.getElementById('btn-reset').addEventListener('click', () => {
+                    this.resetTraining();
+                });
+                document.getElementById('btn-train').addEventListener('click', () => {
+                    this.isTraining = !this.isTraining;
+                    document.getElementById('btn-train').textContent = this.isTraining ? "Stop" : "Run Gradient Descent";
+                });
+
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+
+            setTarget(val) {
+                this.target = val;
+                document.getElementById('lbl-target').textContent = val;
+                this.update1DCurve();
+                this.update1DState();
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+                this.group1d.visible = (mode === '1d');
+                this.group2d.visible = (mode === '2d');
+
+                document.getElementById('controls-1d').style.display = (mode === '1d' ? 'block' : 'none');
+                document.getElementById('controls-2d').style.display = (mode === '2d' ? 'block' : 'none');
+                document.getElementById('legend-2d').style.display = (mode === '2d' ? 'block' : 'none');
+
+                document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+                document.getElementById(`tab-${mode}`).classList.add('active');
+
+                if (mode === '1d') {
+                    this.camera.position.set(0, 0, 8);
+                    this.controls.enableRotate = false;
+                    this.controls.target.set(0, 0, 0);
+                    this.update1DCurve();
+                    this.update1DState();
+                } else {
+                    this.camera.position.set(6, 6, 6);
+                    this.controls.enableRotate = true;
+                    this.controls.target.set(0, 0, 0);
+                    this.update2DSurface();
+                    this.updateBallPos();
+                }
+            }
+
+            // --- 1D LOGIC ---
+
+            update1DCurve() {
+                const fn = this.lossFn;
+                const rangeMin = fn.isClassification ? 0 : -3;
+                const rangeMax = fn.isClassification ? 1 : 3;
+
+                // Adjust slider range dynamically
+                const slider = document.getElementById('slider-pred');
+                slider.min = rangeMin;
+                slider.max = rangeMax;
+                slider.step = fn.isClassification ? 0.001 : 0.05;
+
+                // Update Target Line visual
+                this.targetLine.position.x = this.target;
+
+                // Generate Curve Points
+                const points = [];
+                const steps = 100;
+                for (let i = 0; i <= steps; i++) {
+                    let x = rangeMin + (i / steps) * (rangeMax - rangeMin);
+
+                    // Avoid singularity for BCE
+                    if (fn.isClassification && x <= 0) x = 0.001;
+                    if (fn.isClassification && x >= 1) x = 0.999;
+
+                    const y = fn.loss(x, this.target);
+                    points.push(x, y, 0);
+                }
+
+                const posAttr = this.curveMesh.geometry.attributes.position;
+                // Reset
+                for (let i = 0; i < posAttr.count; i++) { posAttr.setXYZ(i, 0, 0, 0); }
+
+                for (let i = 0; i < points.length / 3; i++) {
+                    posAttr.setXYZ(i, points[i * 3], points[i * 3 + 1], points[i * 3 + 2]);
+                }
+                posAttr.needsUpdate = true;
+                this.curveMesh.geometry.setDrawRange(0, points.length / 3);
+            }
+
+            update1DState() {
+                if (this.mode !== '1d') return;
+                const fn = this.lossFn;
+
+                // Clamp prediction
+                if (fn.isClassification) {
+                    if (this.prediction <= 0.001) this.prediction = 0.001;
+                    if (this.prediction >= 0.999) this.prediction = 0.999;
+                }
+
+                const loss = fn.loss(this.prediction, this.target);
+                const grad = fn.grad(this.prediction, this.target);
+
+                // Update Point
+                this.pointMesh.position.set(this.prediction, loss, 0);
+
+                // Update Arrow (Vector -grad)
+                // We visualize the gradient direction. If gradient is positive, slope is up, we want to go left (neg direction).
+                // Arrow points 'downhill'.
+                const dir = grad > 0 ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(1, 0, 0);
+                const len = Math.min(2, Math.abs(grad)); // Cap visual length
+
+                this.gradArrow.position.copy(this.pointMesh.position);
+                this.gradArrow.setDirection(dir);
+                this.gradArrow.setLength(len > 0.1 ? len : 0.001); // Hide if tiny
+                // Color code arrow: red for steep, green for flat?
+                // Let's keep it simple red as per spec
+
+                this.updateStats(loss, grad);
+            }
+
+            // --- 2D LOGIC ---
+
+            calculateTotalLoss(w, b) {
+                let total = 0;
+                const fn = this.lossFn;
+
+                for (let pt of this.dataset) {
+                    // Forward pass: linear model y = wx + b
+                    let pred = w * pt.x + b;
+
+                    // Activation if classification
+                    if (fn.isClassification) {
+                        // Sigmoid for BCE
+                        if (this.currentLossId === 'bce') {
+                            pred = 1 / (1 + Math.exp(-pred));
+                        }
+                        // Hinge takes raw score, so linear is fine
+                    }
+
+                    total += fn.loss(pred, pt.y); // Note: For BCE toy data y should be 0/1. Let's assume toy data y is 0/1 for classification.
+                }
+                return total / this.dataset.length;
+            }
+
+            update2DSurface() {
+                if (this.mode !== '2d') return;
+
+                // Adjust toy dataset based on problem type
+                if (this.lossFn.isClassification) {
+                    // Use classification data (0 or 1)
+                    this.dataset = [{ x: 1, y: 0 }, { x: 2, y: 1 }, { x: 3, y: 1 }];
+                } else {
+                    // Regression data
+                    this.dataset = [{ x: 1, y: 1 }, { x: 2, y: 2 }, { x: 3, y: 3 }];
+                }
+
+                const geo = this.surfaceMesh.geometry;
+                const count = geo.attributes.position.count;
+                const colors = [];
+                const width = Math.sqrt(count); // 61 vertices per side
+
+                // Range: w [-3, 3], b [-3, 3]
+                // Plane size is 6x6, centered at 0. So local coords match range perfectly.
+
+                let maxL = 0;
+                let minL = Infinity;
+                const losses = [];
+
+                for (let i = 0; i < count; i++) {
+                    const x = geo.attributes.position.getX(i); // This is 'w' on our plot
+                    const y = geo.attributes.position.getY(i); // This is 'b' (Plane is rotated, so local Y is world Z later)
+                    // Actually PlaneGeometry is XY. We rotate X -90. So local X -> World X (w), local Y -> World Z (b).
+
+                    const l = this.calculateTotalLoss(x, y); // x=w, y=b
+                    losses.push(l);
+                    if (l > maxL) maxL = l;
+                    if (l < minL) minL = l;
+
+                    // Set Z height (local Z, which becomes World Y)
+                    geo.attributes.position.setZ(i, l);
+                }
+
+                // Color based on height
+                for (let i = 0; i < count; i++) {
+                    const l = losses[i];
+                    const t = (l - minL) / (maxL - minL || 1);
+                    // Green (low) to Red (high)
+                    const color = new THREE.Color().setHSL(0.33 * (1.0 - t), 1.0, 0.5);
+                    colors.push(color.r, color.g, color.b);
+                }
+
+                geo.attributes.position.needsUpdate = true;
+                geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                geo.computeVertexNormals();
+
+                this.resetTraining(); // Reset ball when surface changes
+            }
+
+            resetTraining() {
+                this.weights = { w: -2.5, b: 1.5 }; // Start corner
+                this.pathPoints = [];
+                this.pathCount = 0;
+                this.updateBallPos();
+                // Clear line
+                const arr = this.pathMesh.geometry.attributes.position.array;
+                arr.fill(0);
+                this.pathMesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            stepGradientDescent() {
+                if (!this.isTraining) return;
+
+                const fn = this.lossFn;
+                let dLdw = 0;
+                let dLdb = 0;
+                const N = this.dataset.length;
+
+                for (let pt of this.dataset) {
+                    let z = this.weights.w * pt.x + this.weights.b;
+                    let pred = z;
+
+                    // Chain rule parts
+                    let dL_dPred = 0;
+                    let dPred_dz = 1; // Default linear
+
+                    if (this.currentLossId === 'bce') {
+                        pred = 1 / (1 + Math.exp(-z)); // Sigmoid
+                        dPred_dz = pred * (1 - pred);
+                    }
+
+                    dL_dPred = fn.grad(pred, pt.y);
+
+                    // Chain: dL/dw = dL/dPred * dPred/dz * dz/dw
+                    // dz/dw = x
+                    // dz/db = 1
+                    const chain = dL_dPred * dPred_dz;
+
+                    dLdw += chain * pt.x;
+                    dLdb += chain * 1;
+                }
+
+                dLdw /= N;
+                dLdb /= N;
+
+                // Update
+                this.weights.w -= this.learningRate * dLdw;
+                this.weights.b -= this.learningRate * dLdb;
+
+                // Clamp to view
+                this.weights.w = Math.max(-3, Math.min(3, this.weights.w));
+                this.weights.b = Math.max(-3, Math.min(3, this.weights.b));
+
+                this.updateBallPos();
+            }
+
+            updateBallPos() {
+                const l = this.calculateTotalLoss(this.weights.w, this.weights.b);
+                // Position ball. X=w, Z=b, Y=loss-1 (visual offset matches surface)
+                this.ballMesh.position.set(this.weights.w, l - 1 + 0.2, this.weights.b);
+
+                this.updateStats(l, 0); // Grad visual not easy in 2D text, skip or Magnitude?
+
+                // Trail
+                if (this.pathCount < 1000) {
+                    const arr = this.pathMesh.geometry.attributes.position.array;
+                    arr[this.pathCount * 3] = this.weights.w;
+                    arr[this.pathCount * 3 + 1] = l - 1 + 0.05; // Slightly above surface
+                    arr[this.pathCount * 3 + 2] = this.weights.b;
+                    this.pathCount++;
+                    this.pathMesh.geometry.setDrawRange(0, this.pathCount);
+                    this.pathMesh.geometry.attributes.position.needsUpdate = true;
+                }
+            }
+
+            // --- SHARED ---
+
+            updateStats(loss, grad) {
+                // If args missing, use current state
+                if (loss === undefined && this.mode === '1d') {
+                    const fn = this.lossFn;
+                    loss = fn.loss(this.prediction, this.target);
+                    grad = fn.grad(this.prediction, this.target);
+                }
+
+                document.getElementById('stat-loss').textContent = loss !== undefined ? loss.toFixed(4) : "---";
+                document.getElementById('stat-grad').textContent = grad !== undefined ? grad.toFixed(4) : "---";
+                document.getElementById('stat-desc').textContent = this.lossFn.desc;
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                if (this.mode === '2d' && this.isTraining) {
+                    this.stepGradientDescent();
+                }
+
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Initialize
+        const app = new App();
+
+    </script>
+</body>
+
+</html>

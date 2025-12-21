@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C4: Activation Functions Gallery</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            background: #0a0a0f; 
+            color: #e0e0e0;
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            padding: 20px 25px;
+            background: linear-gradient(to bottom, rgba(10,10,15,1), rgba(10,10,15,0.9));
+            border-bottom: 1px solid #1a1a1a;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .header-left h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #4facfe;
+            text-shadow: 0 0 20px rgba(79, 172, 254, 0.3);
+            margin-bottom: 4px;
+        }
+        
+        .subtitle {
+            color: #555;
+            font-size: 0.85rem;
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            background: rgba(255,255,255,0.05);
+            padding: 5px;
+            border-radius: 8px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: #666;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover { color: #aaa; background: rgba(255,255,255,0.05); }
+        .tab.active { 
+            background: #4facfe;
+            color: #000;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        main {
+            padding: 25px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* ============ GALLERY VIEW ============ */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 20px;
+        }
+
+        .function-card {
+            background: linear-gradient(135deg, #12121a, #0d0d12);
+            border: 1px solid #1a1a22;
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .function-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--func-color);
+            opacity: 0.8;
+        }
+        
+        .function-card:hover {
+            border-color: #2a2a35;
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .function-name {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--func-color);
+        }
+
+        .function-formula {
+            font-family: 'Times New Roman', Georgia, serif;
+            font-style: italic;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        .output-range {
+            background: rgba(255,255,255,0.05);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #555;
+            border: 1px solid #222;
+        }
+        .output-range span { color: var(--func-color); font-weight: 600; }
+
+        .plot-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .plot-box {
+            flex: 1;
+            background: #080810;
+            border-radius: 10px;
+            padding: 8px;
+            position: relative;
+        }
+
+        .plot-label {
+            position: absolute;
+            top: 10px;
+            left: 12px;
+            font-size: 0.65rem;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+
+        .plot-canvas {
+            width: 100%;
+            height: 120px;
+            display: block;
+        }
+
+        .card-stats {
+            display: flex;
+            gap: 15px;
+            padding-top: 12px;
+            border-top: 1px solid #1a1a1a;
+            font-size: 0.8rem;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #555;
+        }
+
+        .stat-icon {
+            font-size: 0.9rem;
+        }
+
+        .stat-icon.pro { color: #4cd964; }
+        .stat-icon.con { color: #ff6b6b; }
+
+        /* ============ COMPARISON VIEW ============ */
+        .comparison-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .comparison-layout { grid-template-columns: 1fr; }
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel {
+            background: #111118;
+            border: 1px solid #1a1a22;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .panel-title {
+            font-size: 0.7rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            cursor: pointer;
+            border-bottom: 1px solid #0a0a0f;
+            transition: background 0.2s;
+        }
+        
+        .toggle-item:last-child { border-bottom: none; }
+        .toggle-item:hover { background: rgba(255,255,255,0.02); }
+
+        .toggle-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #333;
+            border-radius: 4px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .toggle-check.checked {
+            background: var(--color);
+            border-color: var(--color);
+        }
+        
+        .toggle-check.checked::after {
+            content: '✓';
+            color: #000;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .toggle-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            margin-right: 10px;
+            background: var(--color);
+            flex-shrink: 0;
+        }
+
+        .toggle-name {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .display-toggle {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            cursor: pointer;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .plot-panel {
+            background: #111118;
+            border: 1px solid #1a1a22;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .plot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .plot-title {
+            font-size: 0.95rem;
+            color: #888;
+            font-weight: 500;
+        }
+
+        .range-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .range-btn {
+            padding: 6px 14px;
+            background: #1a1a22;
+            border: 1px solid #222;
+            border-radius: 5px;
+            color: #666;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .range-btn:hover { background: #222; color: #888; }
+        .range-btn.active { 
+            background: #4facfe; 
+            border-color: #4facfe; 
+            color: #000;
+            font-weight: 600;
+        }
+
+        .main-canvas {
+            width: 100%;
+            height: 320px;
+            display: block;
+            cursor: crosshair;
+            border-radius: 8px;
+        }
+
+        /* X-Value Control */
+        .x-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #0a0a0f;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .x-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .x-value {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 1.3rem;
+            color: #4facfe;
+            font-weight: 600;
+            min-width: 70px;
+        }
+
+        .x-slider {
+            flex: 1;
+            accent-color: #4facfe;
+            height: 6px;
+        }
+
+        /* Values Grid */
+        .values-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .value-card {
+            background: #0a0a0f;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--color);
+        }
+
+        .value-name {
+            font-size: 0.75rem;
+            color: #555;
+            margin-bottom: 6px;
+        }
+
+        .value-row {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+        }
+
+        .val-f { color: #fff; }
+        .val-df { color: #ff6b6b; }
+
+        /* ============ VANISHING GRADIENT VIEW ============ */
+        .gradient-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .gradient-layout { grid-template-columns: 1fr; }
+        }
+
+        .slider-control {
+            margin-bottom: 20px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+
+        .slider-label { color: #888; }
+        .slider-value { 
+            color: #4facfe; 
+            font-weight: 600;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .control-slider {
+            width: 100%;
+            accent-color: #4facfe;
+        }
+
+        .gradient-results {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #1a1a1a;
+        }
+
+        .gradient-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #111;
+        }
+
+        .gradient-item:last-child { border-bottom: none; }
+
+        .gradient-func {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+        }
+
+        .gradient-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .gradient-value {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .gradient-value.vanished {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+
+        .gradient-value.healthy {
+            background: rgba(76, 217, 100, 0.15);
+            color: #4cd964;
+        }
+
+        .gradient-value.exploded {
+            background: rgba(255, 149, 0, 0.15);
+            color: #ff9500;
+        }
+
+        .warning-banner {
+            margin-top: 15px;
+            padding: 12px 15px;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #ff6b6b;
+            display: none;
+        }
+
+        .warning-banner.visible { display: flex; align-items: center; gap: 10px; }
+        .warning-banner .icon { font-size: 1.2rem; }
+
+        .gradient-canvas {
+            width: 100%;
+            height: 450px;
+            display: block;
+            border-radius: 8px;
+        }
+
+        .explanation-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(79, 172, 254, 0.05);
+            border: 1px solid rgba(79, 172, 254, 0.2);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #888;
+            line-height: 1.5;
+        }
+
+        .explanation-box code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #4facfe;
+        }
+
+        /* ============ PARAMETERS VIEW ============ */
+        .params-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .param-card {
+            background: #111118;
+            border: 1px solid #1a1a22;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .param-header {
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .param-func-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--color);
+            margin-bottom: 4px;
+        }
+
+        .param-desc {
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        .param-control {
+            margin-bottom: 15px;
+        }
+
+        .param-canvas {
+            width: 100%;
+            height: 180px;
+            display: block;
+            background: #080810;
+            border-radius: 8px;
+        }
+
+        .param-legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #555;
+        }
+
+        .param-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .param-legend-line {
+            width: 20px;
+            height: 2px;
+        }
+
+        .param-legend-line.dashed {
+            border-bottom: 2px dashed #444;
+            background: none;
+            height: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h1>C4: Activation Functions Gallery</h1>
+        <p class="subtitle">Compare functions, derivatives, and the vanishing gradient problem</p>
+    </div>
+    
+    <div class="tabs">
+        <button class="tab active" data-view="gallery">Gallery</button>
+        <button class="tab" data-view="comparison">Comparison</button>
+        <button class="tab" data-view="gradient">Vanishing Gradient</button>
+        <button class="tab" data-view="params">Parameters</button>
+    </div>
+</header>
+
+<main>
+    <!-- Gallery View -->
+    <div id="gallery-view" class="view active">
+        <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+
+    <!-- Comparison View -->
+    <div id="comparison-view" class="view">
+        <div class="comparison-layout">
+            <div class="sidebar">
+                <div class="panel">
+                    <div class="panel-title">Functions</div>
+                    <div id="function-toggles"></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-title">Display Options</div>
+                    <div class="display-toggle" id="toggle-derivatives">
+                        <div class="toggle-check" id="deriv-check"></div>
+                        <span class="toggle-name">Show Derivatives Only</span>
+                    </div>
+                    <div class="display-toggle" id="toggle-both">
+                        <div class="toggle-check checked" id="both-check"></div>
+                        <span class="toggle-name">Show Both (f and f')</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <div class="plot-panel">
+                    <div class="plot-header">
+                        <div class="plot-title" id="comparison-title">Function Comparison</div>
+                        <div class="range-btns">
+                            <button class="range-btn active" data-range="3">±3</button>
+                            <button class="range-btn" data-range="5">±5</button>
+                            <button class="range-btn" data-range="10">±10</button>
+                        </div>
+                    </div>
+                    <canvas id="comparison-canvas" class="main-canvas"></canvas>
+                    
+                    <div class="x-control">
+                        <span class="x-label">x =</span>
+                        <span class="x-value" id="x-display">0.00</span>
+                        <input type="range" class="x-slider" id="x-slider" 
+                            min="-5" max="5" step="0.01" value="0">
+                    </div>
+                    
+                    <div class="values-grid" id="values-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vanishing Gradient View -->
+    <div id="gradient-view" class="view">
+        <div class="gradient-layout">
+            <div class="sidebar">
+                <div class="panel">
+                    <div class="panel-title">Chain Configuration</div>
+                    
+                    <div class="slider-control">
+                        <div class="slider-header">
+                            <span class="slider-label">Number of Layers</span>
+                            <span class="slider-value" id="layers-display">10</span>
+                        </div>
+                        <input type="range" class="control-slider" id="layers-slider"
+                            min="1" max="50" value="10">
+                    </div>
+                    
+                    <div class="slider-control">
+                        <div class="slider-header">
+                            <span class="slider-label">Initial Input (x₀)</span>
+                            <span class="slider-value" id="init-x-display">0.5</span>
+                        </div>
+                        <input type="range" class="control-slider" id="init-x-slider"
+                            min="-2" max="2" step="0.1" value="0.5">
+                    </div>
+                    
+                    <div class="gradient-results">
+                        <div class="panel-title">Final Gradient (after N layers)</div>
+                        <div id="gradient-results"></div>
+                    </div>
+                    
+                    <div class="warning-banner" id="warning-banner">
+                        <span class="icon">⚠️</span>
+                        <span id="warning-text">Gradient has vanished!</span>
+                    </div>
+                    
+                    <div class="explanation-box">
+                        <strong>How it works:</strong><br>
+                        The gradient at layer N is computed as:<br>
+                        <code>∏ f'(xᵢ)</code> where <code>xᵢ₊₁ = f(xᵢ)</code><br><br>
+                        For sigmoid/tanh, <code>f'(x) < 1</code> always, so gradients shrink exponentially.
+                        ReLU maintains <code>f'(x) = 1</code> for positive inputs.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <div class="plot-panel">
+                    <div class="plot-header">
+                        <div class="plot-title">Gradient Magnitude vs Layer Depth (Log Scale)</div>
+                    </div>
+                    <canvas id="gradient-canvas" class="gradient-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parameters View -->
+    <div id="params-view" class="view">
+        <div class="params-grid" id="params-grid"></div>
+    </div>
+</main>
+
+<script>
+// ============================================================================
+// ACTIVATION FUNCTION DEFINITIONS
+// ============================================================================
+const ACTIVATIONS = {
+    sigmoid: {
+        name: 'Sigmoid',
+        formula: 'σ(x) = 1 / (1 + e⁻ˣ)',
+        color: '#ff5577',
+        range: '(0, 1)',
+        f: x => 1 / (1 + Math.exp(-x)),
+        df: x => {
+            const s = 1 / (1 + Math.exp(-x));
+            return s * (1 - s);
+        },
+        maxDeriv: 0.25,
+        pro: 'Smooth output',
+        con: 'Vanishing gradient'
+    },
+    
+    tanh: {
+        name: 'Tanh',
+        formula: 'tanh(x) = (eˣ − e⁻ˣ) / (eˣ + e⁻ˣ)',
+        color: '#ffaa33',
+        range: '(−1, 1)',
+        f: x => Math.tanh(x),
+        df: x => 1 - Math.pow(Math.tanh(x), 2),
+        maxDeriv: 1,
+        pro: 'Zero-centered',
+        con: 'Vanishing gradient'
+    },
+    
+    relu: {
+        name: 'ReLU',
+        formula: 'ReLU(x) = max(0, x)',
+        color: '#33ccff',
+        range: '[0, ∞)',
+        f: x => Math.max(0, x),
+        df: x => x > 0 ? 1 : 0,
+        maxDeriv: 1,
+        pro: 'Fast, stable gradient',
+        con: 'Dead neurons (x < 0)'
+    },
+    
+    leakyRelu: {
+        name: 'Leaky ReLU',
+        formula: 'LReLU(x) = max(αx, x)',
+        color: '#33ff99',
+        range: '(−∞, ∞)',
+        params: { alpha: { min: 0.01, max: 0.3, default: 0.1, step: 0.01, label: 'α (negative slope)' }},
+        f: (x, params = {}) => {
+            const alpha = params.alpha ?? 0.1;
+            return x > 0 ? x : alpha * x;
+        },
+        df: (x, params = {}) => {
+            const alpha = params.alpha ?? 0.1;
+            return x > 0 ? 1 : alpha;
+        },
+        maxDeriv: 1,
+        pro: 'No dead neurons',
+        con: 'Extra hyperparameter'
+    },
+    
+    elu: {
+        name: 'ELU',
+        formula: 'ELU(x) = x if x > 0, α(eˣ − 1) otherwise',
+        color: '#ff6699',
+        range: '(−α, ∞)',
+        params: { alpha: { min: 0.5, max: 2.0, default: 1.0, step: 0.1, label: 'α (negative saturation)' }},
+        f: (x, params = {}) => {
+            const alpha = params.alpha ?? 1.0;
+            return x > 0 ? x : alpha * (Math.exp(x) - 1);
+        },
+        df: (x, params = {}) => {
+            const alpha = params.alpha ?? 1.0;
+            return x > 0 ? 1 : alpha * Math.exp(x);
+        },
+        maxDeriv: 1,
+        pro: 'Smooth, zero-centered',
+        con: 'Slower than ReLU'
+    },
+    
+    gelu: {
+        name: 'GELU',
+        formula: 'GELU(x) = x · Φ(x)',
+        color: '#aa55ff',
+        range: '≈(−0.17, ∞)',
+        f: x => {
+            const c = Math.sqrt(2 / Math.PI);
+            return 0.5 * x * (1 + Math.tanh(c * (x + 0.044715 * x * x * x)));
+        },
+        df: x => {
+            // Proper closed-form derivative
+            const c = Math.sqrt(2 / Math.PI);
+            const x3 = x * x * x;
+            const inner = c * (x + 0.044715 * x3);
+            const tanhInner = Math.tanh(inner);
+            const sech2 = 1 - tanhInner * tanhInner;
+            const dInner = c * (1 + 3 * 0.044715 * x * x);
+            return 0.5 * (1 + tanhInner) + 0.5 * x * sech2 * dInner;
+        },
+        maxDeriv: 1.08,
+        pro: 'SOTA for transformers',
+        con: 'Computationally heavier'
+    },
+    
+    swish: {
+        name: 'Swish',
+        formula: 'Swish(x) = x · σ(x)',
+        color: '#ff77cc',
+        range: '≈(−0.28, ∞)',
+        f: x => x / (1 + Math.exp(-x)),
+        df: x => {
+            const s = 1 / (1 + Math.exp(-x));
+            return s + x * s * (1 - s);
+        },
+        maxDeriv: 1.1,
+        pro: 'Smooth, self-gated',
+        con: 'Slower than ReLU'
+    },
+    
+    softplus: {
+        name: 'Softplus',
+        formula: 'Softplus(x) = (1/β) · ln(1 + eᵝˣ)',
+        color: '#ffcc33',
+        range: '(0, ∞)',
+        params: { beta: { min: 0.5, max: 5, default: 1, step: 0.5, label: 'β (sharpness)' }},
+        f: (x, params = {}) => {
+            const beta = params.beta ?? 1;
+            return Math.log(1 + Math.exp(beta * x)) / beta;
+        },
+        df: (x, params = {}) => {
+            const beta = params.beta ?? 1;
+            return 1 / (1 + Math.exp(-beta * x));
+        },
+        maxDeriv: 1,
+        pro: 'Smooth ReLU approx',
+        con: 'Never truly zero'
+    }
+};
+
+// ============================================================================
+// APPLICATION STATE
+// ============================================================================
+const state = {
+    activeView: 'gallery',
+    enabledFunctions: Object.keys(ACTIVATIONS),
+    showDerivatives: false,
+    showBoth: true,
+    xRange: 3,
+    currentX: 0,
+    layers: 10,
+    initialX: 0.5,
+    params: {
+        leakyRelu: { alpha: 0.1 },
+        elu: { alpha: 1.0 },
+        softplus: { beta: 1 }
+    }
+};
+
+// ============================================================================
+// PLOTTING UTILITIES
+// ============================================================================
+function plot(canvas, curves, options = {}) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    
+    const w = rect.width;
+    const h = rect.height;
+    const pad = options.padding ?? 35;
+    
+    const xRange = options.xRange ?? 3;
+    const yRange = options.yRange ?? 2;
+    
+    // Clear
+    ctx.fillStyle = options.background ?? '#080810';
+    ctx.fillRect(0, 0, w, h);
+    
+    const plotW = w - pad * 2;
+    const plotH = h - pad * 2;
+    const cx = pad + plotW / 2;
+    const cy = pad + plotH / 2;
+    
+    const toX = x => cx + (x / xRange) * (plotW / 2);
+    const toY = y => cy - (y / yRange) * (plotH / 2);
+    
+    // Grid
+    if (options.showGrid !== false) {
+        ctx.strokeStyle = '#1a1a22';
+        ctx.lineWidth = 1;
+        
+        for (let x = Math.ceil(-xRange); x <= xRange; x++) {
+            ctx.beginPath();
+            ctx.moveTo(toX(x), pad);
+            ctx.lineTo(toX(x), h - pad);
+            ctx.stroke();
+        }
+        
+        for (let y = Math.ceil(-yRange); y <= yRange; y++) {
+            ctx.beginPath();
+            ctx.moveTo(pad, toY(y));
+            ctx.lineTo(w - pad, toY(y));
+            ctx.stroke();
+        }
+    }
+    
+    // Axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    
+    ctx.beginPath();
+    ctx.moveTo(pad, cy);
+    ctx.lineTo(w - pad, cy);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(cx, pad);
+    ctx.lineTo(cx, h - pad);
+    ctx.stroke();
+    
+    // Axis labels
+    if (options.showLabels !== false) {
+        ctx.fillStyle = '#444';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        
+        for (let x = Math.ceil(-xRange); x <= xRange; x++) {
+            if (x !== 0) ctx.fillText(x, toX(x), h - pad + 12);
+        }
+        
+        ctx.textAlign = 'right';
+        for (let y = Math.ceil(-yRange); y <= yRange; y++) {
+            if (y !== 0) ctx.fillText(y, pad - 5, toY(y) + 3);
+        }
+    }
+    
+    // Highlight X
+    if (options.highlightX !== undefined) {
+        ctx.strokeStyle = 'rgba(79, 172, 254, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(toX(options.highlightX), pad);
+        ctx.lineTo(toX(options.highlightX), h - pad);
+        ctx.stroke();
+    }
+    
+    // Draw curves
+    const samples = Math.min(400, plotW * 2);
+    
+    curves.forEach(curve => {
+        ctx.strokeStyle = curve.color;
+        ctx.lineWidth = curve.lineWidth ?? 2;
+        
+        if (curve.dashed) {
+            ctx.setLineDash([6, 4]);
+        } else {
+            ctx.setLineDash([]);
+        }
+        
+        ctx.beginPath();
+        let started = false;
+        
+        for (let i = 0; i <= samples; i++) {
+            const x = -xRange + (2 * xRange * i / samples);
+            let y = curve.fn(x);
+            
+            // Clamp for display
+            const clampedY = Math.max(-yRange * 2, Math.min(yRange * 2, y));
+            const px = toX(x);
+            const py = toY(clampedY);
+            
+            // Skip if outside bounds
+            if (py < 0 || py > h) {
+                started = false;
+                continue;
+            }
+            
+            if (!started) {
+                ctx.moveTo(px, py);
+                started = true;
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        ctx.stroke();
+    });
+    
+    ctx.setLineDash([]);
+    
+    // Draw highlight points
+    if (options.highlightX !== undefined) {
+        curves.forEach(curve => {
+            if (curve.hidePoint) return;
+            const y = curve.fn(options.highlightX);
+            if (Math.abs(y) <= yRange * 1.5) {
+                ctx.fillStyle = curve.color;
+                ctx.beginPath();
+                ctx.arc(toX(options.highlightX), toY(y), 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+    }
+}
+
+// ============================================================================
+// GALLERY VIEW
+// ============================================================================
+function renderGallery() {
+    const grid = document.getElementById('gallery-grid');
+    grid.innerHTML = '';
+    
+    Object.entries(ACTIVATIONS).forEach(([key, act]) => {
+        const card = document.createElement('div');
+        card.className = 'function-card';
+        card.style.setProperty('--func-color', act.color);
+        
+        card.innerHTML = `
+            <div class="card-header">
+                <div>
+                    <div class="function-name">${act.name}</div>
+                    <div class="function-formula">${act.formula}</div>
+                </div>
+                <div class="output-range">Range: <span>${act.range}</span></div>
+            </div>
+            <div class="plot-row">
+                <div class="plot-box">
+                    <div class="plot-label">Function</div>
+                    <canvas class="plot-canvas" id="gallery-f-${key}"></canvas>
+                </div>
+                <div class="plot-box">
+                    <div class="plot-label">Derivative</div>
+                    <canvas class="plot-canvas" id="gallery-df-${key}"></canvas>
+                </div>
+            </div>
+            <div class="card-stats">
+                <div class="stat">
+                    <span class="stat-icon pro">✓</span>
+                    <span>${act.pro}</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon con">✗</span>
+                    <span>${act.con}</span>
+                </div>
+            </div>
+        `;
+        
+        grid.appendChild(card);
+        
+        // Draw plots
+        requestAnimationFrame(() => {
+            const fnCanvas = document.getElementById(`gallery-f-${key}`);
+            const dfCanvas = document.getElementById(`gallery-df-${key}`);
+            
+            const params = state.params[key] || {};
+            const yMax = key.includes('relu') || key === 'softplus' ? 3 : 1.5;
+            
+            if (fnCanvas) {
+                plot(fnCanvas, [{ 
+                    fn: x => act.f(x, params), 
+                    color: act.color 
+                }], { 
+                    xRange: 3, 
+                    yRange: yMax,
+                    padding: 25,
+                    showLabels: false
+                });
+            }
+            
+            if (dfCanvas) {
+                plot(dfCanvas, [{ 
+                    fn: x => act.df(x, params), 
+                    color: act.color 
+                }], { 
+                    xRange: 3, 
+                    yRange: 1.2,
+                    padding: 25,
+                    showLabels: false
+                });
+            }
+        });
+    });
+}
+
+// ============================================================================
+// COMPARISON VIEW
+// ============================================================================
+function renderFunctionToggles() {
+    const container = document.getElementById('function-toggles');
+    container.innerHTML = '';
+    
+    Object.entries(ACTIVATIONS).forEach(([key, act]) => {
+        const div = document.createElement('div');
+        div.className = 'toggle-item';
+        div.dataset.key = key;
+        
+        const isEnabled = state.enabledFunctions.includes(key);
+        
+        div.innerHTML = `
+            <div class="toggle-check ${isEnabled ? 'checked' : ''}" style="--color: ${act.color}"></div>
+            <div class="toggle-dot" style="--color: ${act.color}"></div>
+            <span class="toggle-name">${act.name}</span>
+        `;
+        
+        div.onclick = () => {
+            const idx = state.enabledFunctions.indexOf(key);
+            if (idx > -1) state.enabledFunctions.splice(idx, 1);
+            else state.enabledFunctions.push(key);
+            
+            div.querySelector('.toggle-check').classList.toggle('checked');
+            renderComparison();
+            renderValuesGrid();
+        };
+        
+        container.appendChild(div);
+    });
+}
+
+function renderComparison() {
+    const canvas = document.getElementById('comparison-canvas');
+    
+    const curves = [];
+    
+    state.enabledFunctions.forEach(key => {
+        const act = ACTIVATIONS[key];
+        const params = state.params[key] || {};
+        
+        if (state.showBoth || !state.showDerivatives) {
+            curves.push({
+                fn: x => act.f(x, params),
+                color: act.color,
+                lineWidth: 2.5
+            });
+        }
+        
+        if (state.showBoth || state.showDerivatives) {
+            curves.push({
+                fn: x => act.df(x, params),
+                color: act.color,
+                dashed: state.showBoth,
+                lineWidth: state.showBoth ? 1.5 : 2.5,
+                hidePoint: state.showBoth
+            });
+        }
+    });
+    
+    const yRange = state.xRange > 5 ? 5 : (state.showDerivatives && !state.showBoth ? 1.5 : 3);
+    
+    plot(canvas, curves, {
+        xRange: state.xRange,
+        yRange: yRange,
+        highlightX: state.currentX,
+        padding: 40
+    });
+    
+    // Update title
+    const title = document.getElementById('comparison-title');
+    if (state.showDerivatives && !state.showBoth) {
+        title.textContent = 'Derivative Comparison';
+    } else if (state.showBoth) {
+        title.textContent = 'Function (solid) & Derivative (dashed)';
+    } else {
+        title.textContent = 'Function Comparison';
+    }
+}
+
+function renderValuesGrid() {
+    const container = document.getElementById('values-grid');
+    container.innerHTML = '';
+    
+    state.enabledFunctions.forEach(key => {
+        const act = ACTIVATIONS[key];
+        const params = state.params[key] || {};
+        
+        const fVal = act.f(state.currentX, params);
+        const dfVal = act.df(state.currentX, params);
+        
+        const card = document.createElement('div');
+        card.className = 'value-card';
+        card.style.setProperty('--color', act.color);
+        
+        card.innerHTML = `
+            <div class="value-name">${act.name}</div>
+            <div class="value-row">
+                <span class="val-f">f: ${fVal.toFixed(4)}</span>
+                <span class="val-df">f': ${dfVal.toFixed(4)}</span>
+            </div>
+        `;
+        
+        container.appendChild(card);
+    });
+}
+
+// ============================================================================
+// VANISHING GRADIENT VIEW
+// ============================================================================
+function computeGradientChain(act, layers, x0) {
+    const params = state.params[act.name?.toLowerCase().replace(/\s/g, '')] || {};
+    
+    let gradient = 1;
+    let x = x0;
+    const history = [1];
+    
+    for (let i = 0; i < layers; i++) {
+        const df = act.df(x, params);
+        gradient *= df;
+        x = act.f(x, params);
+        history.push(Math.abs(gradient));
+    }
+    
+    return { final: gradient, history };
+}
+
+function renderGradientDemo() {
+    const resultsContainer = document.getElementById('gradient-results');
+    resultsContainer.innerHTML = '';
+    
+    const funcsToShow = ['sigmoid', 'tanh', 'relu', 'leakyRelu', 'gelu'];
+    const results = {};
+    let hasVanished = false;
+    let vanishedFunc = '';
+    
+    funcsToShow.forEach(key => {
+        const act = ACTIVATIONS[key];
+        const { final, history } = computeGradientChain(act, state.layers, state.initialX);
+        results[key] = history;
+        
+        let statusClass = 'healthy';
+        let display = Math.abs(final).toExponential(2);
+        
+        if (Math.abs(final) < 1e-10) {
+            statusClass = 'vanished';
+            display = '≈ 0';
+            hasVanished = true;
+            vanishedFunc = act.name;
+        } else if (Math.abs(final) > 1e6) {
+            statusClass = 'exploded';
+            display = '> 10⁶';
+        }
+        
+        const item = document.createElement('div');
+        item.className = 'gradient-item';
+        item.innerHTML = `
+            <div class="gradient-func">
+                <div class="gradient-dot" style="background: ${act.color}"></div>
+                <span>${act.name}</span>
+            </div>
+            <span class="gradient-value ${statusClass}">${display}</span>
+        `;
+        resultsContainer.appendChild(item);
+    });
+    
+    // Warning
+    const warning = document.getElementById('warning-banner');
+    const warningText = document.getElementById('warning-text');
+    warning.classList.toggle('visible', hasVanished);
+    if (hasVanished) {
+        warningText.textContent = `${vanishedFunc} gradient has vanished! Training would stall.`;
+    }
+    
+    // Draw plot
+    renderGradientPlot(results, funcsToShow);
+}
+
+function renderGradientPlot(results, keys) {
+    const canvas = document.getElementById('gradient-canvas');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    
+    const w = rect.width;
+    const h = rect.height;
+    const pad = { left: 60, right: 30, top: 30, bottom: 40 };
+    
+    ctx.fillStyle = '#080810';
+    ctx.fillRect(0, 0, w, h);
+    
+    const plotW = w - pad.left - pad.right;
+    const plotH = h - pad.top - pad.bottom;
+    
+    // Determine y range (log scale)
+    let allVals = [];
+    keys.forEach(key => {
+        results[key].forEach(v => {
+            if (v > 0 && isFinite(v)) allVals.push(v);
+        });
+    });
+    
+    const minLog = Math.floor(Math.log10(Math.min(...allVals, 1e-20)));
+    const maxLog = Math.ceil(Math.log10(Math.max(...allVals, 10)));
+    const logRange = Math.max(maxLog - minLog, 1);
+    
+    const toX = layer => pad.left + (layer / state.layers) * plotW;
+    const toY = val => {
+        if (val <= 0) return pad.top + plotH;
+        const logVal = Math.log10(val);
+        const norm = (logVal - minLog) / logRange;
+        return pad.top + plotH * (1 - norm);
+    };
+    
+    // Grid
+    ctx.strokeStyle = '#1a1a22';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#444';
+    ctx.font = '10px monospace';
+    
+    // Horizontal grid (log scale)
+    for (let log = minLog; log <= maxLog; log += Math.max(1, Math.floor(logRange / 10))) {
+        const y = toY(Math.pow(10, log));
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(w - pad.right, y);
+        ctx.stroke();
+        
+        ctx.textAlign = 'right';
+        ctx.fillText(`10^${log}`, pad.left - 8, y + 3);
+    }
+    
+    // Vertical grid
+    const layerStep = Math.max(1, Math.ceil(state.layers / 10));
+    for (let layer = 0; layer <= state.layers; layer += layerStep) {
+        const x = toX(layer);
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, pad.top + plotH);
+        ctx.stroke();
+        
+        ctx.textAlign = 'center';
+        ctx.fillText(layer.toString(), x, h - pad.bottom + 15);
+    }
+    
+    // Reference line at gradient = 1
+    ctx.strokeStyle = 'rgba(79, 172, 254, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, toY(1));
+    ctx.lineTo(w - pad.right, toY(1));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Label for reference line
+    ctx.fillStyle = '#4facfe';
+    ctx.textAlign = 'left';
+    ctx.fillText('gradient = 1', w - pad.right - 70, toY(1) - 5);
+    
+    // Plot lines
+    keys.forEach(key => {
+        const act = ACTIVATIONS[key];
+        const history = results[key];
+        
+        ctx.strokeStyle = act.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        
+        history.forEach((val, i) => {
+            const x = toX(i);
+            const y = toY(Math.max(val, 1e-25));
+            
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        
+        ctx.stroke();
+        
+        // End marker
+        const lastVal = history[history.length - 1];
+        const lastX = toX(history.length - 1);
+        const lastY = toY(Math.max(lastVal, 1e-25));
+        
+        ctx.fillStyle = act.color;
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    
+    // Axis labels
+    ctx.fillStyle = '#666';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Layer', pad.left + plotW / 2, h - 8);
+    
+    ctx.save();
+    ctx.translate(15, pad.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Gradient Magnitude', 0, 0);
+    ctx.restore();
+}
+
+// ============================================================================
+// PARAMETERS VIEW
+// ============================================================================
+function renderParamsView() {
+    const grid = document.getElementById('params-grid');
+    grid.innerHTML = '';
+    
+    Object.entries(ACTIVATIONS).forEach(([key, act]) => {
+        if (!act.params) return;
+        
+        Object.entries(act.params).forEach(([paramName, config]) => {
+            const card = document.createElement('div');
+            card.className = 'param-card';
+            card.style.setProperty('--color', act.color);
+            
+            const currentVal = state.params[key]?.[paramName] ?? config.default;
+            
+            card.innerHTML = `
+                <div class="param-header">
+                    <div class="param-func-name">${act.name}</div>
+                    <div class="param-desc">${config.label}</div>
+                </div>
+                <div class="param-control">
+                    <div class="slider-header">
+                        <span class="slider-label">${paramName}</span>
+                        <span class="slider-value" id="param-val-${key}-${paramName}">${currentVal}</span>
+                    </div>
+                    <input type="range" class="control-slider" id="param-slider-${key}-${paramName}"
+                        min="${config.min}" max="${config.max}" step="${config.step}" value="${currentVal}">
+                </div>
+                <canvas class="param-canvas" id="param-canvas-${key}-${paramName}"></canvas>
+                <div class="param-legend">
+                    <div class="param-legend-item">
+                        <div class="param-legend-line dashed"></div>
+                        <span>Default (${paramName}=${config.default})</span>
+                    </div>
+                    <div class="param-legend-item">
+                        <div class="param-legend-line" style="background: ${act.color}"></div>
+                        <span>Current</span>
+                    </div>
+                </div>
+            `;
+            
+            grid.appendChild(card);
+            
+            // Setup slider
+            const slider = document.getElementById(`param-slider-${key}-${paramName}`);
+            slider.oninput = () => {
+                const val = parseFloat(slider.value);
+                state.params[key] = state.params[key] || {};
+                state.params[key][paramName] = val;
+                document.getElementById(`param-val-${key}-${paramName}`).textContent = val;
+                renderParamCanvas(key, paramName);
+                
+                // Also update other views
+                if (state.activeView === 'comparison') {
+                    renderComparison();
+                    renderValuesGrid();
+                }
+            };
+            
+            // Initial render
+            requestAnimationFrame(() => renderParamCanvas(key, paramName));
+        });
+    });
+}
+
+function renderParamCanvas(key, paramName) {
+    const canvas = document.getElementById(`param-canvas-${key}-${paramName}`);
+    if (!canvas) return;
+    
+    const act = ACTIVATIONS[key];
+    const config = act.params[paramName];
+    const currentVal = state.params[key]?.[paramName] ?? config.default;
+    
+    const defaultParams = { [paramName]: config.default };
+    const currentParams = { [paramName]: currentVal };
+    
+    const curves = [
+        {
+            fn: x => act.f(x, defaultParams),
+            color: '#444',
+            dashed: true,
+            lineWidth: 1.5
+        },
+        {
+            fn: x => act.f(x, currentParams),
+            color: act.color,
+            lineWidth: 2.5
+        }
+    ];
+    
+    plot(canvas, curves, {
+        xRange: 3,
+        yRange: key === 'softplus' ? 4 : 3,
+        padding: 30
+    });
+}
+
+// ============================================================================
+// EVENT HANDLERS
+// ============================================================================
+function setupEventHandlers() {
+    // Tab navigation
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            
+            tab.classList.add('active');
+            state.activeView = tab.dataset.view;
+            document.getElementById(`${tab.dataset.view}-view`).classList.add('active');
+            
+            // Render appropriate view
+            switch (tab.dataset.view) {
+                case 'gallery': renderGallery(); break;
+                case 'comparison': 
+                    renderFunctionToggles();
+                    renderComparison(); 
+                    renderValuesGrid(); 
+                    break;
+                case 'gradient': renderGradientDemo(); break;
+                case 'params': renderParamsView(); break;
+            }
+        };
+    });
+    
+    // X slider
+    document.getElementById('x-slider').oninput = (e) => {
+        state.currentX = parseFloat(e.target.value);
+        document.getElementById('x-display').textContent = state.currentX.toFixed(2);
+        renderComparison();
+        renderValuesGrid();
+    };
+    
+    // Canvas click
+    document.getElementById('comparison-canvas').onclick = (e) => {
+        const rect = e.target.getBoundingClientRect();
+        const relX = (e.clientX - rect.left) / rect.width;
+        const pad = 40 / rect.width;
+        
+        if (relX < pad || relX > 1 - pad) return;
+        
+        const normalized = (relX - pad) / (1 - 2 * pad);
+        state.currentX = (normalized - 0.5) * 2 * state.xRange;
+        state.currentX = Math.max(-5, Math.min(5, state.currentX));
+        
+        document.getElementById('x-slider').value = state.currentX;
+        document.getElementById('x-display').textContent = state.currentX.toFixed(2);
+        
+        renderComparison();
+        renderValuesGrid();
+    };
+    
+    // Range buttons
+    document.querySelectorAll('.range-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.xRange = parseInt(btn.dataset.range);
+            renderComparison();
+        };
+    });
+    
+    // Display toggles
+    document.getElementById('toggle-derivatives').onclick = () => {
+        state.showDerivatives = true;
+        state.showBoth = false;
+        document.getElementById('deriv-check').classList.add('checked');
+        document.getElementById('both-check').classList.remove('checked');
+        renderComparison();
+    };
+    
+    document.getElementById('toggle-both').onclick = () => {
+        state.showDerivatives = false;
+        state.showBoth = true;
+        document.getElementById('deriv-check').classList.remove('checked');
+        document.getElementById('both-check').classList.add('checked');
+        renderComparison();
+    };
+    
+    // Gradient sliders
+    document.getElementById('layers-slider').oninput = (e) => {
+        state.layers = parseInt(e.target.value);
+        document.getElementById('layers-display').textContent = state.layers;
+        renderGradientDemo();
+    };
+    
+    document.getElementById('init-x-slider').oninput = (e) => {
+        state.initialX = parseFloat(e.target.value);
+        document.getElementById('init-x-display').textContent = state.initialX.toFixed(1);
+        renderGradientDemo();
+    };
+    
+    // Window resize
+    window.addEventListener('resize', () => {
+        switch (state.activeView) {
+            case 'gallery': renderGallery(); break;
+            case 'comparison': renderComparison(); break;
+            case 'gradient': renderGradientDemo(); break;
+            case 'params': renderParamsView(); break;
+        }
+    });
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+function init() {
+    renderGallery();
+    renderFunctionToggles();
+    setupEventHandlers();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

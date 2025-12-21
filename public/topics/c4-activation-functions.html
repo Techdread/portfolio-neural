@@ -10,6 +10,124 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      aspect-ratio: 4 / 3; 
+      background: #0f1115;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21;
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6;
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        min-height: 100vh;
+      }
+
+      .viz-panel {
+        width: 60%;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: #050505;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+      }
+
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        padding-bottom: 6rem;
+      }
+
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,53 +155,191 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-c">Neural Network Ops</a>
-        <span>›</span>
-        <span>C4</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-c)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-c)">C4</span>
-          <span class="topic-category">Neural Network Operations</span>
+    <div class="split-layout-container">
+      
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/C4-activation-functions-visualization.html" title="Activation Functions Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Activation Functions Gallery</h1>
-        <p class="topic-description">Side-by-side: sigmoid, tanh, ReLU, Leaky ReLU, GELU. Show function AND derivative.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <div class="content-panel">
+        
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-c">Neural Network Ops</a>
+          <span>›</span>
+          <span>C4</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-c)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-c)">C4</span>
+            <span class="topic-category">Neural Network Operations</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Activation Functions Gallery</h1>
+          <p class="topic-description">The nonlinear heart of neural networks: sigmoid, tanh, ReLU, Leaky ReLU, GELU and their derivatives.</p>
+        </header>
+
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <h2>Why Activation Functions Matter</h2>
+              <p>Imagine stacking linear transformations. Matrix multiply, then another, then another. What do you get? Just one big linear transformation. No matter how many layers, the whole network collapses to a single matrix multiplication.</p>
+              <pre><code>Layer 1: y = W₁x
+Layer 2: z = W₂y = W₂W₁x
+Layer 3: out = W₃z = W₃W₂W₁x = Wx  (just one matrix!)</code></pre>
+              <p>This is useless for learning complex patterns. A line can't fit a curve.</p>
+              <p>Activation functions break this limitation. By inserting a nonlinear function after each layer, we prevent the collapse. Now deep networks can approximate any continuous function—curves, decision boundaries, anything.</p>
+              <p>The choice of activation function profoundly affects training dynamics, gradient flow, and what the network can learn.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>The Classic: Sigmoid</h2>
+              <div class="formula-box">σ(x) = 1 / (1 + e⁻ˣ)</div>
+              <p>The sigmoid squashes any input into the range (0, 1). Large positive inputs → near 1. Large negative inputs → near 0. It's smooth, differentiable everywhere, and historically was the default choice.</p>
+              <p><strong>The derivative:</strong> σ'(x) = σ(x) · (1 - σ(x))</p>
+              <p>This elegant form means we can compute the derivative from the output alone.</p>
+              <p><strong>The problem:</strong> When σ(x) is near 0 or 1, the derivative becomes tiny. Maximum derivative is only 0.25.</p>
+              <ul>
+                <li><strong>Output range:</strong> (0, 1)</li>
+                <li><strong>When to use:</strong> Binary classification output layers, gates in LSTMs/GRUs</li>
+                <li><strong>When to avoid:</strong> Hidden layers in deep networks (vanishing gradient)</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>Zero-Centered: Tanh</h2>
+              <div class="formula-box">tanh(x) = (eˣ - e⁻ˣ) / (eˣ + e⁻ˣ)</div>
+              <p>Tanh is essentially a rescaled sigmoid. It maps inputs to (-1, 1) instead of (0, 1).</p>
+              <p><strong>The derivative:</strong> tanh'(x) = 1 - tanh²(x)</p>
+              <p><strong>Why zero-centered matters:</strong> Sigmoid outputs are always positive, causing inefficient zig-zag updates. Tanh's outputs center around zero, allowing mixed-sign gradients.</p>
+              <p><strong>The problem:</strong> Same vanishing gradient issue as sigmoid. For |x| > 2, the derivative approaches zero.</p>
+              <ul>
+                <li><strong>Output range:</strong> (-1, 1)</li>
+                <li><strong>When to use:</strong> Hidden layers when you need bounded, zero-centered outputs. RNNs sometimes prefer tanh.</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>The Modern Default: ReLU</h2>
+              <div class="formula-box">ReLU(x) = max(0, x)</div>
+              <p>Rectified Linear Unit. Elegant simplicity: if positive, pass through; if negative, output zero.</p>
+              <p><strong>The derivative:</strong> ReLU'(x) = 1 if x > 0, else 0</p>
+              <p><strong>Why ReLU revolutionized deep learning:</strong></p>
+              <ol>
+                <li><strong>No vanishing gradient</strong> for positive inputs. Derivative is exactly 1.</li>
+                <li><strong>Sparse activation.</strong> Many neurons output zero, making computation efficient.</li>
+                <li><strong>Fast to compute.</strong> Just a comparison, no exponentials.</li>
+              </ol>
+              <p><strong>The problem: Dead neurons.</strong> If a neuron's input is always negative, it outputs zero forever. Zero output means zero gradient. The neuron "dies" and never recovers.</p>
+              <ul>
+                <li><strong>Output range:</strong> [0, ∞)</li>
+                <li><strong>When to use:</strong> Default for hidden layers in most architectures.</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>Fixing Dead Neurons: Leaky ReLU</h2>
+              <div class="formula-box">LeakyReLU(x) = x if x > 0, else αx</div>
+              <p>Where α is a small positive constant, typically 0.01 or 0.1.</p>
+              <p><strong>The derivative:</strong> LeakyReLU'(x) = 1 if x > 0, else α</p>
+              <p>Instead of outputting zero for negative inputs, Leaky ReLU outputs a small negative value. This ensures gradients always flow, preventing dead neurons.</p>
+              <p><strong>Variants:</strong></p>
+              <ul>
+                <li><strong>PReLU (Parametric ReLU):</strong> α is learned during training</li>
+                <li><strong>RReLU (Randomized ReLU):</strong> α is sampled randomly during training</li>
+              </ul>
+              <p><strong>Output range:</strong> (-∞, ∞)</p>
+            </section>
+
+            <section class="content-section">
+              <h2>State of the Art: GELU</h2>
+              <div class="formula-box">GELU(x) = x · Φ(x)</div>
+              <p>Where Φ(x) is the cumulative distribution function of the standard normal distribution.</p>
+              <p><strong>Practical approximation:</strong></p>
+              <pre><code>GELU(x) ≈ 0.5x(1 + tanh(√(2/π)(x + 0.044715x³)))</code></pre>
+              <p>GELU stands for Gaussian Error Linear Unit. It's the default activation in transformers (BERT, GPT, etc.).</p>
+              <p><strong>Why GELU works well:</strong></p>
+              <ol>
+                <li><strong>Smooth</strong> — no kink, better gradient flow</li>
+                <li><strong>Non-monotonic</strong> — has a small dip around x ≈ -0.5</li>
+                <li><strong>Approximates expectations</strong> — relates to stochastic regularization</li>
+              </ol>
+              <ul>
+                <li><strong>Output range:</strong> approximately (-0.17, ∞)</li>
+                <li><strong>When to use:</strong> Transformers, modern architectures</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>The Vanishing Gradient Problem</h2>
+              <p>Here's why activation function choice matters so much for deep networks.</p>
+              <p>During backpropagation, gradients multiply through layers:</p>
+              <div class="formula-box">∂Loss/∂w₁ = ∂Loss/∂out · ∂out/∂h₃ · ∂h₃/∂h₂ · ∂h₂/∂h₁ · ∂h₁/∂w₁</div>
+              <p>Each term includes the activation function's derivative. If that derivative is less than 1, gradients shrink exponentially:</p>
+              <p><strong>Sigmoid example:</strong></p>
+              <ul>
+                <li>Maximum derivative: 0.25</li>
+                <li>After 10 layers: 0.25¹⁰ ≈ 0.000001</li>
+                <li>After 20 layers: effectively zero</li>
+              </ul>
+              <p><strong>ReLU comparison:</strong></p>
+              <ul>
+                <li>Derivative for positive inputs: 1</li>
+                <li>After 10 layers: 1¹⁰ = 1</li>
+                <li>After 50 layers: still 1</li>
+              </ul>
+              <p>This is why ReLU and its variants dominate modern architectures.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Choosing an Activation Function</h2>
+              <ul>
+                <li><strong>For hidden layers in most networks:</strong> Start with ReLU. It's fast, effective, and well-understood.</li>
+                <li><strong>If you see dead neurons:</strong> Try Leaky ReLU or ELU.</li>
+                <li><strong>For transformers and attention models:</strong> Use GELU. It's the standard.</li>
+                <li><strong>For output layers:</strong>
+                  <ul>
+                    <li>Binary classification → Sigmoid (gives probability)</li>
+                    <li>Multi-class classification → Softmax (gives distribution)</li>
+                    <li>Regression → Linear (no activation) or ReLU for positive outputs</li>
+                  </ul>
+                </li>
+                <li><strong>For RNNs/LSTMs:</strong> Tanh for cell states, sigmoid for gates</li>
+              </ul>
+            </section>
+
+            <section class="content-section highlight-section">
+              <h2>Key Takeaways</h2>
+              <ol>
+                <li><strong>Activation functions add nonlinearity</strong>, enabling networks to learn complex patterns.</li>
+                <li><strong>Sigmoid and tanh suffer from vanishing gradients</strong> in deep networks.</li>
+                <li><strong>ReLU revolutionized deep learning</strong> by maintaining gradient flow, but can cause dead neurons.</li>
+                <li><strong>Leaky ReLU and ELU fix the dead neuron problem</strong> by allowing small negative outputs.</li>
+                <li><strong>GELU is the modern default for transformers</strong>, combining smoothness with ReLU-like behavior.</li>
+                <li><strong>The derivative matters more than the function itself</strong> for training dynamics.</li>
+                <li><strong>Deep networks require activation functions with derivatives near 1</strong> for stable training.</li>
+              </ol>
+            </section>
+
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="c3-computational-graph.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← C3: Computational Graph</span>
+          </a>
+          <a href="c5-loss-functions.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">C5: Loss Functions →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="c3-computational-graph.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← C3: Computational Graph</span>
-        </a>
-        <a href="c5-loss-functions.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">C5: Loss Function Landscapes →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
@@ -93,11 +349,5 @@
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>

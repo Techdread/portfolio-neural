@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C6: Softmax & Cross-Entropy</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            background: #0a0a0f; 
+            color: #e0e0e0;
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            padding: 15px 25px;
+            background: linear-gradient(to bottom, rgba(10,10,15,1), rgba(10,10,15,0.9));
+            border-bottom: 1px solid #1a1a1a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            position: relative;
+            z-index: 100;
+        }
+        
+        .header-left h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #4facfe;
+            text-shadow: 0 0 20px rgba(79, 172, 254, 0.3);
+            margin-bottom: 2px;
+        }
+        
+        .subtitle {
+            color: #555;
+            font-size: 0.8rem;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            padding: 3px;
+        }
+
+        .mode-btn {
+            padding: 6px 14px;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            color: #666;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .mode-btn:hover { color: #aaa; }
+        .mode-btn.active { 
+            background: #4facfe;
+            color: #000;
+            font-weight: 600;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            padding: 15px;
+            background: rgba(15, 15, 20, 0.95);
+            border-right: 1px solid #1a1a1a;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .panel {
+            background: #111118;
+            border: 1px solid #1a1a22;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .panel-title {
+            font-size: 0.65rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        /* Presets */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+        }
+
+        .preset-btn {
+            padding: 8px 5px;
+            background: #1a1a22;
+            border: 1px solid #222;
+            border-radius: 5px;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.65rem;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .preset-btn:hover { background: #222; color: #aaa; border-color: #333; }
+        .preset-btn.active { 
+            background: rgba(79, 172, 254, 0.15);
+            border-color: #4facfe;
+            color: #4facfe;
+        }
+
+        /* Sliders */
+        .slider-row {
+            margin-bottom: 12px;
+        }
+
+        .slider-row:last-child { margin-bottom: 0; }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .slider-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .slider-value {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4facfe;
+        }
+
+        .slider-input {
+            width: 100%;
+            accent-color: #4facfe;
+            cursor: pointer;
+        }
+
+        /* Class Colors */
+        .class-0 { color: #ff6b6b; }
+        .class-1 { color: #4ecdc4; }
+        .class-2 { color: #a855f7; }
+
+        /* Target Selector */
+        .target-selector {
+            display: flex;
+            gap: 6px;
+        }
+
+        .target-btn {
+            flex: 1;
+            padding: 10px 5px;
+            background: #1a1a22;
+            border: 2px solid #222;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .target-btn:hover { border-color: #444; }
+
+        .target-btn.selected {
+            border-color: currentColor;
+            background: rgba(255,255,255,0.05);
+            box-shadow: 0 0 12px rgba(255,255,255,0.1);
+        }
+
+        .target-btn .checkmark {
+            display: none;
+            margin-left: 3px;
+        }
+
+        .target-btn.selected .checkmark { display: inline; }
+
+        /* Step Controls */
+        .step-controls {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .step-btn {
+            flex: 1;
+            padding: 8px;
+            background: #1a1a22;
+            border: 1px solid #222;
+            border-radius: 5px;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .step-btn:hover:not(:disabled) { background: #222; color: #aaa; }
+        .step-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .step-btn.primary { background: #4facfe; color: #000; border-color: #4facfe; }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(79, 172, 254, 0.05);
+            border: 1px solid rgba(79, 172, 254, 0.15);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.7rem;
+            color: #666;
+            line-height: 1.4;
+            margin-top: 10px;
+        }
+
+        .info-box code {
+            background: rgba(0,0,0,0.3);
+            padding: 1px 4px;
+            border-radius: 3px;
+            color: #4facfe;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        /* Stability Toggle */
+        .stability-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .toggle-switch {
+            width: 36px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle-switch.on { background: #4facfe; }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .toggle-switch.on::after { transform: translateX(16px); }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Pipeline Section */
+        .pipeline-section {
+            padding: 15px 20px;
+            background: rgba(17, 17, 24, 0.9);
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .pipeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .pipeline-title {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+            transition: all 0.3s;
+        }
+
+        .step-dot.active { background: #4facfe; box-shadow: 0 0 8px rgba(79, 172, 254, 0.5); }
+        .step-dot.complete { background: #4cd964; }
+
+        .pipeline-stages {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .stage {
+            flex: 1;
+            text-align: center;
+            opacity: 0.3;
+            transition: opacity 0.3s;
+        }
+
+        .stage.active, .stage.complete { opacity: 1; }
+
+        .stage-title {
+            font-size: 0.6rem;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stage-content {
+            background: #0a0a0f;
+            border-radius: 8px;
+            padding: 10px 8px;
+            min-height: 95px;
+        }
+
+        .value-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.75rem;
+        }
+
+        .value-label {
+            font-size: 0.65rem;
+            color: #555;
+        }
+
+        .value-num {
+            font-weight: 600;
+        }
+
+        /* Loss Display */
+        .loss-stage .stage-content {
+            background: linear-gradient(135deg, #1a1a22, #111118);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .loss-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .loss-value.good { color: #4cd964; }
+        .loss-value.medium { color: #ffcc00; }
+        .loss-value.bad { color: #ff6b6b; }
+
+        .loss-formula {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.6rem;
+            color: #555;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .penalty-warning {
+            font-size: 0.6rem;
+            color: #ff6b6b;
+            text-align: center;
+            margin-top: 5px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .penalty-warning.visible { opacity: 1; }
+
+        /* Three.js Container */
+        .threejs-container {
+            flex: 1;
+            position: relative;
+            background: #0a0a0f;
+        }
+
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 3D Labels */
+        .label-3d {
+            position: absolute;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 0 4px #000, 0 0 8px #000;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
+
+        .label-3d.section-label {
+            font-size: 0.85rem;
+            color: #4facfe;
+        }
+
+        /* Gradient Panel */
+        .gradient-panel {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(17, 17, 24, 0.95);
+            border: 1px solid #1a1a22;
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 180px;
+        }
+
+        .gradient-title {
+            font-size: 0.65rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .gradient-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.8rem;
+        }
+
+        .gradient-val {
+            font-weight: 600;
+        }
+
+        .gradient-val.positive { color: #ff6b6b; }
+        .gradient-val.negative { color: #4cd964; }
+
+        /* Math Panel */
+        .math-panel {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 15, 0.95);
+            border: 1px solid #4facfe;
+            border-radius: 10px;
+            padding: 15px 25px;
+            text-align: center;
+        }
+
+        .math-formula {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .math-result {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .math-result.good { color: #4cd964; }
+        .math-result.medium { color: #ffcc00; }
+        .math-result.bad { color: #ff6b6b; }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h1>C6: Softmax & Cross-Entropy</h1>
+        <p class="subtitle">From raw scores to probabilities to loss</p>
+    </div>
+    <div class="header-controls">
+        <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="interactive">Interactive</button>
+            <button class="mode-btn" data-mode="step">Step-by-Step</button>
+        </div>
+    </div>
+</header>
+
+<div class="main-container">
+    <div class="sidebar">
+        <!-- Presets -->
+        <div class="panel">
+            <div class="panel-title">Presets</div>
+            <div class="preset-grid">
+                <button class="preset-btn" data-preset="confident-correct">✓ Correct</button>
+                <button class="preset-btn" data-preset="uncertain">? Unsure</button>
+                <button class="preset-btn" data-preset="confident-wrong">✗ Wrong</button>
+            </div>
+        </div>
+
+        <!-- Logit Controls -->
+        <div class="panel">
+            <div class="panel-title">Logits (z)</div>
+            
+            <div class="slider-row">
+                <div class="slider-header">
+                    <span class="slider-label class-0">z₀</span>
+                    <span class="slider-value" id="val-z0">2.0</span>
+                </div>
+                <input type="range" class="slider-input" id="slider-z0" 
+                    min="-5" max="10" step="0.1" value="2.0">
+            </div>
+            
+            <div class="slider-row">
+                <div class="slider-header">
+                    <span class="slider-label class-1">z₁</span>
+                    <span class="slider-value" id="val-z1">1.0</span>
+                </div>
+                <input type="range" class="slider-input" id="slider-z1" 
+                    min="-5" max="10" step="0.1" value="1.0">
+            </div>
+            
+            <div class="slider-row">
+                <div class="slider-header">
+                    <span class="slider-label class-2">z₂</span>
+                    <span class="slider-value" id="val-z2">0.1</span>
+                </div>
+                <input type="range" class="slider-input" id="slider-z2" 
+                    min="-5" max="10" step="0.1" value="0.1">
+            </div>
+        </div>
+
+        <!-- Temperature -->
+        <div class="panel">
+            <div class="panel-title">Temperature</div>
+            <div class="slider-row">
+                <div class="slider-header">
+                    <span class="slider-label">T</span>
+                    <span class="slider-value" id="val-temp">1.0</span>
+                </div>
+                <input type="range" class="slider-input" id="slider-temp" 
+                    min="0.1" max="3.0" step="0.1" value="1.0">
+            </div>
+            <div class="info-box">
+                <code>T&lt;1</code> sharper &nbsp;|&nbsp; <code>T&gt;1</code> softer
+            </div>
+        </div>
+
+        <!-- True Label -->
+        <div class="panel">
+            <div class="panel-title">True Label (y)</div>
+            <div class="target-selector">
+                <div class="target-btn class-0 selected" data-target="0">
+                    0 <span class="checkmark">✓</span>
+                </div>
+                <div class="target-btn class-1" data-target="1">
+                    1 <span class="checkmark">✓</span>
+                </div>
+                <div class="target-btn class-2" data-target="2">
+                    2 <span class="checkmark">✓</span>
+                </div>
+            </div>
+            
+            <div class="step-controls" id="step-controls" style="display: none;">
+                <button class="step-btn" id="btn-prev" disabled>←</button>
+                <button class="step-btn primary" id="btn-next">Next →</button>
+                <button class="step-btn" id="btn-reset">Reset</button>
+            </div>
+        </div>
+
+        <!-- Numerical Stability -->
+        <div class="panel">
+            <div class="panel-title">Stability</div>
+            <div class="stability-toggle">
+                <div class="toggle-switch on" id="stability-toggle"></div>
+                <span>Log-sum-exp trick</span>
+            </div>
+            <div class="info-box">
+                Prevents overflow when logits are large
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Pipeline Section -->
+        <div class="pipeline-section">
+            <div class="pipeline-header">
+                <div class="pipeline-title">Pipeline: Logits → Softmax → Probabilities → Cross-Entropy → Loss</div>
+                <div class="step-indicator" id="step-indicator">
+                    <div class="step-dot active" data-step="0"></div>
+                    <div class="step-dot" data-step="1"></div>
+                    <div class="step-dot" data-step="2"></div>
+                    <div class="step-dot" data-step="3"></div>
+                    <div class="step-dot" data-step="4"></div>
+                </div>
+            </div>
+
+            <div class="pipeline-stages">
+                <!-- Stage 1: Logits -->
+                <div class="stage active" data-stage="0">
+                    <div class="stage-title">Logits</div>
+                    <div class="stage-content">
+                        <div class="value-row">
+                            <span class="value-label class-0">z₀</span>
+                            <span class="value-num class-0" id="pipe-z0">2.00</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label class-1">z₁</span>
+                            <span class="value-num class-1" id="pipe-z1">1.00</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label class-2">z₂</span>
+                            <span class="value-num class-2" id="pipe-z2">0.10</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 2: Exponentials -->
+                <div class="stage" data-stage="1">
+                    <div class="stage-title">e^(z/T)</div>
+                    <div class="stage-content">
+                        <div class="value-row">
+                            <span class="value-label class-0">e^z₀</span>
+                            <span class="value-num class-0" id="pipe-exp0">7.39</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label class-1">e^z₁</span>
+                            <span class="value-num class-1" id="pipe-exp1">2.72</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label class-2">e^z₂</span>
+                            <span class="value-num class-2" id="pipe-exp2">1.11</span>
+                        </div>
+                        <div class="value-row" style="border-top: 1px solid #222; margin-top: 3px; padding-top: 3px;">
+                            <span class="value-label">Σ</span>
+                            <span class="value-num" id="pipe-sum" style="color: #4facfe;">11.21</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 3: Probabilities -->
+                <div class="stage" data-stage="2">
+                    <div class="stage-title">Softmax</div>
+                    <div class="stage-content">
+                        <div class="value-row">
+                            <span class="value-label class-0">p₀</span>
+                            <span class="value-num class-0" id="pipe-p0">0.659</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label class-1">p₁</span>
+                            <span class="value-num class-1" id="pipe-p1">0.242</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label class-2">p₂</span>
+                            <span class="value-num class-2" id="pipe-p2">0.099</span>
+                        </div>
+                        <div class="value-row" style="border-top: 1px solid #222; margin-top: 3px; padding-top: 3px;">
+                            <span class="value-label">Σ</span>
+                            <span class="value-num" style="color: #4cd964;">1.000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 4: Cross-Entropy -->
+                <div class="stage" data-stage="3">
+                    <div class="stage-title">-log(p)</div>
+                    <div class="stage-content">
+                        <div class="value-row">
+                            <span class="value-label">p_correct</span>
+                            <span class="value-num" id="pipe-pcorrect" style="color: #4facfe;">0.659</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label">log(p)</span>
+                            <span class="value-num" id="pipe-logp" style="color: #888;">-0.42</span>
+                        </div>
+                        <div class="value-row">
+                            <span class="value-label">-log(p)</span>
+                            <span class="value-num" id="pipe-neglogp" style="color: #ffcc00;">0.42</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 5: Loss -->
+                <div class="stage loss-stage" data-stage="4">
+                    <div class="stage-title">Loss</div>
+                    <div class="stage-content">
+                        <div class="loss-formula">L = -log(p<sub>y</sub>)</div>
+                        <div class="loss-value good" id="loss-display">0.42</div>
+                        <div class="penalty-warning" id="penalty-warning">⚠️ Harsh penalty!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Three.js Container -->
+        <div class="threejs-container">
+            <canvas id="three-canvas"></canvas>
+            
+            <!-- Gradient Panel -->
+            <div class="gradient-panel">
+                <div class="gradient-title">Gradients ∂L/∂z = p - y</div>
+                <div class="gradient-row">
+                    <span class="class-0">∂L/∂z₀</span>
+                    <span class="gradient-val negative" id="grad-0">-0.341</span>
+                </div>
+                <div class="gradient-row">
+                    <span class="class-1">∂L/∂z₁</span>
+                    <span class="gradient-val positive" id="grad-1">+0.242</span>
+                </div>
+                <div class="gradient-row">
+                    <span class="class-2">∂L/∂z₂</span>
+                    <span class="gradient-val positive" id="grad-2">+0.099</span>
+                </div>
+            </div>
+
+            <!-- Math Panel -->
+            <div class="math-panel">
+                <div class="math-formula">Loss = -log(<span id="math-p">0.659</span>)</div>
+                <div class="math-result good" id="math-loss">0.42</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+const CONFIG = {
+    colors: {
+        classes: [0xff6b6b, 0x4ecdc4, 0xa855f7],
+        classesCSS: ['#ff6b6b', '#4ecdc4', '#a855f7'],
+        curve: 0x4facfe,
+        grid: 0x222222,
+        axes: 0x444444,
+        marker: 0xffffff
+    },
+    barWidth: 0.8,
+    barDepth: 0.8,
+    spacing: 2.0
+};
+
+// ============================================================================
+// APPLICATION STATE
+// ============================================================================
+const state = {
+    logits: [2.0, 1.0, 0.1],
+    temperature: 1.0,
+    targetClass: 0,
+    mode: 'interactive',
+    currentStep: 0,
+    maxSteps: 5,
+    useStability: true,
+    
+    // Computed
+    exponentials: [],
+    expSum: 0,
+    probs: [],
+    pCorrect: 0,
+    loss: 0,
+    gradients: []
+};
+
+// ============================================================================
+// THREE.JS SETUP
+// ============================================================================
+let scene, camera, renderer, controls;
+let logitBars = [], probBars = [], lossCurveLine, lossMarker;
+let animationId;
+
+function initThree() {
+    const container = document.querySelector('.threejs-container');
+    const canvas = document.getElementById('three-canvas');
+    
+    // Scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0f);
+    
+    // Camera
+    const aspect = container.clientWidth / container.clientHeight;
+    camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100);
+    camera.position.set(0, 8, 20);
+    
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // Controls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 2, 0);
+    controls.maxPolarAngle = Math.PI / 2;
+    
+    // Lights
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambient);
+    
+    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+    directional.position.set(10, 15, 10);
+    scene.add(directional);
+    
+    // Build scene
+    createLogitBars();
+    createProbBars();
+    createLossCurve();
+    createLabels();
+    
+    // Start animation
+    animate();
+    
+    // Handle resize
+    window.addEventListener('resize', onResize);
+}
+
+function createBar(color) {
+    const geometry = new THREE.BoxGeometry(CONFIG.barWidth, 1, CONFIG.barDepth);
+    geometry.translate(0, 0.5, 0); // Pivot at bottom
+    
+    const material = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.4,
+        metalness: 0.1
+    });
+    
+    return new THREE.Mesh(geometry, material);
+}
+
+function createLogitBars() {
+    const group = new THREE.Group();
+    group.position.set(-8, 0, 0);
+    
+    // Base platform
+    const platformGeo = new THREE.BoxGeometry(6, 0.1, 3);
+    const platformMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22 });
+    const platform = new THREE.Mesh(platformGeo, platformMat);
+    platform.position.y = -0.05;
+    group.add(platform);
+    
+    // Zero line
+    const zeroLineGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-3, 0, 1.6),
+        new THREE.Vector3(3, 0, 1.6)
+    ]);
+    const zeroLine = new THREE.Line(zeroLineGeo, new THREE.LineBasicMaterial({ color: 0x666666 }));
+    group.add(zeroLine);
+    
+    // Bars
+    for (let i = 0; i < 3; i++) {
+        const bar = createBar(CONFIG.colors.classes[i]);
+        bar.position.x = (i - 1) * CONFIG.spacing;
+        logitBars.push(bar);
+        group.add(bar);
+    }
+    
+    scene.add(group);
+}
+
+function createProbBars() {
+    const group = new THREE.Group();
+    group.position.set(0, 0, 0);
+    
+    // Base platform
+    const platformGeo = new THREE.BoxGeometry(6, 0.1, 3);
+    const platformMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22 });
+    const platform = new THREE.Mesh(platformGeo, platformMat);
+    platform.position.y = -0.05;
+    group.add(platform);
+    
+    // Bars
+    for (let i = 0; i < 3; i++) {
+        const bar = createBar(CONFIG.colors.classes[i]);
+        bar.position.x = (i - 1) * CONFIG.spacing;
+        probBars.push(bar);
+        group.add(bar);
+    }
+    
+    scene.add(group);
+}
+
+function createLossCurve() {
+    const group = new THREE.Group();
+    group.position.set(9, 0, 0);
+    
+    // Axes
+    const axesMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.axes });
+    
+    // Y-axis (loss)
+    const yAxisGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-3, 0, 0),
+        new THREE.Vector3(-3, 6, 0)
+    ]);
+    group.add(new THREE.Line(yAxisGeo, axesMat));
+    
+    // X-axis (probability)
+    const xAxisGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-3, 0, 0),
+        new THREE.Vector3(3, 0, 0)
+    ]);
+    group.add(new THREE.Line(xAxisGeo, axesMat));
+    
+    // Grid lines
+    const gridMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.grid, transparent: true, opacity: 0.5 });
+    
+    for (let loss = 1; loss <= 5; loss++) {
+        const y = loss;
+        const geo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-3, y, 0),
+            new THREE.Vector3(3, y, 0)
+        ]);
+        group.add(new THREE.Line(geo, gridMat));
+    }
+    
+    // -log(p) curve
+    const curvePoints = [];
+    for (let i = 1; i <= 200; i++) {
+        const p = i / 200;
+        const loss = Math.min(6, -Math.log(p));
+        const x = (p * 6) - 3; // Map [0,1] to [-3,3]
+        curvePoints.push(new THREE.Vector3(x, loss, 0));
+    }
+    
+    const curveGeo = new THREE.BufferGeometry().setFromPoints(curvePoints);
+    const curveMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.curve, linewidth: 2 });
+    lossCurveLine = new THREE.Line(curveGeo, curveMat);
+    group.add(lossCurveLine);
+    
+    // Marker
+    const markerGeo = new THREE.SphereGeometry(0.2, 16, 16);
+    const markerMat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.marker });
+    lossMarker = new THREE.Mesh(markerGeo, markerMat);
+    lossMarker.position.set(0, 0, 0.1);
+    group.add(lossMarker);
+    
+    // Vertical line from marker to axis
+    const vertLineGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0, 0)
+    ]);
+    const vertLineMat = new THREE.LineDashedMaterial({ 
+        color: 0xffffff, 
+        transparent: true, 
+        opacity: 0.3,
+        dashSize: 0.2,
+        gapSize: 0.1
+    });
+    lossMarker.userData.vertLine = new THREE.Line(vertLineGeo, vertLineMat);
+    lossMarker.userData.vertLine.computeLineDistances();
+    group.add(lossMarker.userData.vertLine);
+    
+    scene.add(group);
+}
+
+function createLabels() {
+    // Create text sprites for section labels
+    addTextLabel('Logits (z)', -8, 7, 0);
+    addTextLabel('Probabilities (p)', 0, 7, 0);
+    addTextLabel('Loss = -log(p)', 9, 7, 0);
+    
+    // Axis labels for loss curve
+    addTextLabel('p=0', 6, -0.5, 0, 0.4);
+    addTextLabel('p=1', 12, -0.5, 0, 0.4);
+}
+
+function addTextLabel(text, x, y, z, scale = 0.6) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+    
+    ctx.fillStyle = 'transparent';
+    ctx.fillRect(0, 0, 256, 64);
+    
+    ctx.font = 'Bold 32px Arial';
+    ctx.fillStyle = '#4facfe';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, 128, 42);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(material);
+    sprite.position.set(x, y, z);
+    sprite.scale.set(4 * scale, 1 * scale, 1);
+    scene.add(sprite);
+}
+
+function updateThreeJS() {
+    // Update logit bars
+    state.logits.forEach((z, i) => {
+        const bar = logitBars[i];
+        if (z >= 0) {
+            bar.position.y = 0;
+            bar.scale.y = Math.max(0.01, z);
+        } else {
+            bar.position.y = z;
+            bar.scale.y = Math.max(0.01, -z);
+        }
+        
+        // Highlight target class
+        if (i === state.targetClass) {
+            bar.material.emissive.setHex(0x222222);
+        } else {
+            bar.material.emissive.setHex(0x000000);
+        }
+    });
+    
+    // Update probability bars (scale to max height of 5)
+    state.probs.forEach((p, i) => {
+        const bar = probBars[i];
+        bar.scale.y = Math.max(0.01, p * 5);
+        
+        // Highlight target class
+        if (i === state.targetClass) {
+            bar.material.emissive.setHex(0x222222);
+        } else {
+            bar.material.emissive.setHex(0x000000);
+        }
+    });
+    
+    // Update loss marker
+    const p = state.pCorrect;
+    const loss = Math.min(6, state.loss);
+    const markerX = (p * 6) - 3;
+    lossMarker.position.set(markerX, loss, 0.1);
+    
+    // Update vertical line
+    const vertLine = lossMarker.userData.vertLine;
+    const positions = vertLine.geometry.attributes.position;
+    positions.setXYZ(0, markerX, 0, 0);
+    positions.setXYZ(1, markerX, loss, 0);
+    positions.needsUpdate = true;
+    vertLine.computeLineDistances();
+}
+
+function animate() {
+    animationId = requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+function onResize() {
+    const container = document.querySelector('.threejs-container');
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+// ============================================================================
+// SOFTMAX & CROSS-ENTROPY CALCULATIONS
+// ============================================================================
+function compute() {
+    const z = state.logits;
+    const T = state.temperature;
+    
+    // Numerically stable softmax
+    let scaledZ;
+    if (state.useStability) {
+        const maxZ = Math.max(...z);
+        scaledZ = z.map(zi => (zi - maxZ) / T);
+    } else {
+        scaledZ = z.map(zi => zi / T);
+    }
+    
+    // Exponentials
+    state.exponentials = scaledZ.map(zi => Math.exp(zi));
+    state.expSum = state.exponentials.reduce((a, b) => a + b, 0);
+    
+    // Probabilities
+    state.probs = state.exponentials.map(e => e / state.expSum);
+    
+    // Cross-entropy
+    state.pCorrect = Math.max(1e-15, state.probs[state.targetClass]);
+    state.loss = -Math.log(state.pCorrect);
+    
+    // Gradients: ∂L/∂z = p - y
+    state.gradients = state.probs.map((p, i) => {
+        const y = i === state.targetClass ? 1 : 0;
+        return p - y;
+    });
+}
+
+// ============================================================================
+// UI UPDATES
+// ============================================================================
+function formatNum(n) {
+    if (!isFinite(n)) return 'Overflow!';
+    if (Math.abs(n) > 10000) return n.toExponential(1);
+    if (Math.abs(n) < 0.001 && n !== 0) return n.toExponential(1);
+    return n.toFixed(2);
+}
+
+function updatePipeline() {
+    // Logits
+    document.getElementById('pipe-z0').textContent = state.logits[0].toFixed(2);
+    document.getElementById('pipe-z1').textContent = state.logits[1].toFixed(2);
+    document.getElementById('pipe-z2').textContent = state.logits[2].toFixed(2);
+    
+    // Exponentials (display actual, not shifted)
+    const displayExp = state.logits.map(z => Math.exp(z / state.temperature));
+    const displaySum = displayExp.reduce((a, b) => a + b, 0);
+    
+    document.getElementById('pipe-exp0').textContent = formatNum(displayExp[0]);
+    document.getElementById('pipe-exp1').textContent = formatNum(displayExp[1]);
+    document.getElementById('pipe-exp2').textContent = formatNum(displayExp[2]);
+    document.getElementById('pipe-sum').textContent = formatNum(displaySum);
+    
+    // Probabilities
+    document.getElementById('pipe-p0').textContent = state.probs[0].toFixed(3);
+    document.getElementById('pipe-p1').textContent = state.probs[1].toFixed(3);
+    document.getElementById('pipe-p2').textContent = state.probs[2].toFixed(3);
+    
+    // Highlight correct class
+    ['pipe-p0', 'pipe-p1', 'pipe-p2'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        el.style.textDecoration = i === state.targetClass ? 'underline' : 'none';
+    });
+    
+    // Cross-entropy
+    document.getElementById('pipe-pcorrect').textContent = state.pCorrect.toFixed(4);
+    document.getElementById('pipe-logp').textContent = Math.log(state.pCorrect).toFixed(2);
+    document.getElementById('pipe-neglogp').textContent = state.loss.toFixed(2);
+    
+    // Loss display
+    const lossEl = document.getElementById('loss-display');
+    lossEl.textContent = state.loss.toFixed(2);
+    lossEl.className = 'loss-value ' + (state.loss < 0.5 ? 'good' : state.loss < 2 ? 'medium' : 'bad');
+    
+    // Math panel
+    document.getElementById('math-p').textContent = state.pCorrect.toFixed(3);
+    const mathLoss = document.getElementById('math-loss');
+    mathLoss.textContent = state.loss.toFixed(2);
+    mathLoss.className = 'math-result ' + (state.loss < 0.5 ? 'good' : state.loss < 2 ? 'medium' : 'bad');
+    
+    // Penalty warning
+    document.getElementById('penalty-warning').classList.toggle('visible', state.loss > 3);
+}
+
+function updateGradients() {
+    state.gradients.forEach((g, i) => {
+        const el = document.getElementById(`grad-${i}`);
+        el.textContent = (g >= 0 ? '+' : '') + g.toFixed(3);
+        el.className = 'gradient-val ' + (g >= 0 ? 'positive' : 'negative');
+    });
+}
+
+function updateStepMode() {
+    const stages = document.querySelectorAll('.stage');
+    const dots = document.querySelectorAll('.step-dot');
+    
+    stages.forEach((stage, i) => {
+        stage.classList.remove('active', 'complete');
+        if (state.mode === 'interactive' || i <= state.currentStep) {
+            if (i < state.currentStep) stage.classList.add('complete');
+            if (i === state.currentStep || state.mode === 'interactive') stage.classList.add('active');
+        }
+    });
+    
+    dots.forEach((dot, i) => {
+        dot.classList.remove('active', 'complete');
+        if (state.mode === 'interactive') {
+            dot.classList.add('complete');
+        } else {
+            if (i < state.currentStep) dot.classList.add('complete');
+            else if (i === state.currentStep) dot.classList.add('active');
+        }
+    });
+    
+    document.getElementById('btn-prev').disabled = state.currentStep === 0;
+    document.getElementById('btn-next').disabled = state.currentStep >= state.maxSteps - 1;
+}
+
+function updateAll() {
+    compute();
+    updatePipeline();
+    updateGradients();
+    updateThreeJS();
+    if (state.mode === 'step') updateStepMode();
+}
+
+// ============================================================================
+// EVENT HANDLERS
+// ============================================================================
+function setupEventHandlers() {
+    // Logit sliders
+    [0, 1, 2].forEach(i => {
+        const slider = document.getElementById(`slider-z${i}`);
+        slider.oninput = () => {
+            state.logits[i] = parseFloat(slider.value);
+            document.getElementById(`val-z${i}`).textContent = state.logits[i].toFixed(1);
+            updateAll();
+        };
+    });
+    
+    // Temperature slider
+    document.getElementById('slider-temp').oninput = (e) => {
+        state.temperature = parseFloat(e.target.value);
+        document.getElementById('val-temp').textContent = state.temperature.toFixed(1);
+        updateAll();
+    };
+    
+    // Target class buttons
+    document.querySelectorAll('.target-btn').forEach(btn => {
+        btn.onclick = () => {
+            state.targetClass = parseInt(btn.dataset.target);
+            document.querySelectorAll('.target-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            updateAll();
+        };
+    });
+    
+    // Preset buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const preset = btn.dataset.preset;
+            let logits, target = 0;
+            
+            if (preset === 'confident-correct') {
+                logits = [5.0, 0.0, -1.0];
+            } else if (preset === 'uncertain') {
+                logits = [1.0, 1.2, 0.8];
+            } else if (preset === 'confident-wrong') {
+                logits = [-2.0, 5.0, 0.0];
+            }
+            
+            setLogits(logits);
+            state.targetClass = target;
+            document.querySelectorAll('.target-btn').forEach((b, i) => {
+                b.classList.toggle('selected', i === target);
+            });
+            
+            updateAll();
+        };
+    });
+    
+    // Mode toggle
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            state.mode = btn.dataset.mode;
+            state.currentStep = 0;
+            
+            document.getElementById('step-controls').style.display = 
+                state.mode === 'step' ? 'flex' : 'none';
+            
+            updateAll();
+        };
+    });
+    
+    // Step buttons
+    document.getElementById('btn-next').onclick = () => {
+        if (state.currentStep < state.maxSteps - 1) {
+            state.currentStep++;
+            updateStepMode();
+        }
+    };
+    
+    document.getElementById('btn-prev').onclick = () => {
+        if (state.currentStep > 0) {
+            state.currentStep--;
+            updateStepMode();
+        }
+    };
+    
+    document.getElementById('btn-reset').onclick = () => {
+        state.currentStep = 0;
+        updateStepMode();
+    };
+    
+    // Stability toggle
+    document.getElementById('stability-toggle').onclick = (e) => {
+        e.currentTarget.classList.toggle('on');
+        state.useStability = e.currentTarget.classList.contains('on');
+        updateAll();
+    };
+}
+
+function setLogits(values) {
+    state.logits = [...values];
+    [0, 1, 2].forEach(i => {
+        document.getElementById(`slider-z${i}`).value = values[i];
+        document.getElementById(`val-z${i}`).textContent = values[i].toFixed(1);
+    });
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+function init() {
+    initThree();
+    setupEventHandlers();
+    updateAll();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

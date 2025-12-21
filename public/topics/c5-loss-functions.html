@@ -10,6 +10,124 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      aspect-ratio: 4 / 3; 
+      background: #0f1115;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21;
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6;
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        min-height: 100vh;
+      }
+
+      .viz-panel {
+        width: 60%;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: #050505;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+      }
+
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        padding-bottom: 6rem;
+      }
+
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,53 +155,208 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-c">Neural Network Ops</a>
-        <span>›</span>
-        <span>C5</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-c)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-c)">C5</span>
-          <span class="topic-category">Neural Network Operations</span>
+    <div class="split-layout-container">
+      
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/C5-loss-functions-visualizations.html" title="Loss Functions Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Loss Function Landscapes</h1>
-        <p class="topic-description">Compare MSE, cross-entropy, hinge loss surfaces and optimisation behaviour.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <div class="content-panel">
+        
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-c">Neural Network Ops</a>
+          <span>›</span>
+          <span>C5</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-c)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-c)">C5</span>
+            <span class="topic-category">Neural Network Operations</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Loss Function Landscapes</h1>
+          <p class="topic-description">Measuring how wrong your model is: MSE, cross-entropy, and hinge loss.</p>
+        </header>
+
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <h2>The Scorekeeper of Learning</h2>
+              <p>Imagine you're teaching a dog to fetch. If it brings back a stick, you give it a treat (reward). If it brings back a rock, you might say "no" (penalty). In machine learning, we measure how <em>wrong</em> the model is and try to reduce that wrongness to zero.</p>
+              <p>This measurement is called the <strong>Loss Function</strong>.</p>
+              <p>It boils down the model's performance into a single number:</p>
+              <ul>
+                <li><strong>Low Loss</strong> = Model is making good predictions</li>
+                <li><strong>High Loss</strong> = Model is making terrible errors</li>
+              </ul>
+              <p>Training a neural network is really just a game of "Minimizing the Score."</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Mean Squared Error (MSE)</h2>
+              <p>This is the standard loss function for <strong>Regression</strong> problems—where you want to predict a continuous number (like house prices or temperature).</p>
+              <div class="formula-box">Loss = (Actual - Predicted)²</div>
+              <p>(Technically we average this over all data points, hence "Mean".)</p>
+              
+              <h3>Why Square It?</h3>
+              <ol>
+                <li><strong>It punishes large errors severely.</strong> Being off by 10 is 100 times worse than being off by 1 (10² vs 1²), not just 10 times worse.</li>
+                <li><strong>It makes the math smooth.</strong> The curve is a nice parabola, which is easy to slide down (differentiate).</li>
+              </ol>
+              
+              <h3>Example</h3>
+              <p>Target value: 100</p>
+              <table>
+                <thead>
+                  <tr><th>Prediction</th><th>Error</th><th>MSE Loss</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>99</td><td>1</td><td>1</td></tr>
+                  <tr><td>90</td><td>10</td><td>100</td></tr>
+                  <tr><td>50</td><td>50</td><td>2,500</td></tr>
+                </tbody>
+              </table>
+              <p>Notice how the loss explodes as the prediction gets further away.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Cross-Entropy Loss</h2>
+              <p>This is the standard for <strong>Classification</strong>—where you want to predict a category (cat vs. dog, spam vs. ham).</p>
+              <p>In classification, our model outputs a probability (0 to 1). We want the probability for the correct class to be 1.0.</p>
+              
+              <h3>The Logic</h3>
+              <p>Cross-entropy is based on "surprise."</p>
+              <ul>
+                <li>If the image is a Cat, and you predict "Cat: 99%", you are not surprised. Loss is near 0.</li>
+                <li>If the image is a Cat, and you predict "Cat: 1%", you are massively surprised. Loss is huge.</li>
+              </ul>
+              
+              <div class="formula-box">Loss = -log(Predicted_Probability)</div>
+              
+              <table>
+                <thead>
+                  <tr><th>Prediction for Correct Class</th><th>Loss</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>0.99 (Confidently Right)</td><td>0.01 (Tiny)</td></tr>
+                  <tr><td>0.50 (Unsure)</td><td>0.69</td></tr>
+                  <tr><td>0.01 (Confidently Wrong)</td><td>4.60 (Huge)</td></tr>
+                </tbody>
+              </table>
+              <p><strong>Key Characteristic:</strong> Cross-entropy never lets the model get complacent. The penalty for being confidently wrong is massive (approaching infinity).</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Hinge Loss</h2>
+              <p>This is the classic loss function for <strong>Support Vector Machines (SVMs)</strong>.</p>
+              
+              <h3>The Concept</h3>
+              <p>Cross-entropy always wants "more" certainty (0.99 is better than 0.98).</p>
+              <p>Hinge loss says: <em>"If you are correct enough, I don't care anymore."</em></p>
+              <p>It relies on a <strong>margin</strong>. If a point is correctly classified and safely outside the "danger zone," the loss is zero.</p>
+              
+              <div class="formula-box">Loss = max(0, 1 - Actual · Predicted)</div>
+              <p>(Assuming Actual is either +1 or -1)</p>
+              
+              <h3>Behavior</h3>
+              <ul>
+                <li>If you score > 1 (correct and safe): Loss is 0</li>
+                <li>If you score < 1 (wrong or unsafe): Loss increases linearly</li>
+              </ul>
+              <p>This makes SVMs robust to outliers because they stop caring about "easy" points.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Loss Landscapes</h2>
+              <p>If you visualize the loss for every possible combination of model parameters (weights), you get a <strong>Loss Landscape</strong>.</p>
+              <p>Training is simply placing a ball on this landscape and letting it roll downhill (Optimization).</p>
+              
+              <h3>Convex Landscapes (Like a Bowl)</h3>
+              <p>Simple models (Linear Regression, SVMs) often have convex landscapes.</p>
+              <ul>
+                <li><strong>Shape:</strong> A perfect smooth bowl</li>
+                <li><strong>Result:</strong> No matter where you start, rolling downhill reaches the absolute bottom (Global Minimum)</li>
+                <li><strong>Difficulty:</strong> Easy</li>
+              </ul>
+              
+              <h3>Non-Convex Landscapes (Like a Mountain Range)</h3>
+              <p>Neural Networks have non-convex landscapes.</p>
+              <ul>
+                <li><strong>Shape:</strong> Full of hills, valleys, ridges, and holes</li>
+                <li><strong>Local Minima:</strong> You might reach the bottom of a small valley, but there's a deeper valley nearby you missed</li>
+                <li><strong>Saddle Points:</strong> Areas that are flat like a saddle—gradients can get stuck here</li>
+              </ul>
+            </section>
+
+            <section class="content-section">
+              <h2>Optimization Behavior</h2>
+              <p>Different loss functions create different "terrains" for our optimizer to navigate.</p>
+              
+              <h3>MSE Terrain</h3>
+              <ul>
+                <li>A smooth bowl</li>
+                <li>Gradient gets smaller as you approach the center</li>
+                <li><strong>Behavior:</strong> Slows down politely as it converges</li>
+              </ul>
+              
+              <h3>Cross-Entropy Terrain</h3>
+              <ul>
+                <li>Steep walls when far away (wrong prediction)</li>
+                <li>Flatter valley near the solution</li>
+                <li><strong>Behavior:</strong> Fast initial learning when the model is wrong, then slows down</li>
+              </ul>
+              
+              <h3>Hinge Loss Terrain</h3>
+              <ul>
+                <li>Flat plains (0 gradient) where the model is "good enough"</li>
+                <li>Angled slopes where it's wrong</li>
+                <li><strong>Behavior:</strong> The model ignores data points that are already handled well, focusing entirely on hard cases</li>
+              </ul>
+            </section>
+
+            <section class="content-section highlight-section">
+              <h2>Why This Matters for ML/AI</h2>
+              <p>Choosing the wrong loss function is like trying to measure temperature with a ruler.</p>
+              <ol>
+                <li><strong>Regression tasks?</strong> Use <strong>MSE</strong>. (Or MAE if you have outliers)</li>
+                <li><strong>Classification tasks?</strong> Use <strong>Cross-Entropy</strong>. It aligns perfectly with probability.</li>
+                <li><strong>Robust Margins?</strong> Use <strong>Hinge Loss</strong>. Good for structural distinction.</li>
+              </ol>
+              <p>If you use MSE for classification, your model will learn slowly because the gradients are often very flat when the prediction is completely wrong, leading to the "Vanishing Gradient" problem. Cross-entropy ensures the slope is steep when the error is high.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Key Takeaways</h2>
+              <ol>
+                <li><strong>Loss is a Score:</strong> It quantifies how bad the model's predictions are</li>
+                <li><strong>MSE (Mean Squared Error):</strong> Used for <em>numbers</em>. Squares the error to penalize big mistakes heavily</li>
+                <li><strong>Cross-Entropy:</strong> Used for <em>probabilities</em>. Punishes confident wrong answers massively</li>
+                <li><strong>Hinge Loss:</strong> Used for <em>margins</em> (SVM). Ignores "good enough" answers</li>
+                <li><strong>Loss Landscapes:</strong> The terrain our model navigates. Neural nets have complex, bumpy terrains</li>
+                <li><strong>The Right Tool:</strong> Matching the loss function to your output type (Regression vs. Classification) is critical for convergence</li>
+              </ol>
+            </section>
+
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="c4-activation-functions.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← C4: Activation Functions</span>
+          </a>
+          <a href="c6-softmax-cross-entropy.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">C6: Softmax & Cross-Entropy →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="c4-activation-functions.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← C4: Activation Functions</span>
-        </a>
-        <a href="c6-softmax-cross-entropy.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">C6: Softmax & Cross-Entropy →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
@@ -93,11 +366,5 @@
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>
