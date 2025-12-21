@@ -3,13 +3,149 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>C3: Computational Graph — Neural Pathways</title>
+  <title>C3: Computational Graphs — Neural Pathways</title>
   <meta name="description" content="Expression trees for functions. Autodiff traversing forwards and backwards through the graph.">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
+
+  <style>
+    /* * Custom Layout Overrides for "Immersive Mode"
+     * This creates the sticky visualization side-by-side layout
+     */
+
+    /* Base setup for the split layout container */
+    .split-layout-container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Default mobile/tablet view (Stacked) */
+    .viz-panel {
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .content-panel {
+      width: 100%;
+      padding: 1rem;
+      max-width: 800px; /* Readable line length on mobile */
+      margin: 0 auto;
+    }
+
+    /* The aspect ratio box */
+    .viz-aspect-box {
+      width: 100%;
+      position: relative;
+      /* Enforce 4:3 Aspect Ratio */
+      aspect-ratio: 4 / 3; 
+      background: #0f1115; /* Fallback dark bg */
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .viz-aspect-box iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Floating Home Button Styles */
+    .back-home {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      background-color: #1a1d21; /* Dark surface color to match theme */
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-decoration: none; /* Remove underline */
+    }
+    
+    .back-home:hover {
+      background-color: #3b82f6; /* Primary blue accent */
+      color: white;
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+      border-color: transparent;
+    }
+
+    .back-home svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* DESKTOP LAYOUT (Split Screen) */
+    @media (min-width: 1024px) {
+      .split-layout-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start; /* Important for sticky to work */
+        min-height: 100vh;
+      }
+
+      /* Left Side: Visualization (Sticky) */
+      .viz-panel {
+        /* Make it big: 60% of width */
+        width: 60%;
+        /* Sticky Magic */
+        position: sticky;
+        top: 0;
+        height: 100vh; /* Fill vertical height of viewport */
+        display: flex;
+        align-items: center; /* Center viz vertically */
+        justify-content: center;
+        padding: 2rem;
+        background: #050505; /* Slightly darker bg for viz area */
+        border-right: 1px solid rgba(255,255,255,0.05);
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .viz-aspect-box {
+        width: 100%; 
+        /* The aspect ratio is handled by the class definition above */
+      }
+
+      /* Right Side: Content (Scrollable) */
+      .content-panel {
+        width: 40%;
+        padding: 3rem;
+        box-sizing: border-box;
+        /* Add some bottom padding so content isn't hidden behind the fixed button */
+        padding-bottom: 6rem;
+      }
+
+      /* Adjust breadcrumb/header spacing for this tight layout */
+      .topic-header {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Large desktop tweaks */
+    @media (min-width: 1600px) {
+      .viz-panel { width: 65%; }
+      .content-panel { width: 35%; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -37,67 +173,393 @@
   </header>
 
   <main class="topic-page">
-    <div class="container">
-      <nav class="breadcrumb">
-        <a href="../index.html">Home</a>
-        <span>›</span>
-        <a href="../index.html#cat-c">Neural Network Ops</a>
-        <span>›</span>
-        <span>C3</span>
-      </nav>
-
-      <header class="topic-header" style="--category-color: var(--cat-c)">
-        <div class="topic-meta">
-          <span class="topic-badge" style="background: var(--cat-c)">C3</span>
-          <span class="topic-category">Neural Network Operations</span>
+    <div class="split-layout-container">
+      
+      <!-- 1. Visualization Panel (Sticky on Desktop) -->
+      <aside class="viz-panel">
+        <div class="viz-aspect-box">
+          <iframe src="../viz/C3-computational-graph.html" title="Computational Graph Visualization" loading="lazy"></iframe>
         </div>
-        <h1>Computational Graph</h1>
-        <p class="topic-description">Expression trees for functions. Autodiff traversing forwards and backwards.</p>
-      </header>
+      </aside>
 
-      <div class="content-layout">
-        <article class="educational-content">
-          <div class="content-placeholder">
-            <h2>Content Coming Soon</h2>
-            <p>The educational explanation for this topic is being developed.</p>
+      <!-- 2. Content Panel (Scrollable) -->
+      <div class="content-panel">
+        
+        <!-- Navigation & Header moved inside the scrolling content pane -->
+        <nav class="breadcrumb">
+          <a href="../index.html">Home</a>
+          <span>›</span>
+          <a href="../index.html#cat-c">Neural Network Ops</a>
+          <span>›</span>
+          <span>C3</span>
+        </nav>
+
+        <header class="topic-header" style="--category-color: var(--cat-c)">
+          <div class="topic-meta">
+            <span class="topic-badge" style="background: var(--cat-c)">C3</span>
+            <span class="topic-category">Neural Network Operations</span>
           </div>
-        </article>
-        <aside class="viz-sidebar">
-          <div class="viz-container">
-            <div class="viz-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              </svg>
-              <p>Three.js visualization<br>coming soon</p>
-            </div>
-          </div>
-        </aside>
+          <h1>Computational Graphs</h1>
+          <p class="topic-description">The Structure Behind Automatic Differentiation</p>
+        </header>
+
+        <!-- Educational Content -->
+        <div class="content-layout--single">
+          <article class="educational-content">
+            
+            <section class="content-section">
+              <h2>Expressions as Trees</h2>
+              <p>Every mathematical expression has a hidden structure. Consider this simple function:</p>
+              <div class="formula-box">f(x, y) = x² + xy</div>
+              <p>You might read this left-to-right as text, but a computer sees it as a tree:</p>
+              <pre>
+        [+]
+       /   \
+    [×]     [×]
+   /   \   /   \
+  x     x x     y</pre>
+              <p>The top node (+) depends on two multiplication results. Each multiplication depends on its inputs. The leaves—x and y—are where actual values enter.</p>
+              <p>This isn't just a visualization trick. It's how computers <em>actually</em> evaluate expressions. And more importantly, it's how they compute derivatives automatically.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Nodes and Edges</h2>
+              <p>A computational graph has three types of components:</p>
+              <p><strong>Leaf Nodes</strong>: The starting points. These are:</p>
+              <ul>
+                <li>Input variables (x, y, z)</li>
+                <li>Constants (2, π, 0.5)</li>
+                <li>Learned parameters (weights, biases)</li>
+              </ul>
+              <p>Leaf nodes have values but no dependencies. They're where computation begins.</p>
+              <p><strong>Internal Nodes</strong>: Operations that transform data. Common ones include:</p>
+              <ul>
+                <li>Arithmetic: +, −, ×, ÷</li>
+                <li>Powers: x², √x, xⁿ</li>
+                <li>Functions: sin, cos, exp, log</li>
+                <li>Comparisons: max, min, ReLU</li>
+              </ul>
+              <p>Each internal node takes inputs and produces one output.</p>
+              <p><strong>Edges</strong>: Data flow connections. An edge from A to B means "B uses A's output as input." Edges point from dependencies toward dependents—from leaves toward the root.</p>
+              <p>Here's our expression with node types labeled:</p>
+              <pre>
+            [+] ← Internal (addition)
+           /   \
+   Internal → [×]     [×] ← Internal (multiply)
+         /   \   /   \
+ Leaf → x     x x     y ← Leaf</pre>
+            </section>
+
+            <section class="content-section">
+              <h2>Forward Mode: Evaluation</h2>
+              <p>Forward evaluation flows from leaves to root. You start with input values and compute upward until you reach the final result.</p>
+              <p>Let's evaluate f(x, y) = x² + xy with x = 3, y = 4:</p>
+              
+              <p><strong>Step 1</strong>: Assign values to leaves</p>
+              <pre>x = 3, y = 4</pre>
+              
+              <p><strong>Step 2</strong>: Evaluate left subtree (x²)</p>
+              <pre>x × x = 3 × 3 = 9</pre>
+              
+              <p><strong>Step 3</strong>: Evaluate right subtree (xy)</p>
+              <pre>x × y = 3 × 4 = 12</pre>
+              
+              <p><strong>Step 4</strong>: Evaluate root (sum)</p>
+              <pre>9 + 12 = 21</pre>
+              
+              <p>The graph with computed values:</p>
+              <pre>
+           [+] = 21
+          /    \
+    [×] = 9    [×] = 12
+      /  \      /  \
+   x=3  x=3  x=3  y=4</pre>
+              <p>This is the <strong>forward pass</strong>. Every value flows upward. The root holds the final answer.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>The Gradient Problem</h2>
+              <p>Forward evaluation is straightforward. But here's the challenge that makes machine learning possible:</p>
+              <p><strong>Given f(x, y) = x² + xy, what are ∂f/∂x and ∂f/∂y?</strong></p>
+              <p>You could compute these symbolically:</p>
+              <ul>
+                <li>∂f/∂x = 2x + y</li>
+                <li>∂f/∂y = x</li>
+              </ul>
+              <p>But symbolic differentiation has problems. For complex functions with thousands of operations, symbolic expressions explode in size. And what about control flow—if statements, loops?</p>
+              <p>We need a better approach: <strong>compute derivatives numerically, but exactly, by following the graph structure.</strong></p>
+            </section>
+
+            <section class="content-section">
+              <h2>Backward Mode (Reverse Mode Autodiff)</h2>
+              <p>Here's the key insight: if we recorded how we computed the output, we can trace backward to find how each input affected it.</p>
+              <p><strong>The Algorithm</strong>:</p>
+              <ol>
+                <li>Start at the root. Set its gradient to 1 (∂f/∂f = 1).</li>
+                <li>For each node, compute gradients for its inputs using local rules.</li>
+                <li>Propagate backward until you reach the leaves.</li>
+                <li>Leaf gradients are your answers: ∂f/∂x, ∂f/∂y, etc.</li>
+              </ol>
+              <p>Let's trace through f(x, y) = x² + xy at x = 3, y = 4.</p>
+              <p>First, the forward pass (which we already computed):</p>
+              <pre>
+           [+] = 21
+          /    \
+    [×] = 9    [×] = 12
+      /  \      /  \
+   x=3  x=3  x=3  y=4</pre>
+              
+              <p>Now, backward pass:</p>
+              
+              <p><strong>Step 1</strong>: Root gradient</p>
+              <div class="formula-box">∂f/∂(root) = 1</div>
+              <p>The output's gradient with respect to itself is always 1.</p>
+              
+              <p><strong>Step 2</strong>: Propagate through addition</p>
+              <p>Addition passes gradients unchanged to both inputs:</p>
+              <div class="formula-box">
+                ∂f/∂(left ×) = 1<br>
+                ∂f/∂(right ×) = 1
+              </div>
+              
+              <p><strong>Step 3</strong>: Propagate through left multiplication (x × x)</p>
+              <p>For multiplication y = a × b:</p>
+              <ul>
+                <li>∂y/∂a = b</li>
+                <li>∂y/∂b = a</li>
+              </ul>
+              <p>The left multiplication computes x × x. Both inputs are x, so:</p>
+              <ul>
+                <li>Gradient to left input: 1 × x = 1 × 3 = 3</li>
+                <li>Gradient to right input: 1 × x = 1 × 3 = 3</li>
+              </ul>
+              
+              <p><strong>Step 4</strong>: Propagate through right multiplication (x × y)</p>
+              <ul>
+                <li>Gradient to x input: 1 × y = 1 × 4 = 4</li>
+                <li>Gradient to y input: 1 × x = 1 × 3 = 3</li>
+              </ul>
+              
+              <p><strong>Step 5</strong>: Accumulate at leaves</p>
+              <p>Variable x appears three times as a leaf. Gradients accumulate:</p>
+              <div class="formula-box">∂f/∂x = 3 + 3 + 4 = 10</div>
+              <p>Variable y appears once:</p>
+              <div class="formula-box">∂f/∂y = 3</div>
+              
+              <p><strong>Verification</strong>: Using our symbolic derivatives:</p>
+              <ul>
+                <li>∂f/∂x = 2x + y = 2(3) + 4 = 10 ✓</li>
+                <li>∂f/∂y = x = 3 ✓</li>
+              </ul>
+              <p>The graph traced it perfectly.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Local Gradient Rules</h2>
+              <p>Each operation type has a simple backward rule. The node receives a gradient from above (call it <code>grad</code>) and computes gradients for its inputs.</p>
+              
+              <h3>Addition: y = a + b</h3>
+              <div class="formula-box">
+                Forward:  y = a + b<br>
+                Backward: ∂L/∂a = grad × 1 = grad<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∂L/∂b = grad × 1 = grad
+              </div>
+              <p>Addition distributes the gradient equally. If the output matters by amount <code>grad</code>, each input matters by the same amount.</p>
+              
+              <h3>Subtraction: y = a − b</h3>
+              <div class="formula-box">
+                Forward:  y = a - b<br>
+                Backward: ∂L/∂a = grad × 1 = grad<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∂L/∂b = grad × (-1) = -grad
+              </div>
+              <p>The first input receives the gradient unchanged; the second receives it negated.</p>
+              
+              <h3>Multiplication: y = a × b</h3>
+              <div class="formula-box">
+                Forward:  y = a × b<br>
+                Backward: ∂L/∂a = grad × b<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∂L/∂b = grad × a
+              </div>
+              <p>Each input's gradient is the incoming gradient times the <em>other</em> input's value. This is why we store values during the forward pass—we need them for backward.</p>
+              
+              <h3>Division: y = a / b</h3>
+              <div class="formula-box">
+                Forward:  y = a / b<br>
+                Backward: ∂L/∂a = grad × (1/b)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;∂L/∂b = grad × (-a/b²)
+              </div>
+              
+              <h3>Power: y = xⁿ</h3>
+              <div class="formula-box">
+                Forward:  y = xⁿ<br>
+                Backward: ∂L/∂x = grad × n × x^(n-1)
+              </div>
+              
+              <h3>Common Functions</h3>
+              <ul>
+                <li><strong>Sine</strong>: y = sin(x) → Backward: ∂L/∂x = grad × cos(x)</li>
+                <li><strong>Cosine</strong>: y = cos(x) → Backward: ∂L/∂x = grad × (-sin(x))</li>
+                <li><strong>Exponential</strong>: y = eˣ → Backward: ∂L/∂x = grad × eˣ = grad × y</li>
+                <li><strong>Logarithm</strong>: y = log(x) → Backward: ∂L/∂x = grad × (1/x)</li>
+                <li><strong>ReLU</strong>: y = max(0, x) → Backward: ∂L/∂x = grad × (1 if x > 0 else 0)</li>
+              </ul>
+              <p>Each operation only needs to know its own rule. The chain rule handles composition automatically through gradient propagation.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>A More Complex Example</h2>
+              <p>Let's trace a function closer to what neural networks use:</p>
+              <div class="formula-box">f(x, w) = sigmoid(w × x)</div>
+              <p>With x = 2, w = 0.5:</p>
+              
+              <p><strong>Forward Pass</strong>:</p>
+              <pre>
+        [σ] = 0.7311
+         |
+        [×] = 1.0
+       /   \
+    w=0.5  x=2</pre>
+              <p>Step by step:</p>
+              <ol>
+                <li>Multiply: 0.5 × 2 = 1.0</li>
+                <li>Sigmoid: 1/(1 + e^(-1)) = 0.7311</li>
+              </ol>
+              
+              <p><strong>Backward Pass</strong>:</p>
+              <p>Start with ∂f/∂f = 1.</p>
+              
+              <p><strong>Through sigmoid</strong>:</p>
+              <div class="formula-box">
+                ∂f/∂(×) = 1 × σ(1) × (1 - σ(1))<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 1 × 0.7311 × 0.2689<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 0.1966
+              </div>
+              
+              <p><strong>Through multiplication</strong>:</p>
+              <div class="formula-box">
+                ∂f/∂w = 0.1966 × x = 0.1966 × 2 = 0.3932<br>
+                ∂f/∂x = 0.1966 × w = 0.1966 × 0.5 = 0.0983
+              </div>
+              <p>We now know exactly how sensitive the output is to each input. Changing w by a small amount δ changes the output by approximately 0.3932 × δ.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Why Graphs Enable Autodiff</h2>
+              <p>The computational graph representation makes automatic differentiation possible for three reasons:</p>
+              
+              <h3>1. Every Operation is Recorded</h3>
+              <p>When you write <code>z = x * y</code> in PyTorch or TensorFlow, you're not just computing a number—you're adding a node to a graph. The framework remembers what operation you performed and what the inputs were.</p>
+              <pre><code class="language-python">x = torch.tensor(3.0, requires_grad=True)
+y = torch.tensor(4.0, requires_grad=True)
+z = x * y  # Graph now has: z = multiply(x, y)</code></pre>
+              
+              <h3>2. Backward Follows the Recorded Path</h3>
+              <p>When you call <code>.backward()</code>, the framework walks the graph in reverse. It doesn't need to know what function you wrote—it just needs to traverse the nodes and apply local rules.</p>
+              <pre><code class="language-python">z.backward()  # Traverse graph, apply rules
+print(x.grad)  # 4.0 (which is y)
+print(y.grad)  # 3.0 (which is x)</code></pre>
+              
+              <h3>3. Composition Happens Automatically</h3>
+              <p>The chain rule multiplication happens through propagation. No node needs to understand the global function. Each just passes gradients according to its local rule. The graph structure encodes how they combine.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Dynamic vs Static Graphs</h2>
+              <p>Modern frameworks differ in <em>when</em> they build the graph:</p>
+              
+              <h3>Static Graphs (Old TensorFlow 1.x)</h3>
+              <p>Define the entire computation first, then run it:</p>
+              <pre><code class="language-python"># Define graph
+x = tf.placeholder(...)
+y = tf.matmul(W, x)
+z = tf.nn.relu(y)
+
+# Then execute
+session.run(z, feed_dict={x: data})</code></pre>
+              <p><strong>Pros</strong>: Optimization opportunities, deployment efficiency<br>
+              <strong>Cons</strong>: Hard to debug, no Python control flow</p>
+              
+              <h3>Dynamic Graphs (PyTorch, TensorFlow 2.x)</h3>
+              <p>Build the graph as you execute:</p>
+              <pre><code class="language-python">x = torch.tensor(data)
+y = W @ x          # Graph builds here
+z = torch.relu(y)  # And here
+z.backward()       # Traverse what we built</code></pre>
+              <p><strong>Pros</strong>: Natural Python, easy debugging, flexible control flow<br>
+              <strong>Cons</strong>: Some optimization opportunities lost</p>
+              <p>Dynamic graphs won. The ability to use normal Python <code>if</code> statements, loops, and debugging tools outweighed the performance cost. PyTorch's approach became the standard, and TensorFlow 2.x adopted it.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Why This Matters for ML/AI</h2>
+              <p>Understanding computational graphs unlocks several insights:</p>
+              
+              <h3>Neural Networks ARE Computational Graphs</h3>
+              <p>A neural network is just a large computational graph. Inputs flow forward through operations (matrix multiplies, activations, normalizations). Loss computation adds more nodes. Backpropagation traverses this graph in reverse.</p>
+              <p>When you call <code>model(x)</code>, you're building a graph. When you call <code>loss.backward()</code>, you're running reverse-mode autodiff on that graph.</p>
+              
+              <h3>Autodiff = Automatic Backprop</h3>
+              <p>You never write backpropagation code. The framework does it for you. Every operation you use (conv2d, batch_norm, attention) comes with backward rules. Compose them however you want—gradients flow correctly.</p>
+              
+              <h3>Debugging Gradient Issues</h3>
+              <p>When gradients explode, vanish, or become NaN, understanding the graph helps:</p>
+              <ul>
+                <li><strong>Vanishing gradients</strong>: Long chains of small multiplications (like repeated sigmoid)</li>
+                <li><strong>Exploding gradients</strong>: Long chains of large multiplications</li>
+                <li><strong>NaN gradients</strong>: Division by zero, log of negative numbers, or invalid operations somewhere in the graph</li>
+              </ul>
+              <p>Visualizing the graph often reveals where problems originate. Many tools (TensorBoard, PyTorch's <code>torchviz</code>) can render your graph for inspection.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Visualizing the Flow</h2>
+              <p>In the interactive visualization, watch for:</p>
+              <ol>
+                <li><strong>Forward pass</strong>: Values propagate from leaves (inputs) upward to the root (output)</li>
+                <li><strong>Backward initialization</strong>: Root receives gradient = 1</li>
+                <li><strong>Gradient propagation</strong>: Each node applies its local rule and passes gradients down</li>
+                <li><strong>Accumulation at leaves</strong>: Variables used multiple times collect gradients from all paths</li>
+              </ol>
+              <p>The tree structure makes the flow explicit. Every gradient has a path it followed. Every derivative has a chain of multiplications that produced it.</p>
+            </section>
+
+            <section class="content-section">
+              <h2>Key Takeaways</h2>
+              <ol>
+                <li><strong>Expressions are trees</strong> with leaves (inputs) and internal nodes (operations)</li>
+                <li><strong>Forward mode</strong> evaluates from leaves to root, computing values</li>
+                <li><strong>Backward mode</strong> starts at the root with gradient 1, propagates using local rules</li>
+                <li><strong>Each operation has a simple backward rule</strong>—addition passes through, multiplication swaps inputs, power uses the power rule</li>
+                <li><strong>Gradients accumulate</strong> when a variable appears multiple times</li>
+                <li><strong>Frameworks build graphs automatically</strong> as you compute</li>
+                <li><strong>This is why autodiff works</strong>: the graph encodes exactly how to reverse the computation</li>
+              </ol>
+              <p>With computational graphs, you don't compute gradients—you let the structure compute them for you.</p>
+            </section>
+          </article>
+        </div>
+
+        <nav class="topic-nav">
+          <a href="c2-backpropagation.html" class="nav-link prev">
+            <span class="nav-label">Previous</span>
+            <span class="nav-title">← C2: Backpropagation</span>
+          </a>
+          <a href="c4-activation-functions.html" class="nav-link next">
+            <span class="nav-label">Next</span>
+            <span class="nav-title">C4: Activation Functions →</span>
+          </a>
+        </nav>
       </div>
 
-      <nav class="topic-nav">
-        <a href="c2-backpropagation.html" class="nav-link prev">
-          <span class="nav-label">Previous</span>
-          <span class="nav-title">← C2: Backpropagation</span>
-        </a>
-        <a href="c4-activation-functions.html" class="nav-link next">
-          <span class="nav-label">Next</span>
-          <span class="nav-title">C4: Activation Functions →</span>
-        </a>
-      </nav>
     </div>
   </main>
 
+  <!-- Sticky Footer/Home Button -->
   <a href="../index.html" class="back-home" title="Back to Home">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   </a>
-
-  <footer class="footer">
-    <div class="container">
-      <p>Neural Pathways — Learning ML through visualization</p>
-    </div>
-  </footer>
 </body>
 </html>
