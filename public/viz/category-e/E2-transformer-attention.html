@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer Attention Visualiser | Neural Network Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-panel { z-index: 10; backdrop-filter: blur(12px); background-color: rgba(15, 23, 42, 0.9); }
+        
+        input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #f59e0b; cursor: pointer; margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px;
+        }
+        
+        .token {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .token:hover { transform: scale(1.1); }
+        .token.selected { box-shadow: 0 0 20px rgba(245, 158, 11, 0.8); }
+        
+        .attention-line {
+            stroke-linecap: round;
+            transition: all 0.3s ease;
+        }
+        
+        .heatmap-cell {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .heatmap-cell:hover { stroke: white; stroke-width: 2; }
+        
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+        .step-indicator.active {
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            transform: scale(1.1);
+        }
+        
+        mjx-container { font-size: 0.95em !important; color: white !important; }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body class="text-white">
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <div class="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-20">
+        <div class="ui-panel p-5 rounded-xl border border-slate-700 pointer-events-auto shadow-2xl max-w-lg">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent mb-1">
+                Transformer Attention Visualiser
+            </h1>
+            <p class="text-xs text-slate-400 mb-4">Visualize how tokens attend to each other</p>
+            
+            <!-- Input Text -->
+            <div class="mb-4">
+                <label class="text-xs text-slate-400 block mb-1">Input Sequence</label>
+                <input type="text" id="input-text" 
+                       value="The cat sat on the mat"
+                       class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                       placeholder="Enter text...">
+            </div>
+            
+            <!-- Preset Sentences -->
+            <div class="flex gap-2 flex-wrap mb-4">
+                <button onclick="app.setPreset('cat')" class="preset-btn px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                    The cat sat...
+                </button>
+                <button onclick="app.setPreset('rain')" class="preset-btn px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                    It was raining...
+                </button>
+                <button onclick="app.setPreset('king')" class="preset-btn px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                    King - Man + Woman
+                </button>
+            </div>
+
+            <!-- Math Display -->
+            <div id="math-display" class="bg-slate-900/50 p-3 rounded-lg border border-slate-700 min-h-[50px] flex items-center justify-center text-sm">
+                $$ \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V $$
+            </div>
+        </div>
+
+        <!-- Head Selector -->
+        <div class="ui-panel p-4 rounded-xl border border-slate-700 pointer-events-auto">
+            <h3 class="text-sm font-bold text-amber-400 mb-3">Attention Head</h3>
+            <div class="flex gap-2">
+                <button onclick="app.setHead(0)" id="head-0" class="head-btn w-10 h-10 rounded-lg bg-amber-600 text-sm font-bold">1</button>
+                <button onclick="app.setHead(1)" id="head-1" class="head-btn w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">2</button>
+                <button onclick="app.setHead(2)" id="head-2" class="head-btn w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">3</button>
+                <button onclick="app.setHead(3)" id="head-3" class="head-btn w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">4</button>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Each head learns different patterns</p>
+        </div>
+    </div>
+
+    <!-- Control Panel (Bottom) -->
+    <div class="absolute bottom-6 left-4 right-4 flex justify-center pointer-events-none z-20">
+        <div class="ui-panel p-5 rounded-xl border border-slate-700 pointer-events-auto shadow-2xl w-full max-w-4xl">
+            <div class="flex gap-6 items-start">
+                <!-- QKV Steps -->
+                <div class="flex-1">
+                    <h3 class="text-sm font-bold text-cyan-400 mb-3">QKV Computation Steps</h3>
+                    <div class="flex gap-2">
+                        <button onclick="app.setStep(0)" class="step-indicator active px-3 py-2 text-xs rounded-lg bg-slate-700">
+                            1. Q vectors
+                        </button>
+                        <button onclick="app.setStep(1)" class="step-indicator px-3 py-2 text-xs rounded-lg bg-slate-700">
+                            2. K vectors
+                        </button>
+                        <button onclick="app.setStep(2)" class="step-indicator px-3 py-2 text-xs rounded-lg bg-slate-700">
+                            3. QK<sup>T</sup>
+                        </button>
+                        <button onclick="app.setStep(3)" class="step-indicator px-3 py-2 text-xs rounded-lg bg-slate-700">
+                            4. Softmax
+                        </button>
+                        <button onclick="app.setStep(4)" class="step-indicator px-3 py-2 text-xs rounded-lg bg-slate-700">
+                            5. Output
+                        </button>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="app.animateSteps()" id="btn-animate" class="px-4 py-2 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-500">
+                            ▶ Animate All
+                        </button>
+                        <button onclick="app.resetSteps()" class="px-4 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                            ↺ Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- View Mode -->
+                <div class="flex-1">
+                    <h3 class="text-sm font-bold text-purple-400 mb-3">View Mode</h3>
+                    <div class="flex gap-2">
+                        <button onclick="app.setView('arc')" id="view-arc" class="view-btn px-3 py-2 text-xs rounded-lg bg-purple-600">
+                            Arc View
+                        </button>
+                        <button onclick="app.setView('matrix')" id="view-matrix" class="view-btn px-3 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                            Matrix View
+                        </button>
+                        <button onclick="app.setView('3d')" id="view-3d" class="view-btn px-3 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                            3D View
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Selected Token Info -->
+                <div class="w-48">
+                    <h3 class="text-sm font-bold text-green-400 mb-3">Selected Token</h3>
+                    <div id="token-info" class="bg-slate-800/50 rounded-lg p-3 text-xs">
+                        <p class="text-slate-400">Click a token to see its attention</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attention Matrix Panel (Right) -->
+    <div id="matrix-panel" class="absolute top-1/2 right-4 transform -translate-y-1/2 ui-panel p-4 rounded-xl border border-slate-700 pointer-events-auto z-20 hidden">
+        <h3 class="text-sm font-bold text-amber-400 mb-3">Attention Matrix</h3>
+        <svg id="heatmap-svg" width="250" height="250"></svg>
+        <p class="text-xs text-slate-400 mt-2 text-center">Rows attend to columns</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        class TransformerAttention {
+            constructor() {
+                this.tokens = [];
+                this.attentionWeights = [];
+                this.currentHead = 0;
+                this.currentStep = 0;
+                this.selectedToken = null;
+                this.viewMode = 'arc';
+                this.isAnimating = false;
+                
+                // 3D Scene
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                
+                // Visual elements
+                this.tokenMeshes = [];
+                this.connectionLines = [];
+                
+                // Presets
+                this.presets = {
+                    cat: "The cat sat on the mat",
+                    rain: "It was raining so I took an umbrella",
+                    king: "King Man Woman Queen"
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.setupScene();
+                this.setupEventListeners();
+                this.tokenize(document.getElementById('input-text').value);
+                this.generateAttentionWeights();
+                this.createVisualization();
+                this.animate();
+            }
+
+            setupScene() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0f172a);
+                
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+                this.camera.position.set(0, 0, 30);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+                
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                
+                // Lights
+                const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambient);
+                
+                const point = new THREE.PointLight(0xffffff, 1);
+                point.position.set(10, 10, 10);
+                this.scene.add(point);
+                
+                window.addEventListener('resize', () => this.onResize());
+            }
+
+            tokenize(text) {
+                // Simple word tokenization
+                this.tokens = text.trim().split(/\s+/).filter(t => t.length > 0);
+                if (this.tokens.length > 12) {
+                    this.tokens = this.tokens.slice(0, 12);
+                }
+            }
+
+            generateAttentionWeights() {
+                // Generate mock attention weights for 4 heads
+                const n = this.tokens.length;
+                this.attentionWeights = [];
+                
+                for (let head = 0; head < 4; head++) {
+                    const weights = [];
+                    for (let i = 0; i < n; i++) {
+                        const row = [];
+                        let sum = 0;
+                        for (let j = 0; j < n; j++) {
+                            // Different patterns for different heads
+                            let w;
+                            if (head === 0) {
+                                // Positional - attend to nearby tokens
+                                w = Math.exp(-Math.abs(i - j) * 0.5);
+                            } else if (head === 1) {
+                                // Previous token attention
+                                w = (j <= i) ? Math.exp(-(i - j) * 0.3) : 0.01;
+                            } else if (head === 2) {
+                                // Self attention + beginning
+                                w = (i === j) ? 2 : (j === 0) ? 1 : 0.1;
+                            } else {
+                                // Random pattern
+                                w = Math.random();
+                            }
+                            row.push(w);
+                            sum += w;
+                        }
+                        // Normalize (softmax-like)
+                        weights.push(row.map(w => w / sum));
+                    }
+                    this.attentionWeights.push(weights);
+                }
+            }
+
+            createVisualization() {
+                this.clearVisualization();
+                
+                if (this.viewMode === 'arc') {
+                    this.createArcView();
+                } else if (this.viewMode === 'matrix') {
+                    this.createMatrixView();
+                } else if (this.viewMode === '3d') {
+                    this.create3DView();
+                }
+                
+                this.updateAttentionDisplay();
+            }
+
+            clearVisualization() {
+                this.tokenMeshes.forEach(mesh => {
+                    this.scene.remove(mesh);
+                    if (mesh.geometry) mesh.geometry.dispose();
+                    if (mesh.material) mesh.material.dispose();
+                });
+                this.tokenMeshes = [];
+                
+                this.connectionLines.forEach(line => {
+                    this.scene.remove(line);
+                    if (line.geometry) line.geometry.dispose();
+                    if (line.material) line.material.dispose();
+                });
+                this.connectionLines = [];
+            }
+
+            createArcView() {
+                const n = this.tokens.length;
+                const spacing = 3;
+                const startX = -(n - 1) * spacing / 2;
+                
+                // Create token nodes
+                this.tokens.forEach((token, i) => {
+                    const group = new THREE.Group();
+                    
+                    // Circle
+                    const geo = new THREE.CircleGeometry(1, 32);
+                    const mat = new THREE.MeshPhongMaterial({
+                        color: 0xf59e0b,
+                        emissive: 0x92400e,
+                        emissiveIntensity: 0.3
+                    });
+                    const circle = new THREE.Mesh(geo, mat);
+                    group.add(circle);
+                    
+                    // Ring
+                    const ringGeo = new THREE.RingGeometry(1, 1.15, 32);
+                    const ringMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    group.add(ring);
+                    
+                    // Text label
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 128;
+                    canvas.height = 32;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(token.length > 8 ? token.slice(0, 8) + '...' : token, 64, 24);
+                    
+                    const texture = new THREE.CanvasTexture(canvas);
+                    const spriteMat = new THREE.SpriteMaterial({ map: texture });
+                    const sprite = new THREE.Sprite(spriteMat);
+                    sprite.position.y = -2;
+                    sprite.scale.set(4, 1, 1);
+                    group.add(sprite);
+                    
+                    group.position.x = startX + i * spacing;
+                    group.userData = { index: i, token: token };
+                    
+                    this.scene.add(group);
+                    this.tokenMeshes.push(group);
+                });
+                
+                // Create attention connections
+                this.createAttentionLines();
+                
+                this.camera.position.set(0, 0, 20 + n);
+            }
+
+            createAttentionLines() {
+                const n = this.tokens.length;
+                const weights = this.attentionWeights[this.currentHead];
+                const spacing = 3;
+                const startX = -(n - 1) * spacing / 2;
+                
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        if (i === j) continue;
+                        
+                        const weight = weights[i][j];
+                        if (weight < 0.05) continue;
+                        
+                        const x1 = startX + i * spacing;
+                        const x2 = startX + j * spacing;
+                        
+                        // Create curved line (bezier)
+                        const curve = new THREE.QuadraticBezierCurve3(
+                            new THREE.Vector3(x1, 0, 0),
+                            new THREE.Vector3((x1 + x2) / 2, Math.abs(i - j) * 1.5 + 2, 0),
+                            new THREE.Vector3(x2, 0, 0)
+                        );
+                        
+                        const points = curve.getPoints(20);
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        
+                        // Color based on weight (cool to warm)
+                        const hue = 0.1 - weight * 0.1; // Orange to red
+                        const color = new THREE.Color().setHSL(hue, 0.9, 0.5);
+                        
+                        const material = new THREE.LineBasicMaterial({
+                            color: color,
+                            transparent: true,
+                            opacity: Math.min(weight * 2, 0.8),
+                            linewidth: 2
+                        });
+                        
+                        const line = new THREE.Line(geometry, material);
+                        line.userData = { from: i, to: j, weight: weight };
+                        
+                        this.scene.add(line);
+                        this.connectionLines.push(line);
+                    }
+                }
+            }
+
+            createMatrixView() {
+                // Show matrix panel
+                document.getElementById('matrix-panel').classList.remove('hidden');
+                this.updateHeatmap();
+                
+                // Simple 3D representation
+                const n = this.tokens.length;
+                const cellSize = 1.2;
+                const offset = (n - 1) * cellSize / 2;
+                const weights = this.attentionWeights[this.currentHead];
+                
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        const weight = weights[i][j];
+                        
+                        const geo = new THREE.BoxGeometry(cellSize * 0.9, cellSize * 0.9, weight * 3 + 0.1);
+                        const hue = 0.1 - weight * 0.1;
+                        const mat = new THREE.MeshPhongMaterial({
+                            color: new THREE.Color().setHSL(hue, 0.8, 0.5)
+                        });
+                        
+                        const mesh = new THREE.Mesh(geo, mat);
+                        mesh.position.set(
+                            j * cellSize - offset,
+                            -(i * cellSize - offset),
+                            weight * 1.5
+                        );
+                        
+                        this.scene.add(mesh);
+                        this.tokenMeshes.push(mesh);
+                    }
+                }
+                
+                this.camera.position.set(n * 1.5, -n, n * 2);
+            }
+
+            create3DView() {
+                const n = this.tokens.length;
+                const radius = 8;
+                
+                // Arrange tokens in a circle
+                this.tokens.forEach((token, i) => {
+                    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+                    
+                    const group = new THREE.Group();
+                    
+                    // Sphere
+                    const geo = new THREE.SphereGeometry(0.8, 32, 32);
+                    const mat = new THREE.MeshPhongMaterial({
+                        color: 0xf59e0b,
+                        emissive: 0x92400e,
+                        emissiveIntensity: 0.3
+                    });
+                    const sphere = new THREE.Mesh(geo, mat);
+                    group.add(sphere);
+                    
+                    // Label
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 128;
+                    canvas.height = 32;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 18px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(token.length > 8 ? token.slice(0, 8) + '...' : token, 64, 24);
+                    
+                    const texture = new THREE.CanvasTexture(canvas);
+                    const spriteMat = new THREE.SpriteMaterial({ map: texture });
+                    const sprite = new THREE.Sprite(spriteMat);
+                    sprite.position.y = 1.5;
+                    sprite.scale.set(4, 1, 1);
+                    group.add(sprite);
+                    
+                    group.position.set(x, 0, z);
+                    group.userData = { index: i, token: token };
+                    
+                    this.scene.add(group);
+                    this.tokenMeshes.push(group);
+                });
+                
+                // Create 3D attention connections
+                const weights = this.attentionWeights[this.currentHead];
+                
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        if (i === j) continue;
+                        
+                        const weight = weights[i][j];
+                        if (weight < 0.05) continue;
+                        
+                        const angle1 = (i / n) * Math.PI * 2 - Math.PI / 2;
+                        const angle2 = (j / n) * Math.PI * 2 - Math.PI / 2;
+                        
+                        const x1 = Math.cos(angle1) * radius;
+                        const z1 = Math.sin(angle1) * radius;
+                        const x2 = Math.cos(angle2) * radius;
+                        const z2 = Math.sin(angle2) * radius;
+                        
+                        // Arc through center
+                        const curve = new THREE.QuadraticBezierCurve3(
+                            new THREE.Vector3(x1, 0, z1),
+                            new THREE.Vector3(0, weight * 5, 0),
+                            new THREE.Vector3(x2, 0, z2)
+                        );
+                        
+                        const points = curve.getPoints(20);
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        
+                        const hue = 0.1 - weight * 0.1;
+                        const material = new THREE.LineBasicMaterial({
+                            color: new THREE.Color().setHSL(hue, 0.9, 0.5),
+                            transparent: true,
+                            opacity: Math.min(weight * 2, 0.8)
+                        });
+                        
+                        const line = new THREE.Line(geometry, material);
+                        this.scene.add(line);
+                        this.connectionLines.push(line);
+                    }
+                }
+                
+                this.camera.position.set(15, 10, 15);
+            }
+
+            updateHeatmap() {
+                const svg = document.getElementById('heatmap-svg');
+                svg.innerHTML = '';
+                
+                const n = this.tokens.length;
+                const cellSize = 220 / n;
+                const weights = this.attentionWeights[this.currentHead];
+                
+                // Cells
+                for (let i = 0; i < n; i++) {
+                    for (let j = 0; j < n; j++) {
+                        const weight = weights[i][j];
+                        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        rect.setAttribute('x', 25 + j * cellSize);
+                        rect.setAttribute('y', 25 + i * cellSize);
+                        rect.setAttribute('width', cellSize - 1);
+                        rect.setAttribute('height', cellSize - 1);
+                        rect.setAttribute('fill', `hsl(${35 - weight * 35}, 90%, ${30 + weight * 40}%)`);
+                        rect.setAttribute('class', 'heatmap-cell');
+                        rect.setAttribute('data-value', weight.toFixed(3));
+                        
+                        rect.addEventListener('mouseenter', (e) => {
+                            const info = document.getElementById('token-info');
+                            info.innerHTML = `<p><strong>${this.tokens[i]}</strong> → <strong>${this.tokens[j]}</strong></p>
+                                             <p class="text-amber-400">Weight: ${weight.toFixed(3)}</p>`;
+                        });
+                        
+                        svg.appendChild(rect);
+                    }
+                }
+                
+                // Row labels
+                for (let i = 0; i < n; i++) {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', 20);
+                    text.setAttribute('y', 25 + i * cellSize + cellSize / 2 + 4);
+                    text.setAttribute('text-anchor', 'end');
+                    text.setAttribute('fill', '#94a3b8');
+                    text.setAttribute('font-size', '10');
+                    text.textContent = this.tokens[i].slice(0, 3);
+                    svg.appendChild(text);
+                }
+                
+                // Column labels
+                for (let j = 0; j < n; j++) {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', 25 + j * cellSize + cellSize / 2);
+                    text.setAttribute('y', 18);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('fill', '#94a3b8');
+                    text.setAttribute('font-size', '10');
+                    text.textContent = this.tokens[j].slice(0, 3);
+                    svg.appendChild(text);
+                }
+            }
+
+            updateAttentionDisplay() {
+                if (this.selectedToken === null) return;
+                
+                const weights = this.attentionWeights[this.currentHead][this.selectedToken];
+                
+                // Update connection line visibility
+                this.connectionLines.forEach(line => {
+                    if (line.userData.from === this.selectedToken) {
+                        line.material.opacity = Math.min(line.userData.weight * 3, 1);
+                    } else {
+                        line.material.opacity = 0.1;
+                    }
+                });
+            }
+
+            setHead(head) {
+                this.currentHead = head;
+                
+                // Update buttons
+                document.querySelectorAll('.head-btn').forEach((btn, i) => {
+                    btn.classList.toggle('bg-amber-600', i === head);
+                    btn.classList.toggle('bg-slate-700', i !== head);
+                });
+                
+                this.createVisualization();
+            }
+
+            setStep(step) {
+                this.currentStep = step;
+                
+                // Update indicators
+                document.querySelectorAll('.step-indicator').forEach((btn, i) => {
+                    btn.classList.toggle('active', i === step);
+                });
+                
+                // Update math display
+                const mathStrs = [
+                    'Q_i = W_Q \\cdot x_i',
+                    'K_j = W_K \\cdot x_j',
+                    'e_{ij} = \\frac{Q_i \\cdot K_j^T}{\\sqrt{d_k}}',
+                    '\\alpha_{ij} = \\frac{\\exp(e_{ij})}{\\sum_k \\exp(e_{ik})}',
+                    'z_i = \\sum_j \\alpha_{ij} \\cdot V_j'
+                ];
+                
+                const explanations = [
+                    'Query: What am I looking for?',
+                    'Key: What do I contain?',
+                    'Similarity: How well do Q and K match?',
+                    'Softmax: Normalize to probabilities',
+                    'Output: Weighted sum of Values'
+                ];
+                
+                const display = document.getElementById('math-display');
+                display.innerHTML = `$$ ${mathStrs[step]} $$`;
+                if (window.MathJax) {
+                    MathJax.typesetPromise([display]);
+                }
+            }
+
+            setView(view) {
+                this.viewMode = view;
+                
+                // Update buttons
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.classList.remove('bg-purple-600');
+                    btn.classList.add('bg-slate-700');
+                });
+                document.getElementById(`view-${view}`).classList.add('bg-purple-600');
+                document.getElementById(`view-${view}`).classList.remove('bg-slate-700');
+                
+                // Hide/show matrix panel
+                document.getElementById('matrix-panel').classList.toggle('hidden', view !== 'matrix');
+                
+                this.createVisualization();
+            }
+
+            setPreset(preset) {
+                const text = this.presets[preset];
+                document.getElementById('input-text').value = text;
+                this.tokenize(text);
+                this.generateAttentionWeights();
+                this.createVisualization();
+            }
+
+            animateSteps() {
+                if (this.isAnimating) return;
+                this.isAnimating = true;
+                
+                let step = 0;
+                const animate = () => {
+                    this.setStep(step);
+                    step++;
+                    if (step < 5) {
+                        setTimeout(animate, 1500);
+                    } else {
+                        this.isAnimating = false;
+                    }
+                };
+                animate();
+            }
+
+            resetSteps() {
+                this.setStep(0);
+                this.isAnimating = false;
+            }
+
+            setupEventListeners() {
+                document.getElementById('input-text').addEventListener('change', (e) => {
+                    this.tokenize(e.target.value);
+                    this.generateAttentionWeights();
+                    this.createVisualization();
+                });
+                
+                // Click detection on tokens
+                this.renderer.domElement.addEventListener('click', (e) => {
+                    const rect = this.renderer.domElement.getBoundingClientRect();
+                    const mouse = new THREE.Vector2(
+                        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+                        -((e.clientY - rect.top) / rect.height) * 2 + 1
+                    );
+                    
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(mouse, this.camera);
+                    
+                    const intersects = raycaster.intersectObjects(this.tokenMeshes, true);
+                    if (intersects.length > 0) {
+                        let obj = intersects[0].object;
+                        while (obj.parent && !obj.userData.index && obj.userData.index !== 0) {
+                            obj = obj.parent;
+                        }
+                        
+                        if (obj.userData.index !== undefined) {
+                            this.selectedToken = obj.userData.index;
+                            
+                            // Update info panel
+                            const info = document.getElementById('token-info');
+                            const weights = this.attentionWeights[this.currentHead][this.selectedToken];
+                            let html = `<p class="font-bold text-amber-400 mb-2">"${obj.userData.token}"</p>`;
+                            html += '<p class="text-slate-400">Attends to:</p>';
+                            
+                            const sorted = weights.map((w, i) => ({ token: this.tokens[i], weight: w, idx: i }))
+                                                   .sort((a, b) => b.weight - a.weight)
+                                                   .slice(0, 4);
+                            
+                            sorted.forEach(item => {
+                                html += `<p class="text-xs">${item.token}: <span class="text-amber-300">${(item.weight * 100).toFixed(1)}%</span></p>`;
+                            });
+                            
+                            info.innerHTML = html;
+                            
+                            this.updateAttentionDisplay();
+                        }
+                    }
+                });
+            }
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                
+                // Subtle animation on tokens
+                this.tokenMeshes.forEach((mesh, i) => {
+                    if (mesh.position) {
+                        mesh.position.y = Math.sin(Date.now() * 0.001 + i * 0.5) * 0.1;
+                    }
+                });
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        const app = new TransformerAttention();
+        window.app = app;
+    </script>
+</body>
+</html>

@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNN Layer Explorer | Neural Network Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-panel { z-index: 10; backdrop-filter: blur(12px); background-color: rgba(15, 23, 42, 0.9); }
+        .glass { backdrop-filter: blur(8px); background-color: rgba(30, 41, 59, 0.8); }
+        
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer; margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px;
+        }
+        
+        .filter-cell { 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-family: monospace; transition: all 0.2s;
+        }
+        
+        .feature-map { 
+            image-rendering: pixelated; 
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .feature-map:hover { transform: scale(1.1); box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+        
+        .conv-highlight { animation: pulse 0.5s ease-in-out; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        mjx-container { font-size: 1em !important; color: white !important; }
+        
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body class="text-white">
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <div class="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-20">
+        <div class="ui-panel p-5 rounded-xl border border-slate-700 pointer-events-auto shadow-2xl max-w-md">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-1">
+                CNN Layer Explorer
+            </h1>
+            <p class="text-xs text-slate-400 mb-4">Visualize convolution operations and feature map hierarchies</p>
+            
+            <!-- Mode Tabs -->
+            <div class="flex gap-2 mb-4">
+                <button onclick="app.setMode('convolution')" id="btn-conv" class="tab-btn active flex-1 py-2 px-3 text-sm rounded-lg border border-slate-600">
+                    🔍 Convolution
+                </button>
+                <button onclick="app.setMode('network')" id="btn-network" class="tab-btn flex-1 py-2 px-3 text-sm rounded-lg border border-slate-600 hover:bg-slate-700">
+                    🧠 Network View
+                </button>
+                <button onclick="app.setMode('filters')" id="btn-filters" class="tab-btn flex-1 py-2 px-3 text-sm rounded-lg border border-slate-600 hover:bg-slate-700">
+                    📊 Filters
+                </button>
+            </div>
+
+            <!-- Math Display -->
+            <div id="math-display" class="bg-slate-900/50 p-3 rounded-lg border border-slate-700 min-h-[50px] flex items-center justify-center">
+                $$ (I * K)[i,j] = \sum_m \sum_n I[i+m, j+n] \cdot K[m,n] $$
+            </div>
+            <p id="math-explanation" class="text-xs text-slate-400 mt-2 text-center">
+                Convolution: Element-wise multiply and sum
+            </p>
+        </div>
+
+        <!-- View Controls -->
+        <div class="ui-panel p-3 rounded-xl border border-slate-700 pointer-events-auto">
+            <button onclick="app.toggleView()" id="btn-view" class="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 rounded-lg text-cyan-400 border border-cyan-900/50">
+                3D View
+            </button>
+        </div>
+    </div>
+
+    <!-- Control Panel (Bottom) -->
+    <div class="absolute bottom-6 left-4 right-4 flex justify-center pointer-events-none z-20">
+        <div class="ui-panel p-5 rounded-xl border border-slate-700 pointer-events-auto shadow-2xl w-full max-w-5xl">
+            <div class="flex gap-6">
+                <!-- Image Selection -->
+                <div class="flex-1" id="panel-image">
+                    <h3 class="text-sm font-bold text-blue-400 mb-3">Input Image</h3>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="app.setImage('digit')" class="img-btn px-3 py-2 text-xs rounded bg-blue-600 hover:bg-blue-500">
+                            Digit (3)
+                        </button>
+                        <button onclick="app.setImage('edge')" class="img-btn px-3 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            Edges
+                        </button>
+                        <button onclick="app.setImage('circle')" class="img-btn px-3 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            Circle
+                        </button>
+                        <button onclick="app.setImage('cross')" class="img-btn px-3 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            Cross
+                        </button>
+                    </div>
+                    <div class="mt-3">
+                        <label class="text-xs text-slate-400 block mb-1">Custom Upload</label>
+                        <input type="file" accept="image/*" id="file-input" class="text-xs w-full bg-slate-800 rounded p-1">
+                    </div>
+                </div>
+
+                <!-- Filter Selection -->
+                <div class="flex-1" id="panel-filter">
+                    <h3 class="text-sm font-bold text-purple-400 mb-3">Filter / Kernel</h3>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="app.setFilter('edge_h')" class="filter-btn px-3 py-2 text-xs rounded bg-purple-600 hover:bg-purple-500">
+                            Edge (H)
+                        </button>
+                        <button onclick="app.setFilter('edge_v')" class="filter-btn px-3 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            Edge (V)
+                        </button>
+                        <button onclick="app.setFilter('sobel')" class="filter-btn px-3 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            Sobel
+                        </button>
+                        <button onclick="app.setFilter('sharpen')" class="filter-btn px-3 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            Sharpen
+                        </button>
+                        <button onclick="app.setFilter('blur')" class="filter-btn px-3 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            Blur
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Animation Controls -->
+                <div class="flex-1" id="panel-anim">
+                    <h3 class="text-sm font-bold text-green-400 mb-3">Animation</h3>
+                    <div class="flex gap-2 mb-3">
+                        <button onclick="app.playConvolution()" id="btn-play" class="px-4 py-2 text-xs rounded bg-green-600 hover:bg-green-500">
+                            ▶ Play
+                        </button>
+                        <button onclick="app.stepConvolution()" class="px-4 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            ⏭ Step
+                        </button>
+                        <button onclick="app.resetConvolution()" class="px-4 py-2 text-xs rounded bg-slate-700 hover:bg-slate-600">
+                            ↺ Reset
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400">Speed:</span>
+                        <input type="range" min="1" max="10" value="5" id="speed-slider" class="flex-1">
+                        <span id="speed-val" class="text-xs text-slate-400 w-8">5x</span>
+                    </div>
+                </div>
+
+                <!-- Layer Selection -->
+                <div class="flex-1" id="panel-layer">
+                    <h3 class="text-sm font-bold text-cyan-400 mb-3">Layer</h3>
+                    <select id="layer-select" onchange="app.setLayer(this.value)" 
+                            class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm">
+                        <option value="0">Input (28×28×1)</option>
+                        <option value="1">Conv1 (26×26×8)</option>
+                        <option value="2">Pool1 (13×13×8)</option>
+                        <option value="3">Conv2 (11×11×16)</option>
+                        <option value="4">Pool2 (5×5×16)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Maps Display (Right Panel) -->
+    <div id="feature-panel" class="absolute top-24 right-4 ui-panel p-4 rounded-xl border border-slate-700 pointer-events-auto max-w-xs z-20 hidden">
+        <h3 class="text-sm font-bold text-cyan-400 mb-3">Feature Maps</h3>
+        <div id="feature-grid" class="grid grid-cols-4 gap-2"></div>
+        <p class="text-xs text-slate-400 mt-3">Click on a feature map to zoom</p>
+    </div>
+
+    <!-- Convolution Detail Display -->
+    <div id="conv-detail" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ui-panel p-6 rounded-xl border border-slate-700 z-30 hidden">
+        <div class="flex gap-8 items-center">
+            <div id="conv-input" class="text-center">
+                <p class="text-xs text-slate-400 mb-2">Input Region</p>
+                <div id="input-grid" class="grid gap-0.5"></div>
+            </div>
+            <div class="text-2xl text-slate-500">×</div>
+            <div id="conv-kernel" class="text-center">
+                <p class="text-xs text-slate-400 mb-2">Kernel</p>
+                <div id="kernel-grid" class="grid gap-0.5"></div>
+            </div>
+            <div class="text-2xl text-slate-500">=</div>
+            <div id="conv-output" class="text-center">
+                <p class="text-xs text-slate-400 mb-2">Output</p>
+                <div id="output-value" class="text-3xl font-bold text-green-400">0</div>
+            </div>
+        </div>
+        <div id="conv-calc" class="mt-4 text-xs text-slate-400 text-center font-mono"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        class CNNExplorer {
+            constructor() {
+                this.mode = 'convolution';
+                this.currentFilter = 'edge_h';
+                this.currentImage = 'digit';
+                this.currentLayer = 0;
+                this.convPosition = { x: 0, y: 0 };
+                this.isPlaying = false;
+                this.animationSpeed = 5;
+                
+                // Image data (28x28 grayscale)
+                this.imageData = null;
+                this.outputData = null;
+                
+                // Filters (3x3 kernels)
+                this.filters = {
+                    edge_h: [[-1, -1, -1], [0, 0, 0], [1, 1, 1]],
+                    edge_v: [[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
+                    sobel: [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+                    sharpen: [[0, -1, 0], [-1, 5, -1], [0, -1, 0]],
+                    blur: [[1/9, 1/9, 1/9], [1/9, 1/9, 1/9], [1/9, 1/9, 1/9]]
+                };
+                
+                // 3D Scene
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                
+                // Visual objects
+                this.imageTexture = null;
+                this.imagePlane = null;
+                this.filterBox = null;
+                this.outputPlane = null;
+                this.networkLayers = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.setupScene();
+                this.generateSampleImage();
+                this.createVisuals();
+                this.setupEventListeners();
+                this.animate();
+                this.updateDisplay();
+            }
+
+            setupScene() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0f172a);
+                
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+                this.camera.position.set(0, 0, 40);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+                
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                
+                // Lights
+                const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambient);
+                
+                const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+                directional.position.set(10, 10, 10);
+                this.scene.add(directional);
+                
+                window.addEventListener('resize', () => this.onResize());
+            }
+
+            generateSampleImage() {
+                const size = 28;
+                this.imageData = new Float32Array(size * size);
+                
+                switch(this.currentImage) {
+                    case 'digit':
+                        this.generateDigit3();
+                        break;
+                    case 'edge':
+                        this.generateEdges();
+                        break;
+                    case 'circle':
+                        this.generateCircle();
+                        break;
+                    case 'cross':
+                        this.generateCross();
+                        break;
+                }
+                
+                this.computeConvolution();
+            }
+
+            generateDigit3() {
+                const size = 28;
+                for (let i = 0; i < size * size; i++) this.imageData[i] = 0;
+                
+                // Draw a "3"
+                for (let x = 8; x < 20; x++) {
+                    this.imageData[5 * size + x] = 1;
+                    this.imageData[13 * size + x] = 1;
+                    this.imageData[22 * size + x] = 1;
+                }
+                for (let y = 5; y < 14; y++) this.imageData[y * size + 19] = 1;
+                for (let y = 13; y < 23; y++) this.imageData[y * size + 19] = 1;
+            }
+
+            generateEdges() {
+                const size = 28;
+                for (let i = 0; i < size * size; i++) this.imageData[i] = 0;
+                
+                // Vertical and horizontal edges
+                for (let y = 4; y < 24; y++) {
+                    this.imageData[y * size + 7] = 1;
+                    this.imageData[y * size + 20] = 1;
+                }
+                for (let x = 4; x < 24; x++) {
+                    this.imageData[7 * size + x] = 1;
+                    this.imageData[20 * size + x] = 1;
+                }
+            }
+
+            generateCircle() {
+                const size = 28;
+                const cx = 14, cy = 14, r = 8;
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+                        this.imageData[y * size + x] = Math.abs(dist - r) < 1.5 ? 1 : 0;
+                    }
+                }
+            }
+
+            generateCross() {
+                const size = 28;
+                for (let i = 0; i < size * size; i++) this.imageData[i] = 0;
+                
+                for (let i = 6; i < 22; i++) {
+                    this.imageData[14 * size + i] = 1;
+                    this.imageData[i * size + 14] = 1;
+                }
+            }
+
+            computeConvolution() {
+                const size = 28;
+                const kernel = this.filters[this.currentFilter];
+                const kSize = 3;
+                const outSize = size - kSize + 1;
+                this.outputData = new Float32Array(outSize * outSize);
+                
+                for (let y = 0; y < outSize; y++) {
+                    for (let x = 0; x < outSize; x++) {
+                        let sum = 0;
+                        for (let ky = 0; ky < kSize; ky++) {
+                            for (let kx = 0; kx < kSize; kx++) {
+                                const imgIdx = (y + ky) * size + (x + kx);
+                                sum += this.imageData[imgIdx] * kernel[ky][kx];
+                            }
+                        }
+                        this.outputData[y * outSize + x] = sum;
+                    }
+                }
+            }
+
+            createVisuals() {
+                this.clearScene();
+                
+                if (this.mode === 'convolution') {
+                    this.createConvolutionView();
+                } else if (this.mode === 'network') {
+                    this.createNetworkView();
+                } else if (this.mode === 'filters') {
+                    this.createFiltersView();
+                }
+            }
+
+            clearScene() {
+                while(this.scene.children.length > 0) {
+                    const obj = this.scene.children[0];
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) {
+                        if (Array.isArray(obj.material)) {
+                            obj.material.forEach(m => m.dispose());
+                        } else {
+                            obj.material.dispose();
+                        }
+                    }
+                    this.scene.remove(obj);
+                }
+                
+                // Re-add lights
+                const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambient);
+                const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+                directional.position.set(10, 10, 10);
+                this.scene.add(directional);
+            }
+
+            createConvolutionView() {
+                // Input image plane
+                const inputTex = this.createTexture(this.imageData, 28, 28, 'gray');
+                const inputGeo = new THREE.PlaneGeometry(14, 14);
+                const inputMat = new THREE.MeshBasicMaterial({ map: inputTex, side: THREE.DoubleSide });
+                this.imagePlane = new THREE.Mesh(inputGeo, inputMat);
+                this.imagePlane.position.set(-10, 0, 0);
+                this.scene.add(this.imagePlane);
+                
+                // Input label
+                this.addLabel('Input (28×28)', -10, -8.5, 0);
+                
+                // Filter visualization (3D box)
+                const filterGeo = new THREE.BoxGeometry(1.5, 1.5, 0.5);
+                const filterMat = new THREE.MeshPhongMaterial({ 
+                    color: 0x8b5cf6, 
+                    transparent: true, 
+                    opacity: 0.8,
+                    emissive: 0x4c1d95,
+                    emissiveIntensity: 0.3
+                });
+                this.filterBox = new THREE.Mesh(filterGeo, filterMat);
+                this.filterBox.position.set(-10, 0, 1);
+                this.scene.add(this.filterBox);
+                
+                // Filter wireframe
+                const wireGeo = new THREE.BoxGeometry(1.5, 1.5, 0.5);
+                const wireMat = new THREE.MeshBasicMaterial({ color: 0xa78bfa, wireframe: true });
+                const wireBox = new THREE.Mesh(wireGeo, wireMat);
+                this.filterBox.add(wireBox);
+                
+                // Output feature map
+                const outputTex = this.createTexture(this.outputData, 26, 26, 'viridis');
+                const outputGeo = new THREE.PlaneGeometry(13, 13);
+                const outputMat = new THREE.MeshBasicMaterial({ map: outputTex, side: THREE.DoubleSide });
+                this.outputPlane = new THREE.Mesh(outputGeo, outputMat);
+                this.outputPlane.position.set(10, 0, 0);
+                this.scene.add(this.outputPlane);
+                
+                // Output label
+                this.addLabel('Output (26×26)', 10, -8, 0);
+                
+                // Arrow
+                this.createArrow(-2, 0, 0, 6, 0, 0, 0x3b82f6);
+                
+                // Update filter position
+                this.updateFilterPosition();
+            }
+
+            createNetworkView() {
+                const layers = [
+                    { name: 'Input', size: [28, 28, 1], color: 0x3b82f6 },
+                    { name: 'Conv1', size: [26, 26, 8], color: 0x8b5cf6 },
+                    { name: 'Pool1', size: [13, 13, 8], color: 0x06b6d4 },
+                    { name: 'Conv2', size: [11, 11, 16], color: 0x8b5cf6 },
+                    { name: 'Pool2', size: [5, 5, 16], color: 0x06b6d4 },
+                    { name: 'FC', size: [1, 1, 128], color: 0x10b981 },
+                    { name: 'Output', size: [1, 1, 10], color: 0xf59e0b }
+                ];
+                
+                let xPos = -25;
+                layers.forEach((layer, idx) => {
+                    const [h, w, d] = layer.size;
+                    const scale = 0.3;
+                    const geo = new THREE.BoxGeometry(
+                        Math.max(d * scale, 0.5),
+                        h * scale,
+                        w * scale
+                    );
+                    const mat = new THREE.MeshPhongMaterial({
+                        color: layer.color,
+                        transparent: true,
+                        opacity: 0.7,
+                        emissive: layer.color,
+                        emissiveIntensity: 0.2
+                    });
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.position.set(xPos, 0, 0);
+                    this.scene.add(mesh);
+                    
+                    // Wireframe
+                    const wireGeo = new THREE.BoxGeometry(
+                        Math.max(d * scale, 0.5) + 0.1,
+                        h * scale + 0.1,
+                        w * scale + 0.1
+                    );
+                    const wireMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, opacity: 0.3, transparent: true });
+                    const wire = new THREE.Mesh(wireGeo, wireMat);
+                    mesh.add(wire);
+                    
+                    // Label
+                    this.addLabel(`${layer.name}\n${h}×${w}×${d}`, xPos, -6, 0);
+                    
+                    // Connection line to next
+                    if (idx < layers.length - 1) {
+                        const nextX = xPos + 8;
+                        this.createArrow(xPos + 2, 0, 0, nextX - 2, 0, 0, 0x475569);
+                    }
+                    
+                    xPos += 8;
+                });
+                
+                this.camera.position.set(0, 10, 35);
+            }
+
+            createFiltersView() {
+                const filterNames = Object.keys(this.filters);
+                let xPos = -15;
+                
+                filterNames.forEach((name, idx) => {
+                    const kernel = this.filters[name];
+                    
+                    // Create 3x3 grid visualization
+                    const group = new THREE.Group();
+                    group.position.set(xPos, 0, 0);
+                    
+                    for (let y = 0; y < 3; y++) {
+                        for (let x = 0; x < 3; x++) {
+                            const val = kernel[y][x];
+                            const normalizedVal = (val + 2) / 4; // Normalize to 0-1
+                            const color = new THREE.Color().setHSL(0.6, 0.8, normalizedVal);
+                            
+                            const cellGeo = new THREE.BoxGeometry(1.8, 1.8, 0.3 + Math.abs(val) * 0.5);
+                            const cellMat = new THREE.MeshPhongMaterial({ color });
+                            const cell = new THREE.Mesh(cellGeo, cellMat);
+                            cell.position.set((x - 1) * 2, (1 - y) * 2, 0);
+                            group.add(cell);
+                        }
+                    }
+                    
+                    this.scene.add(group);
+                    
+                    // Label
+                    this.addLabel(name.replace('_', ' ').toUpperCase(), xPos, -5, 0);
+                    
+                    xPos += 8;
+                });
+                
+                this.camera.position.set(0, 0, 25);
+            }
+
+            createTexture(data, width, height, colormap) {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.createImageData(width, height);
+                
+                let min = Infinity, max = -Infinity;
+                for (let i = 0; i < data.length; i++) {
+                    min = Math.min(min, data[i]);
+                    max = Math.max(max, data[i]);
+                }
+                const range = max - min || 1;
+                
+                for (let i = 0; i < data.length; i++) {
+                    const val = (data[i] - min) / range;
+                    let r, g, b;
+                    
+                    if (colormap === 'gray') {
+                        r = g = b = Math.floor(val * 255);
+                    } else if (colormap === 'viridis') {
+                        // Simplified viridis
+                        r = Math.floor(val * 68 + (1 - val) * 68);
+                        g = Math.floor(val * 230 + (1 - val) * 1);
+                        b = Math.floor(val * 80 + (1 - val) * 84);
+                    }
+                    
+                    const idx = i * 4;
+                    imageData.data[idx] = r;
+                    imageData.data[idx + 1] = g;
+                    imageData.data[idx + 2] = b;
+                    imageData.data[idx + 3] = 255;
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.magFilter = THREE.NearestFilter;
+                texture.minFilter = THREE.NearestFilter;
+                return texture;
+            }
+
+            addLabel(text, x, y, z) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(text, 128, 40);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.position.set(x, y, z);
+                sprite.scale.set(8, 2, 1);
+                this.scene.add(sprite);
+            }
+
+            createArrow(x1, y1, z1, x2, y2, z2, color) {
+                const dir = new THREE.Vector3(x2 - x1, y2 - y1, z2 - z1);
+                const length = dir.length();
+                dir.normalize();
+                
+                const arrow = new THREE.ArrowHelper(
+                    dir,
+                    new THREE.Vector3(x1, y1, z1),
+                    length,
+                    color,
+                    0.5,
+                    0.3
+                );
+                this.scene.add(arrow);
+            }
+
+            updateFilterPosition() {
+                if (!this.filterBox || this.mode !== 'convolution') return;
+                
+                const imgSize = 28;
+                const planeSize = 14;
+                const scale = planeSize / imgSize;
+                
+                const x = this.convPosition.x;
+                const y = this.convPosition.y;
+                
+                // Map grid position to 3D position
+                const posX = -10 + (x + 1.5 - imgSize / 2) * scale;
+                const posY = (imgSize / 2 - y - 1.5) * scale;
+                
+                this.filterBox.position.x = posX;
+                this.filterBox.position.y = posY;
+                
+                this.updateConvolutionDetail();
+            }
+
+            updateConvolutionDetail() {
+                const detail = document.getElementById('conv-detail');
+                if (this.mode !== 'convolution') {
+                    detail.classList.add('hidden');
+                    return;
+                }
+                detail.classList.remove('hidden');
+                
+                const x = this.convPosition.x;
+                const y = this.convPosition.y;
+                const kernel = this.filters[this.currentFilter];
+                
+                // Build input grid
+                const inputGrid = document.getElementById('input-grid');
+                inputGrid.innerHTML = '';
+                inputGrid.style.gridTemplateColumns = 'repeat(3, 32px)';
+                
+                let sum = 0;
+                let calcParts = [];
+                
+                for (let ky = 0; ky < 3; ky++) {
+                    for (let kx = 0; kx < 3; kx++) {
+                        const imgIdx = (y + ky) * 28 + (x + kx);
+                        const val = this.imageData[imgIdx] || 0;
+                        const product = val * kernel[ky][kx];
+                        sum += product;
+                        
+                        if (val !== 0) {
+                            calcParts.push(`${val.toFixed(1)}×${kernel[ky][kx].toFixed(1)}`);
+                        }
+                        
+                        const cell = document.createElement('div');
+                        cell.className = 'filter-cell w-8 h-8 rounded text-white';
+                        cell.style.backgroundColor = `rgb(${Math.floor(val * 255)}, ${Math.floor(val * 255)}, ${Math.floor(val * 255)})`;
+                        cell.textContent = val.toFixed(1);
+                        cell.style.color = val > 0.5 ? 'black' : 'white';
+                        inputGrid.appendChild(cell);
+                    }
+                }
+                
+                // Build kernel grid
+                const kernelGrid = document.getElementById('kernel-grid');
+                kernelGrid.innerHTML = '';
+                kernelGrid.style.gridTemplateColumns = 'repeat(3, 32px)';
+                
+                for (let ky = 0; ky < 3; ky++) {
+                    for (let kx = 0; kx < 3; kx++) {
+                        const val = kernel[ky][kx];
+                        const cell = document.createElement('div');
+                        cell.className = 'filter-cell w-8 h-8 rounded';
+                        const hue = val >= 0 ? 120 : 0;
+                        const lightness = 30 + Math.abs(val) * 30;
+                        cell.style.backgroundColor = `hsl(${hue}, 70%, ${lightness}%)`;
+                        cell.textContent = val.toFixed(1);
+                        kernelGrid.appendChild(cell);
+                    }
+                }
+                
+                // Output value
+                document.getElementById('output-value').textContent = sum.toFixed(2);
+                document.getElementById('conv-calc').textContent = calcParts.length > 0 
+                    ? calcParts.join(' + ') + ' = ' + sum.toFixed(2)
+                    : '0 (empty region)';
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+                
+                // Update tabs
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.add('hover:bg-slate-700');
+                });
+                document.getElementById(`btn-${mode === 'convolution' ? 'conv' : mode}`).classList.add('active');
+                
+                // Toggle panels
+                document.getElementById('conv-detail').classList.toggle('hidden', mode !== 'convolution');
+                document.getElementById('feature-panel').classList.toggle('hidden', mode !== 'network');
+                
+                // Update camera position based on mode
+                if (mode === 'convolution') {
+                    this.camera.position.set(0, 0, 40);
+                }
+                
+                this.createVisuals();
+                this.updateDisplay();
+            }
+
+            setImage(type) {
+                this.currentImage = type;
+                
+                // Update button styles
+                document.querySelectorAll('.img-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue-600');
+                    btn.classList.add('bg-slate-700');
+                });
+                event.target.classList.add('bg-blue-600');
+                event.target.classList.remove('bg-slate-700');
+                
+                this.generateSampleImage();
+                this.createVisuals();
+            }
+
+            setFilter(type) {
+                this.currentFilter = type;
+                
+                // Update button styles
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('bg-purple-600');
+                    btn.classList.add('bg-slate-700');
+                });
+                event.target.classList.add('bg-purple-600');
+                event.target.classList.remove('bg-slate-700');
+                
+                this.computeConvolution();
+                this.createVisuals();
+                this.updateDisplay();
+            }
+
+            setLayer(layer) {
+                this.currentLayer = parseInt(layer);
+                this.updateFeatureMaps();
+            }
+
+            updateFeatureMaps() {
+                const grid = document.getElementById('feature-grid');
+                grid.innerHTML = '';
+                
+                // Generate mock feature maps
+                const numMaps = [1, 8, 8, 16, 16][this.currentLayer];
+                const mapSize = [28, 26, 13, 11, 5][this.currentLayer];
+                
+                for (let i = 0; i < numMaps; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = mapSize;
+                    canvas.height = mapSize;
+                    canvas.className = 'feature-map rounded cursor-pointer';
+                    canvas.style.width = '48px';
+                    canvas.style.height = '48px';
+                    
+                    const ctx = canvas.getContext('2d');
+                    const imgData = ctx.createImageData(mapSize, mapSize);
+                    
+                    // Generate mock feature map (random patterns)
+                    for (let j = 0; j < mapSize * mapSize; j++) {
+                        const val = Math.random() * 255;
+                        imgData.data[j * 4] = val * 0.3;
+                        imgData.data[j * 4 + 1] = val * 0.8;
+                        imgData.data[j * 4 + 2] = val;
+                        imgData.data[j * 4 + 3] = 255;
+                    }
+                    
+                    ctx.putImageData(imgData, 0, 0);
+                    grid.appendChild(canvas);
+                }
+            }
+
+            playConvolution() {
+                if (this.isPlaying) {
+                    this.isPlaying = false;
+                    document.getElementById('btn-play').textContent = '▶ Play';
+                    return;
+                }
+                
+                this.isPlaying = true;
+                document.getElementById('btn-play').textContent = '⏸ Pause';
+                this.animateConvolution();
+            }
+
+            animateConvolution() {
+                if (!this.isPlaying) return;
+                
+                this.stepConvolution();
+                
+                const delay = 500 / this.animationSpeed;
+                setTimeout(() => this.animateConvolution(), delay);
+            }
+
+            stepConvolution() {
+                const maxX = 28 - 3;
+                const maxY = 28 - 3;
+                
+                this.convPosition.x++;
+                if (this.convPosition.x > maxX) {
+                    this.convPosition.x = 0;
+                    this.convPosition.y++;
+                    if (this.convPosition.y > maxY) {
+                        this.convPosition.y = 0;
+                        this.isPlaying = false;
+                        document.getElementById('btn-play').textContent = '▶ Play';
+                    }
+                }
+                
+                this.updateFilterPosition();
+            }
+
+            resetConvolution() {
+                this.convPosition = { x: 0, y: 0 };
+                this.isPlaying = false;
+                document.getElementById('btn-play').textContent = '▶ Play';
+                this.updateFilterPosition();
+            }
+
+            toggleView() {
+                const btn = document.getElementById('btn-view');
+                if (this.camera.position.z > 30) {
+                    this.camera.position.set(20, 15, 20);
+                    btn.textContent = '2D View';
+                } else {
+                    this.camera.position.set(0, 0, 40);
+                    btn.textContent = '3D View';
+                }
+            }
+
+            updateDisplay() {
+                const kernel = this.filters[this.currentFilter];
+                let mathStr = '';
+                
+                if (this.mode === 'convolution') {
+                    mathStr = `K = \\begin{bmatrix} ${kernel[0].join(' & ')} \\\\ ${kernel[1].join(' & ')} \\\\ ${kernel[2].join(' & ')} \\end{bmatrix}`;
+                    document.getElementById('math-explanation').textContent = `${this.currentFilter.replace('_', ' ')} filter - detects specific patterns`;
+                } else if (this.mode === 'network') {
+                    mathStr = 'Output = \\sigma(Conv(Pool(Conv(Input))))';
+                    document.getElementById('math-explanation').textContent = 'Hierarchical feature extraction through layers';
+                } else {
+                    mathStr = '(I * K)[i,j] = \\sum_m \\sum_n I[i+m, j+n] \\cdot K[m,n]';
+                    document.getElementById('math-explanation').textContent = 'Classic edge detection and feature extraction filters';
+                }
+                
+                const display = document.getElementById('math-display');
+                display.innerHTML = `$$ ${mathStr} $$`;
+                if (window.MathJax) {
+                    MathJax.typesetPromise([display]);
+                }
+            }
+
+            setupEventListeners() {
+                document.getElementById('speed-slider').addEventListener('input', (e) => {
+                    this.animationSpeed = parseInt(e.target.value);
+                    document.getElementById('speed-val').textContent = `${this.animationSpeed}x`;
+                });
+                
+                document.getElementById('file-input').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        this.loadCustomImage(file);
+                    }
+                });
+            }
+
+            loadCustomImage(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Resize to 28x28 and convert to grayscale
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 28;
+                        canvas.height = 28;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, 28, 28);
+                        const imgData = ctx.getImageData(0, 0, 28, 28);
+                        
+                        for (let i = 0; i < 28 * 28; i++) {
+                            const r = imgData.data[i * 4];
+                            const g = imgData.data[i * 4 + 1];
+                            const b = imgData.data[i * 4 + 2];
+                            this.imageData[i] = (r + g + b) / (3 * 255);
+                        }
+                        
+                        this.computeConvolution();
+                        this.createVisuals();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                
+                // Rotate filter box slightly for visual effect
+                if (this.filterBox && this.mode === 'convolution') {
+                    this.filterBox.rotation.z = Math.sin(Date.now() * 0.002) * 0.1;
+                }
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        const app = new CNNExplorer();
+        window.app = app;
+    </script>
+</body>
+</html>

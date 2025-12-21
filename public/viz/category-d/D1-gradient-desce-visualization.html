@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D1: Gradient Descent Variants - Optimizer Comparison</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0e1a;
+            --bg-panel: rgba(15, 23, 42, 0.92);
+            --accent-cyan: #22d3ee;
+            --text-primary: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-subtle: rgba(148, 163, 184, 0.15);
+        }
+
+        * { box-sizing: border-box; }
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: var(--bg-deep);
+            color: var(--text-primary); 
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        #canvas-container { 
+            position: absolute; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            z-index: 0; 
+        }
+
+        .glass-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #1e293b;
+            border-radius: 2px;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        @keyframes escape-pulse {
+            0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, 0) scale(1.05); opacity: 0.9; }
+        }
+
+        .escape-notification {
+            animation: escape-pulse 0.5s ease-in-out 3;
+        }
+
+        .param-section {
+            border-left: 2px solid;
+            padding-left: 10px;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <!-- Escape Notification -->
+    <div id="escape-notification" class="escape-notification fixed top-20 left-1/2 -translate-x-1/2 glass-panel px-6 py-3 rounded-xl z-50 hidden">
+        <span class="text-cyan-400 font-semibold">🎯 Momentum escaped the local minimum!</span>
+    </div>
+
+    <!-- Left Panel - Controls, Optimizers, and Parameters in one scrollable panel -->
+    <div class="absolute top-4 left-4 bottom-4 pointer-events-none flex flex-col" style="width: 280px;">
+        <div class="glass-panel p-4 rounded-2xl pointer-events-auto flex-1 overflow-y-auto">
+            <!-- Header -->
+            <h1 class="text-xl font-bold mb-1">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Gradient Descent</span>
+            </h1>
+            <p class="text-xs text-slate-400 mb-4">
+                Compare optimizers on the same loss surface
+            </p>
+            
+            <!-- Playback Controls -->
+            <div class="flex gap-2 mb-4">
+                <button id="btn-reset" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700">
+                    ↺ Reset
+                </button>
+                <button id="btn-step" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700">
+                    ⏭ Step
+                </button>
+                <button id="btn-play" class="flex-1 px-2.5 py-1.5 bg-cyan-900/50 hover:bg-cyan-800/50 rounded-lg text-xs font-medium transition border border-cyan-700/50 text-cyan-300">
+                    ▶ Play
+                </button>
+            </div>
+
+            <!-- Speed Control -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-medium text-slate-300">Speed:</label>
+                    <span id="speed-value" class="mono text-xs text-cyan-400">5</span>
+                </div>
+                <input type="range" id="speed-slider" min="1" max="20" step="1" value="5">
+            </div>
+
+            <!-- Surface Presets -->
+            <div class="mb-4">
+                <label class="text-xs font-medium text-slate-300 block mb-2">Loss Surface:</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button data-surface="bowl" class="surface-btn px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs border border-slate-700 transition">Bowl</button>
+                    <button data-surface="ravine" class="surface-btn px-2 py-1.5 bg-cyan-900/50 hover:bg-cyan-800/50 rounded text-xs border border-cyan-700/50 text-cyan-300 transition active">Ravine</button>
+                    <button data-surface="local-minima" class="surface-btn px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs border border-slate-700 transition">Local Minima</button>
+                    <button data-surface="saddle" class="surface-btn px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs border border-slate-700 transition">Saddle Point</button>
+                </div>
+            </div>
+
+            <!-- View Toggle -->
+            <div class="flex gap-2 mb-4">
+                <button id="btn-3d" class="flex-1 px-3 py-1.5 bg-cyan-900/50 rounded-lg text-xs font-medium border border-cyan-700/50 text-cyan-300">3D View</button>
+                <button id="btn-2d" class="flex-1 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium border border-slate-700">2D Top</button>
+            </div>
+
+            <!-- Divider -->
+            <div class="border-t border-slate-700/50 my-4"></div>
+
+            <!-- Optimizers Toggle -->
+            <h3 class="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">Optimizers</h3>
+            <div class="grid grid-cols-2 gap-x-2 gap-y-2 mb-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="show-vanilla" checked class="w-3.5 h-3.5 rounded">
+                    <div class="legend-dot" style="background: #f43f5e; width: 10px; height: 10px;"></div>
+                    <span class="text-xs">Vanilla</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="show-momentum" checked class="w-3.5 h-3.5 rounded">
+                    <div class="legend-dot" style="background: #38bdf8; width: 10px; height: 10px;"></div>
+                    <span class="text-xs">Momentum</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="show-rmsprop" checked class="w-3.5 h-3.5 rounded">
+                    <div class="legend-dot" style="background: #34d399; width: 10px; height: 10px;"></div>
+                    <span class="text-xs">RMSprop</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="show-adam" checked class="w-3.5 h-3.5 rounded">
+                    <div class="legend-dot" style="background: #fb923c; width: 10px; height: 10px;"></div>
+                    <span class="text-xs">Adam</span>
+                </label>
+            </div>
+
+            <!-- Show Velocity Vectors -->
+            <label class="flex items-center gap-2 cursor-pointer text-xs mb-4">
+                <input type="checkbox" id="show-velocity" checked class="w-3.5 h-3.5 rounded">
+                <span>Show velocity vectors</span>
+            </label>
+
+            <!-- Divider -->
+            <div class="border-t border-slate-700/50 my-4"></div>
+
+            <!-- Parameters -->
+            <h3 class="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">Parameters</h3>
+            
+            <!-- Global Learning Rate -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-medium text-slate-300">Learning Rate (α):</label>
+                    <span id="lr-value" class="mono text-xs text-cyan-400">0.050</span>
+                </div>
+                <input type="range" id="lr-slider" min="0.001" max="0.3" step="0.001" value="0.05">
+            </div>
+
+            <!-- Momentum Parameters -->
+            <div class="param-section" style="border-color: #38bdf8;">
+                <div class="text-xs font-medium text-blue-400 mb-2">Momentum</div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[10px] text-slate-400">β (decay):</label>
+                    <span id="momentum-beta-value" class="mono text-[10px] text-slate-300">0.90</span>
+                </div>
+                <input type="range" id="momentum-beta-slider" min="0" max="0.99" step="0.01" value="0.9">
+            </div>
+
+            <!-- RMSprop Parameters -->
+            <div class="param-section" style="border-color: #34d399;">
+                <div class="text-xs font-medium text-green-400 mb-2">RMSprop</div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[10px] text-slate-400">ρ (decay):</label>
+                    <span id="rmsprop-rho-value" class="mono text-[10px] text-slate-300">0.99</span>
+                </div>
+                <input type="range" id="rmsprop-rho-slider" min="0.9" max="0.999" step="0.001" value="0.99">
+            </div>
+
+            <!-- Adam Parameters -->
+            <div class="param-section" style="border-color: #fb923c;">
+                <div class="text-xs font-medium text-orange-400 mb-2">Adam</div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[10px] text-slate-400">β₁ (momentum):</label>
+                    <span id="adam-beta1-value" class="mono text-[10px] text-slate-300">0.90</span>
+                </div>
+                <input type="range" id="adam-beta1-slider" min="0" max="0.99" step="0.01" value="0.9" class="mb-2">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[10px] text-slate-400">β₂ (RMSprop):</label>
+                    <span id="adam-beta2-value" class="mono text-[10px] text-slate-300">0.999</span>
+                </div>
+                <input type="range" id="adam-beta2-slider" min="0.9" max="0.9999" step="0.0001" value="0.999">
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimizer Stats - Right Side (full height) -->
+    <div class="absolute top-4 right-4 bottom-4 pointer-events-none flex flex-col" style="width: 300px;">
+        <div class="glass-panel p-4 rounded-2xl pointer-events-auto flex-1 overflow-y-auto">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Optimizer States</h2>
+                <span id="step-counter" class="mono text-xs px-2 py-0.5 rounded bg-slate-800 text-cyan-400">Step: 0</span>
+            </div>
+            
+            <div class="space-y-3" id="optimizer-stats">
+                <!-- Vanilla -->
+                <div id="vanilla-card" class="optimizer-card p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full" style="background: #f43f5e;"></div>
+                            <span class="text-xs font-medium">Vanilla GD</span>
+                        </div>
+                        <span id="vanilla-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400">Running</span>
+                    </div>
+                    <div class="mono text-[10px] text-slate-400">
+                        Position: (<span id="vanilla-x">0.00</span>, <span id="vanilla-y">0.00</span>)
+                        <br>Loss: <span id="vanilla-loss" class="text-red-400">0.00</span>
+                        <br>|∇L|: <span id="vanilla-grad" class="text-red-300">0.00</span>
+                    </div>
+                </div>
+
+                <!-- Momentum -->
+                <div id="momentum-card" class="optimizer-card p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full" style="background: #38bdf8;"></div>
+                            <span class="text-xs font-medium">Momentum</span>
+                        </div>
+                        <span id="momentum-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400">Running</span>
+                    </div>
+                    <div class="mono text-[10px] text-slate-400">
+                        Position: (<span id="momentum-x">0.00</span>, <span id="momentum-y">0.00</span>)
+                        <br>Loss: <span id="momentum-loss" class="text-blue-400">0.00</span>
+                        <br>Velocity: (<span id="momentum-vx">0.00</span>, <span id="momentum-vy">0.00</span>)
+                    </div>
+                </div>
+
+                <!-- RMSprop -->
+                <div id="rmsprop-card" class="optimizer-card p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full" style="background: #34d399;"></div>
+                            <span class="text-xs font-medium">RMSprop</span>
+                        </div>
+                        <span id="rmsprop-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400">Running</span>
+                    </div>
+                    <div class="mono text-[10px] text-slate-400">
+                        Position: (<span id="rmsprop-x">0.00</span>, <span id="rmsprop-y">0.00</span>)
+                        <br>Loss: <span id="rmsprop-loss" class="text-green-400">0.00</span>
+                        <br>Eff. LR: (<span id="rmsprop-elr-x">0.00</span>, <span id="rmsprop-elr-y">0.00</span>)
+                    </div>
+                </div>
+
+                <!-- Adam -->
+                <div id="adam-card" class="optimizer-card p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full" style="background: #fb923c;"></div>
+                            <span class="text-xs font-medium">Adam</span>
+                        </div>
+                        <span id="adam-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400">Running</span>
+                    </div>
+                    <div class="mono text-[10px] text-slate-400">
+                        Position: (<span id="adam-x">0.00</span>, <span id="adam-y">0.00</span>)
+                        <br>Loss: <span id="adam-loss" class="text-orange-400">0.00</span>
+                        <br>Eff. LR: (<span id="adam-elr-x">0.00</span>, <span id="adam-elr-y">0.00</span>)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Panel - Bottom Center -->
+    <div class="absolute bottom-4 pointer-events-none" style="left: 300px; right: 320px;">
+        <div class="glass-panel px-6 py-3 rounded-full pointer-events-auto mx-auto w-fit">
+            <p id="info-text" class="text-xs text-slate-400 text-center">
+                Double-click on the surface to set a new starting point
+            </p>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ═══════════════════════════════════════════════════════════════
+        // CONFIGURATION
+        // ═══════════════════════════════════════════════════════════════
+
+        const CONFIG = {
+            colors: {
+                vanilla: 0xf43f5e,
+                momentum: 0x38bdf8,
+                rmsprop: 0x34d399,
+                adam: 0xfb923c
+            },
+            surface: {
+                size: 10,
+                resolution: 100
+            },
+            trail: {
+                maxPoints: 2000
+            },
+            camera: {
+                position3D: { x: 10, y: 10, z: 10 },
+                position2D: { x: 0, y: 18, z: 0.01 },
+                lookAt: { x: 0, y: 0.5, z: 0 }
+            },
+            convergence: {
+                gradientThreshold: 0.005,
+                positionChangeThreshold: 0.0001
+            },
+            markers: {
+                sphereRadius: 0.15,
+                arrowLength: 1.5,
+                arrowHeadLength: 0.2,
+                arrowHeadWidth: 0.1
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // LOSS SURFACES
+        // ═══════════════════════════════════════════════════════════════
+
+        const surfaces = {
+            bowl: {
+                func: (x, y) => 0.5 * (x * x + y * y),
+                gradX: (x, y) => x,
+                gradY: (x, y) => y,
+                scale: 0.3,
+                startX: -3,
+                startY: 3
+            },
+            ravine: {
+                func: (x, y) => 0.1 * x * x + 2 * y * y,
+                gradX: (x, y) => 0.2 * x,
+                gradY: (x, y) => 4 * y,
+                scale: 0.15,
+                startX: -3,
+                startY: 2
+            },
+            'local-minima': {
+                func: (x, y) => {
+                    const main = 0.3 * (x * x + y * y);
+                    const bump1 = 2.5 * Math.exp(-((x - 2) ** 2 + (y - 2) ** 2) * 0.8);
+                    const bump2 = 1.8 * Math.exp(-((x + 1.5) ** 2 + (y + 1.5) ** 2) * 0.5);
+                    const bump3 = 1.2 * Math.exp(-((x - 1) ** 2 + (y + 2) ** 2) * 0.6);
+                    return main - bump1 - bump2 - bump3 + 4;
+                },
+                gradX: (x, y) => {
+                    const main = 0.6 * x;
+                    const bump1 = 2.5 * Math.exp(-((x - 2) ** 2 + (y - 2) ** 2) * 0.8) * (-1.6 * (x - 2));
+                    const bump2 = 1.8 * Math.exp(-((x + 1.5) ** 2 + (y + 1.5) ** 2) * 0.5) * (-(x + 1.5));
+                    const bump3 = 1.2 * Math.exp(-((x - 1) ** 2 + (y + 2) ** 2) * 0.6) * (-1.2 * (x - 1));
+                    return main - bump1 - bump2 - bump3;
+                },
+                gradY: (x, y) => {
+                    const main = 0.6 * y;
+                    const bump1 = 2.5 * Math.exp(-((x - 2) ** 2 + (y - 2) ** 2) * 0.8) * (-1.6 * (y - 2));
+                    const bump2 = 1.8 * Math.exp(-((x + 1.5) ** 2 + (y + 1.5) ** 2) * 0.5) * (-(y + 1.5));
+                    const bump3 = 1.2 * Math.exp(-((x - 1) ** 2 + (y + 2) ** 2) * 0.6) * (-1.2 * (y + 2));
+                    return main - bump1 - bump2 - bump3;
+                },
+                scale: 0.35,
+                startX: -3.5,
+                startY: 3.5
+            },
+            saddle: {
+                func: (x, y) => x * x - y * y + 5,
+                gradX: (x, y) => 2 * x,
+                gradY: (x, y) => -2 * y,
+                scale: 0.15,
+                startX: 2,
+                startY: 0.1
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════
+
+        const state = {
+            currentSurface: 'ravine',
+            learningRate: 0.05,
+            speed: 5,
+            isPlaying: false,
+            is3D: true,
+            showVelocity: true,
+            step: 0,
+            escapeDetected: false,
+            optimizers: {}
+        };
+
+        function createOptimizerState(startX, startY) {
+            return {
+                vanilla: { 
+                    x: startX, y: startY, 
+                    prevX: startX, prevY: startY,
+                    pathIndex: 0, 
+                    visible: true,
+                    converged: false
+                },
+                momentum: { 
+                    x: startX, y: startY, 
+                    prevX: startX, prevY: startY,
+                    vx: 0, vy: 0, 
+                    beta: 0.9,
+                    pathIndex: 0, 
+                    visible: true,
+                    converged: false
+                },
+                rmsprop: { 
+                    x: startX, y: startY,
+                    prevX: startX, prevY: startY,
+                    cache_x: 0, cache_y: 0, 
+                    rho: 0.99, 
+                    epsilon: 1e-8,
+                    effLR_x: 0, effLR_y: 0,
+                    pathIndex: 0, 
+                    visible: true,
+                    converged: false
+                },
+                adam: { 
+                    x: startX, y: startY,
+                    prevX: startX, prevY: startY,
+                    m_x: 0, m_y: 0, 
+                    v_x: 0, v_y: 0, 
+                    beta1: 0.9, beta2: 0.999, 
+                    epsilon: 1e-8, 
+                    t: 0,
+                    effLR_x: 0, effLR_y: 0,
+                    pathIndex: 0, 
+                    visible: true,
+                    converged: false
+                }
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // THREE.JS SETUP
+        // ═══════════════════════════════════════════════════════════════
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0e1a);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(CONFIG.camera.position3D.x, CONFIG.camera.position3D.y, CONFIG.camera.position3D.z);
+        camera.lookAt(CONFIG.camera.lookAt.x, CONFIG.camera.lookAt.y, CONFIG.camera.lookAt.z);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.target.set(CONFIG.camera.lookAt.x, CONFIG.camera.lookAt.y, CONFIG.camera.lookAt.z);
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        // ═══════════════════════════════════════════════════════════════
+        // 3D OBJECTS
+        // ═══════════════════════════════════════════════════════════════
+
+        let surfaceMesh;
+        const optimizerObjects = {};
+
+        function createSurface() {
+            if (surfaceMesh) {
+                surfaceMesh.geometry.dispose();
+                surfaceMesh.material.dispose();
+                scene.remove(surfaceMesh);
+            }
+
+            const surface = surfaces[state.currentSurface];
+            const geometry = new THREE.PlaneGeometry(
+                CONFIG.surface.size * 2, 
+                CONFIG.surface.size * 2, 
+                CONFIG.surface.resolution, 
+                CONFIG.surface.resolution
+            );
+            
+            const positions = geometry.attributes.position.array;
+            const colors = new Float32Array(positions.length);
+
+            let minZ = Infinity, maxZ = -Infinity;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+                const x = positions[i];
+                const y = positions[i + 1];
+                const z = surface.func(x, y) * surface.scale;
+                positions[i + 2] = z;
+                minZ = Math.min(minZ, z);
+                maxZ = Math.max(maxZ, z);
+            }
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const z = positions[i + 2];
+                const t = (z - minZ) / (maxZ - minZ + 0.001);
+                
+                const color = new THREE.Color();
+                if (t < 0.33) {
+                    color.setHSL(0.6, 0.8, 0.15 + t * 0.6);
+                } else if (t < 0.66) {
+                    color.setHSL(0.45 - (t - 0.33) * 0.6, 0.7, 0.35 + t * 0.25);
+                } else {
+                    color.setHSL(0.12, 0.85, 0.45 + (t - 0.66) * 0.4);
+                }
+                
+                colors[i] = color.r;
+                colors[i + 1] = color.g;
+                colors[i + 2] = color.b;
+            }
+
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.computeVertexNormals();
+
+            const material = new THREE.MeshPhongMaterial({
+                vertexColors: true,
+                side: THREE.DoubleSide,
+                shininess: 30,
+                transparent: true,
+                opacity: 0.92
+            });
+
+            surfaceMesh = new THREE.Mesh(geometry, material);
+            surfaceMesh.rotation.x = -Math.PI / 2;
+            scene.add(surfaceMesh);
+        }
+
+        function createOptimizerVisuals() {
+            Object.keys(CONFIG.colors).forEach(name => {
+                // Current position marker (sphere)
+                const sphereGeometry = new THREE.SphereGeometry(CONFIG.markers.sphereRadius, 16, 16);
+                const sphereMaterial = new THREE.MeshPhongMaterial({ 
+                    color: CONFIG.colors[name],
+                    emissive: CONFIG.colors[name],
+                    emissiveIntensity: 0.3
+                });
+                const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                scene.add(sphere);
+
+                // Pre-allocated trail buffer
+                const trailPositions = new Float32Array(CONFIG.trail.maxPoints * 3);
+                const trailGeometry = new THREE.BufferGeometry();
+                trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+                trailGeometry.setDrawRange(0, 0);
+                
+                const trailMaterial = new THREE.LineBasicMaterial({ 
+                    color: CONFIG.colors[name],
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const trail = new THREE.Line(trailGeometry, trailMaterial);
+                scene.add(trail);
+
+                // Velocity arrow (for momentum-based optimizers)
+                const arrowDir = new THREE.Vector3(1, 0, 0);
+                const arrowOrigin = new THREE.Vector3(0, 0, 0);
+                const arrow = new THREE.ArrowHelper(
+                    arrowDir, 
+                    arrowOrigin, 
+                    CONFIG.markers.arrowLength,
+                    CONFIG.colors[name],
+                    CONFIG.markers.arrowHeadLength,
+                    CONFIG.markers.arrowHeadWidth
+                );
+                arrow.visible = false;
+                scene.add(arrow);
+
+                optimizerObjects[name] = { sphere, trail, trailPositions, arrow };
+            });
+        }
+
+        function getSurfaceHeight(x, y) {
+            const surface = surfaces[state.currentSurface];
+            return surface.func(x, y) * surface.scale;
+        }
+
+        function updateOptimizerVisuals() {
+            Object.keys(state.optimizers).forEach(name => {
+                const opt = state.optimizers[name];
+                const obj = optimizerObjects[name];
+                
+                const isVisible = opt.visible;
+                obj.sphere.visible = isVisible;
+                obj.trail.visible = isVisible;
+
+                if (!isVisible) {
+                    obj.arrow.visible = false;
+                    return;
+                }
+
+                // Update sphere position
+                const z = getSurfaceHeight(opt.x, opt.y);
+                obj.sphere.position.set(opt.x, z + CONFIG.markers.sphereRadius, opt.y);
+
+                // Update trail using pre-allocated buffer
+                if (opt.pathIndex < CONFIG.trail.maxPoints) {
+                    const idx = opt.pathIndex * 3;
+                    obj.trailPositions[idx] = opt.x;
+                    obj.trailPositions[idx + 1] = z + 0.05;
+                    obj.trailPositions[idx + 2] = opt.y;
+                    obj.trail.geometry.attributes.position.needsUpdate = true;
+                    obj.trail.geometry.setDrawRange(0, opt.pathIndex + 1);
+                }
+
+                // Update velocity arrow for momentum-based optimizers
+                if ((name === 'momentum' || name === 'adam') && state.showVelocity) {
+                    let vx, vy;
+                    if (name === 'momentum') {
+                        vx = opt.vx;
+                        vy = opt.vy;
+                    } else {
+                        // For Adam, show the bias-corrected first moment
+                        const t = Math.max(1, opt.t);
+                        vx = opt.m_x / (1 - Math.pow(opt.beta1, t));
+                        vy = opt.m_y / (1 - Math.pow(opt.beta1, t));
+                    }
+
+                    const velMagnitude = Math.sqrt(vx * vx + vy * vy);
+                    
+                    if (velMagnitude > 0.01) {
+                        obj.arrow.visible = true;
+                        obj.arrow.position.set(opt.x, z + 0.3, opt.y);
+                        
+                        // Arrow points in direction of velocity (negative because we subtract)
+                        const dir = new THREE.Vector3(-vx / velMagnitude, 0, -vy / velMagnitude);
+                        obj.arrow.setDirection(dir);
+                        obj.arrow.setLength(
+                            Math.min(velMagnitude * 2, CONFIG.markers.arrowLength),
+                            CONFIG.markers.arrowHeadLength,
+                            CONFIG.markers.arrowHeadWidth
+                        );
+                    } else {
+                        obj.arrow.visible = false;
+                    }
+                } else {
+                    obj.arrow.visible = false;
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // OPTIMIZER STEP FUNCTIONS (CORRECTED)
+        // ═══════════════════════════════════════════════════════════════
+
+        function checkConvergence(opt, gx, gy) {
+            const gradMagnitude = Math.sqrt(gx * gx + gy * gy);
+            const posChange = Math.sqrt(
+                (opt.x - opt.prevX) ** 2 + 
+                (opt.y - opt.prevY) ** 2
+            );
+            
+            return gradMagnitude < CONFIG.convergence.gradientThreshold ||
+                   (state.step > 10 && posChange < CONFIG.convergence.positionChangeThreshold);
+        }
+
+        function stepVanilla() {
+            const opt = state.optimizers.vanilla;
+            if (opt.converged) return;
+            
+            const surface = surfaces[state.currentSurface];
+            const lr = state.learningRate;
+
+            const gx = surface.gradX(opt.x, opt.y);
+            const gy = surface.gradY(opt.x, opt.y);
+
+            opt.prevX = opt.x;
+            opt.prevY = opt.y;
+            
+            opt.x -= lr * gx;
+            opt.y -= lr * gy;
+            opt.pathIndex++;
+            
+            opt.gradMagnitude = Math.sqrt(gx * gx + gy * gy);
+            opt.converged = checkConvergence(opt, gx, gy);
+        }
+
+        // CORRECTED: Standard momentum formulation
+        function stepMomentum() {
+            const opt = state.optimizers.momentum;
+            if (opt.converged) return;
+            
+            const surface = surfaces[state.currentSurface];
+            const lr = state.learningRate;
+
+            const gx = surface.gradX(opt.x, opt.y);
+            const gy = surface.gradY(opt.x, opt.y);
+
+            opt.prevX = opt.x;
+            opt.prevY = opt.y;
+
+            // Correct formulation: v = β*v + gradient (not lr*gradient)
+            opt.vx = opt.beta * opt.vx + gx;
+            opt.vy = opt.beta * opt.vy + gy;
+
+            // Apply learning rate when updating position
+            opt.x -= lr * opt.vx;
+            opt.y -= lr * opt.vy;
+            opt.pathIndex++;
+            
+            opt.converged = checkConvergence(opt, gx, gy) && 
+                           Math.sqrt(opt.vx * opt.vx + opt.vy * opt.vy) < 0.01;
+        }
+
+        function stepRMSprop() {
+            const opt = state.optimizers.rmsprop;
+            if (opt.converged) return;
+            
+            const surface = surfaces[state.currentSurface];
+            const lr = state.learningRate;
+
+            const gx = surface.gradX(opt.x, opt.y);
+            const gy = surface.gradY(opt.x, opt.y);
+
+            opt.prevX = opt.x;
+            opt.prevY = opt.y;
+
+            opt.cache_x = opt.rho * opt.cache_x + (1 - opt.rho) * gx * gx;
+            opt.cache_y = opt.rho * opt.cache_y + (1 - opt.rho) * gy * gy;
+
+            opt.effLR_x = lr / (Math.sqrt(opt.cache_x) + opt.epsilon);
+            opt.effLR_y = lr / (Math.sqrt(opt.cache_y) + opt.epsilon);
+
+            opt.x -= opt.effLR_x * gx;
+            opt.y -= opt.effLR_y * gy;
+            opt.pathIndex++;
+            
+            opt.converged = checkConvergence(opt, gx, gy);
+        }
+
+        function stepAdam() {
+            const opt = state.optimizers.adam;
+            if (opt.converged) return;
+            
+            const surface = surfaces[state.currentSurface];
+            const lr = state.learningRate;
+
+            opt.t++;
+
+            const gx = surface.gradX(opt.x, opt.y);
+            const gy = surface.gradY(opt.x, opt.y);
+
+            opt.prevX = opt.x;
+            opt.prevY = opt.y;
+
+            // Update biased first moment estimate
+            opt.m_x = opt.beta1 * opt.m_x + (1 - opt.beta1) * gx;
+            opt.m_y = opt.beta1 * opt.m_y + (1 - opt.beta1) * gy;
+
+            // Update biased second raw moment estimate
+            opt.v_x = opt.beta2 * opt.v_x + (1 - opt.beta2) * gx * gx;
+            opt.v_y = opt.beta2 * opt.v_y + (1 - opt.beta2) * gy * gy;
+
+            // Bias correction
+            const m_x_hat = opt.m_x / (1 - Math.pow(opt.beta1, opt.t));
+            const m_y_hat = opt.m_y / (1 - Math.pow(opt.beta1, opt.t));
+            const v_x_hat = opt.v_x / (1 - Math.pow(opt.beta2, opt.t));
+            const v_y_hat = opt.v_y / (1 - Math.pow(opt.beta2, opt.t));
+
+            opt.effLR_x = lr / (Math.sqrt(v_x_hat) + opt.epsilon);
+            opt.effLR_y = lr / (Math.sqrt(v_y_hat) + opt.epsilon);
+
+            opt.x -= opt.effLR_x * m_x_hat;
+            opt.y -= opt.effLR_y * m_y_hat;
+            opt.pathIndex++;
+            
+            opt.converged = checkConvergence(opt, gx, gy);
+        }
+
+        function detectEscape() {
+            // Check if momentum escaped while vanilla is stuck
+            if (state.currentSurface === 'local-minima' && !state.escapeDetected) {
+                const vanilla = state.optimizers.vanilla;
+                const momentum = state.optimizers.momentum;
+                const surface = surfaces[state.currentSurface];
+                
+                const vanillaLoss = surface.func(vanilla.x, vanilla.y);
+                const momentumLoss = surface.func(momentum.x, momentum.y);
+                
+                // Vanilla converged but momentum found a better spot
+                if (vanilla.converged && !momentum.converged && momentumLoss < vanillaLoss - 0.3) {
+                    state.escapeDetected = true;
+                    showEscapeNotification();
+                }
+            }
+        }
+
+        function showEscapeNotification() {
+            const notification = document.getElementById('escape-notification');
+            notification.classList.remove('hidden');
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        function stepAllOptimizers() {
+            stepVanilla();
+            stepMomentum();
+            stepRMSprop();
+            stepAdam();
+            state.step++;
+            detectEscape();
+            updateUI();
+            updateOptimizerVisuals();
+        }
+
+        function resetOptimizers(startX, startY) {
+            const surface = surfaces[state.currentSurface];
+            const sx = startX ?? surface.startX;
+            const sy = startY ?? surface.startY;
+            
+            state.step = 0;
+            state.escapeDetected = false;
+            
+            // Preserve visibility settings
+            const visibilitySettings = {};
+            if (state.optimizers.vanilla) {
+                Object.keys(state.optimizers).forEach(name => {
+                    visibilitySettings[name] = state.optimizers[name].visible;
+                });
+            }
+            
+            state.optimizers = createOptimizerState(sx, sy);
+            
+            // Restore visibility
+            Object.keys(visibilitySettings).forEach(name => {
+                state.optimizers[name].visible = visibilitySettings[name];
+            });
+            
+            // Sync parameter values from sliders
+            state.optimizers.momentum.beta = parseFloat(document.getElementById('momentum-beta-slider').value);
+            state.optimizers.rmsprop.rho = parseFloat(document.getElementById('rmsprop-rho-slider').value);
+            state.optimizers.adam.beta1 = parseFloat(document.getElementById('adam-beta1-slider').value);
+            state.optimizers.adam.beta2 = parseFloat(document.getElementById('adam-beta2-slider').value);
+
+            // Reset trail buffers
+            Object.keys(optimizerObjects).forEach(name => {
+                const obj = optimizerObjects[name];
+                obj.trailPositions.fill(0);
+                obj.trail.geometry.setDrawRange(0, 0);
+                obj.trail.geometry.attributes.position.needsUpdate = true;
+                
+                // Set initial point
+                const z = getSurfaceHeight(sx, sy);
+                obj.trailPositions[0] = sx;
+                obj.trailPositions[1] = z + 0.05;
+                obj.trailPositions[2] = sy;
+                obj.trail.geometry.setDrawRange(0, 1);
+            });
+
+            updateUI();
+            updateOptimizerVisuals();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UI UPDATES
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateUI() {
+            const surface = surfaces[state.currentSurface];
+            document.getElementById('step-counter').textContent = `Step: ${state.step}`;
+
+            Object.keys(state.optimizers).forEach(name => {
+                const opt = state.optimizers[name];
+                const loss = surface.func(opt.x, opt.y);
+                
+                document.getElementById(`${name}-x`).textContent = opt.x.toFixed(2);
+                document.getElementById(`${name}-y`).textContent = opt.y.toFixed(2);
+                document.getElementById(`${name}-loss`).textContent = loss.toFixed(4);
+
+                // Optimizer-specific displays
+                if (name === 'vanilla') {
+                    document.getElementById('vanilla-grad').textContent = 
+                        (opt.gradMagnitude || 0).toFixed(4);
+                }
+                if (name === 'momentum') {
+                    document.getElementById('momentum-vx').textContent = opt.vx.toFixed(3);
+                    document.getElementById('momentum-vy').textContent = opt.vy.toFixed(3);
+                }
+                if (name === 'rmsprop') {
+                    document.getElementById('rmsprop-elr-x').textContent = (opt.effLR_x || 0).toFixed(4);
+                    document.getElementById('rmsprop-elr-y').textContent = (opt.effLR_y || 0).toFixed(4);
+                }
+                if (name === 'adam') {
+                    document.getElementById('adam-elr-x').textContent = (opt.effLR_x || 0).toFixed(4);
+                    document.getElementById('adam-elr-y').textContent = (opt.effLR_y || 0).toFixed(4);
+                }
+
+                // Update status
+                const statusEl = document.getElementById(`${name}-status`);
+                const card = document.getElementById(`${name}-card`);
+                
+                if (opt.converged) {
+                    statusEl.textContent = 'Converged';
+                    statusEl.className = 'text-[10px] px-2 py-0.5 rounded bg-green-900/50 text-green-400';
+                    card.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+                } else {
+                    statusEl.textContent = 'Running';
+                    statusEl.className = 'text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400';
+                    card.style.borderColor = '';
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // EVENT HANDLERS
+        // ═══════════════════════════════════════════════════════════════
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            state.isPlaying = false;
+            document.getElementById('btn-play').textContent = '▶ Play';
+            resetOptimizers();
+        });
+
+        document.getElementById('btn-step').addEventListener('click', stepAllOptimizers);
+
+        document.getElementById('btn-play').addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            document.getElementById('btn-play').textContent = state.isPlaying ? '⏸ Pause' : '▶ Play';
+        });
+
+        document.getElementById('lr-slider').addEventListener('input', (e) => {
+            state.learningRate = parseFloat(e.target.value);
+            document.getElementById('lr-value').textContent = state.learningRate.toFixed(3);
+        });
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            state.speed = parseInt(e.target.value);
+            document.getElementById('speed-value').textContent = state.speed;
+        });
+
+        // Optimizer-specific parameter sliders
+        document.getElementById('momentum-beta-slider').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('momentum-beta-value').textContent = value.toFixed(2);
+            if (state.optimizers.momentum) {
+                state.optimizers.momentum.beta = value;
+            }
+        });
+
+        document.getElementById('rmsprop-rho-slider').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('rmsprop-rho-value').textContent = value.toFixed(3);
+            if (state.optimizers.rmsprop) {
+                state.optimizers.rmsprop.rho = value;
+            }
+        });
+
+        document.getElementById('adam-beta1-slider').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('adam-beta1-value').textContent = value.toFixed(2);
+            if (state.optimizers.adam) {
+                state.optimizers.adam.beta1 = value;
+            }
+        });
+
+        document.getElementById('adam-beta2-slider').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('adam-beta2-value').textContent = value.toFixed(4);
+            if (state.optimizers.adam) {
+                state.optimizers.adam.beta2 = value;
+            }
+        });
+
+        document.querySelectorAll('.surface-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.surface-btn').forEach(b => {
+                    b.className = 'surface-btn px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs border border-slate-700 transition';
+                });
+                btn.className = 'surface-btn px-2 py-1.5 bg-cyan-900/50 hover:bg-cyan-800/50 rounded text-xs border border-cyan-700/50 text-cyan-300 transition active';
+                state.currentSurface = btn.dataset.surface;
+                createSurface();
+                resetOptimizers();
+            });
+        });
+
+        ['vanilla', 'momentum', 'rmsprop', 'adam'].forEach(name => {
+            document.getElementById(`show-${name}`).addEventListener('change', (e) => {
+                if (state.optimizers[name]) {
+                    state.optimizers[name].visible = e.target.checked;
+                    updateOptimizerVisuals();
+                }
+            });
+        });
+
+        document.getElementById('show-velocity').addEventListener('change', (e) => {
+            state.showVelocity = e.target.checked;
+            updateOptimizerVisuals();
+        });
+
+        document.getElementById('btn-3d').addEventListener('click', () => {
+            state.is3D = true;
+            camera.position.set(
+                CONFIG.camera.position3D.x, 
+                CONFIG.camera.position3D.y, 
+                CONFIG.camera.position3D.z
+            );
+            controls.target.set(CONFIG.camera.lookAt.x, CONFIG.camera.lookAt.y, CONFIG.camera.lookAt.z);
+            controls.enabled = true;
+            document.getElementById('btn-3d').className = 'flex-1 px-3 py-1.5 bg-cyan-900/50 rounded-lg text-xs font-medium border border-cyan-700/50 text-cyan-300';
+            document.getElementById('btn-2d').className = 'flex-1 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium border border-slate-700';
+        });
+
+        document.getElementById('btn-2d').addEventListener('click', () => {
+            state.is3D = false;
+            camera.position.set(
+                CONFIG.camera.position2D.x, 
+                CONFIG.camera.position2D.y, 
+                CONFIG.camera.position2D.z
+            );
+            controls.target.set(0, 0, 0);
+            controls.enabled = false; // Disable rotation in 2D view
+            document.getElementById('btn-2d').className = 'flex-1 px-3 py-1.5 bg-cyan-900/50 rounded-lg text-xs font-medium border border-cyan-700/50 text-cyan-300';
+            document.getElementById('btn-3d').className = 'flex-1 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium border border-slate-700';
+        });
+
+        // Double-click to set starting point
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        renderer.domElement.addEventListener('dblclick', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(surfaceMesh);
+
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                // Note: Due to rotation, Three.js Z maps to mathematical Y
+                resetOptimizers(point.x, point.z);
+                document.getElementById('info-text').textContent = 
+                    `Starting point set to (${point.x.toFixed(2)}, ${point.z.toFixed(2)})`;
+            }
+        });
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // ANIMATION LOOP
+        // ═══════════════════════════════════════════════════════════════
+
+        let lastStepTime = 0;
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            // Variable speed: interval = 200ms at speed 1, 10ms at speed 20
+            const stepInterval = Math.max(10, 210 - state.speed * 10);
+
+            if (state.isPlaying && time - lastStepTime > stepInterval) {
+                stepAllOptimizers();
+                lastStepTime = time;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        createSurface();
+        createOptimizerVisuals();
+        resetOptimizers();
+        animate(0);
+    </script>
+</body>
+</html>

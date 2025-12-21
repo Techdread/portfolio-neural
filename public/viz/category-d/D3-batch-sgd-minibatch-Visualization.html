@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3: Batch vs Stochastic vs Mini-batch Gradient Descent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0e1a;
+            --bg-panel: rgba(15, 23, 42, 0.92);
+            --accent-cyan: #22d3ee;
+            --text-primary: #f1f5f9;
+            --border-subtle: rgba(148, 163, 184, 0.15);
+        }
+
+        * { box-sizing: border-box; }
+        
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: var(--bg-deep);
+            color: var(--text-primary); 
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        #canvas-container { 
+            position: absolute; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            z-index: 0; 
+        }
+
+        .glass-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            margin-top: -5px;
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #1e293b;
+            border-radius: 2px;
+        }
+
+        .legend-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .noise-bar {
+            height: 6px;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        #loss-canvas, #data-canvas {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .method-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .method-card:hover {
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+
+        .method-card.active {
+            border-color: var(--accent-cyan);
+        }
+
+        .sample-dot {
+            transition: all 0.2s ease;
+        }
+
+        .view-btn {
+            transition: all 0.2s ease;
+        }
+        .view-btn.active {
+            background: rgba(34, 211, 238, 0.2);
+            border-color: rgba(34, 211, 238, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <!-- Left Panel - Controls -->
+    <div class="absolute top-4 left-4 bottom-4 pointer-events-none flex flex-col" style="width: 280px;">
+        <div class="glass-panel p-4 rounded-2xl pointer-events-auto flex-1 overflow-y-auto">
+            <!-- Header -->
+            <h1 class="text-lg font-bold mb-1">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Gradient Descent</span>
+                <span class="text-slate-400 text-sm font-normal ml-1">Methods</span>
+            </h1>
+            <p class="text-[10px] text-slate-400 mb-3">
+                Compare Batch, Stochastic, and Mini-batch GD
+            </p>
+            
+            <!-- Controls -->
+            <div class="flex gap-1.5 mb-3">
+                <button id="btn-reset" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700">
+                    ↺ Reset
+                </button>
+                <button id="btn-step" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700">
+                    ⏭ Step
+                </button>
+                <button id="btn-play" class="flex-1 px-2.5 py-1.5 bg-cyan-900/50 hover:bg-cyan-800/50 rounded-lg text-xs font-medium transition border border-cyan-700/50 text-cyan-300">
+                    ▶ Play
+                </button>
+            </div>
+
+            <!-- View Toggle -->
+            <div class="flex gap-1.5 mb-3">
+                <button id="btn-view-3d" class="view-btn flex-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700 active">
+                    3D Surface
+                </button>
+                <button id="btn-view-2d" class="view-btn flex-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium transition border border-slate-700">
+                    2D Contour
+                </button>
+            </div>
+
+            <!-- Speed -->
+            <div class="mb-3">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-medium text-slate-300">Speed:</label>
+                    <span id="speed-value" class="mono text-xs text-cyan-400">5</span>
+                </div>
+                <input type="range" id="speed-slider" min="1" max="20" step="1" value="5">
+            </div>
+
+            <!-- Mini-batch Size -->
+            <div class="mb-3">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-medium text-slate-300">Mini-batch Size:</label>
+                    <span id="batch-value" class="mono text-xs text-cyan-400">16</span>
+                </div>
+                <input type="range" id="batch-slider" min="1" max="100" step="1" value="16">
+                <div class="flex justify-between text-[9px] text-slate-500 mt-0.5">
+                    <span>1 (SGD)</span>
+                    <span>Full Batch</span>
+                </div>
+            </div>
+
+            <!-- Learning Rate -->
+            <div class="mb-3">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-medium text-slate-300">Learning Rate:</label>
+                    <span id="lr-value" class="mono text-xs text-cyan-400">0.02</span>
+                </div>
+                <input type="range" id="lr-slider" min="0.001" max="0.1" step="0.001" value="0.02">
+            </div>
+
+            <!-- Data Size -->
+            <div class="mb-3">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-xs font-medium text-slate-300">Dataset Size:</label>
+                    <span id="data-value" class="mono text-xs text-slate-400">100</span>
+                </div>
+                <input type="range" id="data-slider" min="20" max="200" step="10" value="100">
+            </div>
+
+            <div class="border-t border-slate-700/50 my-3"></div>
+
+            <!-- Methods Legend -->
+            <h3 class="text-[10px] font-semibold text-slate-400 mb-2 uppercase tracking-wider">Methods</h3>
+            <div class="space-y-2">
+                <!-- Batch GD -->
+                <div id="card-batch" class="method-card p-2.5 rounded-lg bg-slate-800/50 border border-slate-700 active">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="legend-line" style="background: #f43f5e;"></div>
+                        <span class="text-xs font-medium">Batch GD</span>
+                        <span class="ml-auto text-[9px] text-slate-500">All samples</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500">Noise:</span>
+                        <div class="flex-1 bg-slate-700 rounded-full h-1">
+                            <div class="noise-bar bg-green-500" style="width: 5%; height: 100%;"></div>
+                        </div>
+                        <span class="text-[9px] text-green-400">Low</span>
+                    </div>
+                </div>
+
+                <!-- Mini-batch GD -->
+                <div id="card-minibatch" class="method-card p-2.5 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="legend-line" style="background: #34d399;"></div>
+                        <span class="text-xs font-medium">Mini-batch</span>
+                        <span id="minibatch-samples" class="ml-auto text-[9px] text-slate-500">16 samples</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500">Noise:</span>
+                        <div class="flex-1 bg-slate-700 rounded-full h-1">
+                            <div id="minibatch-noise" class="noise-bar bg-amber-500" style="width: 30%; height: 100%;"></div>
+                        </div>
+                        <span id="minibatch-noise-label" class="text-[9px] text-amber-400">Medium</span>
+                    </div>
+                </div>
+
+                <!-- Stochastic GD -->
+                <div id="card-sgd" class="method-card p-2.5 rounded-lg bg-slate-800/50 border border-slate-700">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="legend-line" style="background: #38bdf8;"></div>
+                        <span class="text-xs font-medium">SGD</span>
+                        <span class="ml-auto text-[9px] text-slate-500">1 sample</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] text-slate-500">Noise:</span>
+                        <div class="flex-1 bg-slate-700 rounded-full h-1">
+                            <div class="noise-bar bg-red-500" style="width: 95%; height: 100%;"></div>
+                        </div>
+                        <span class="text-[9px] text-red-400">High</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-700/50 my-3"></div>
+
+            <!-- Current Parameters -->
+            <h3 class="text-[10px] font-semibold text-slate-400 mb-2 uppercase tracking-wider">Parameters (w, b)</h3>
+            <div class="space-y-1.5 text-[10px] mono">
+                <div class="flex justify-between">
+                    <span style="color: #f43f5e;">Batch:</span>
+                    <span>(<span id="batch-w">0.00</span>, <span id="batch-b">0.00</span>)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span style="color: #34d399;">Mini-batch:</span>
+                    <span>(<span id="minibatch-w">0.00</span>, <span id="minibatch-b">0.00</span>)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span style="color: #38bdf8;">SGD:</span>
+                    <span>(<span id="sgd-w">0.00</span>, <span id="sgd-b">0.00</span>)</span>
+                </div>
+                <div class="flex justify-between text-slate-500 mt-1">
+                    <span>True:</span>
+                    <span>(<span id="true-w">2.00</span>, <span id="true-b">1.00</span>)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel - Charts -->
+    <div class="absolute top-4 right-4 bottom-4 pointer-events-none flex flex-col" style="width: 320px;">
+        <div class="glass-panel p-4 rounded-2xl pointer-events-auto flex-1 overflow-y-auto">
+            <!-- Step Counter -->
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Training Progress</h2>
+                <span id="step-counter" class="mono text-xs px-2 py-0.5 rounded bg-slate-800 text-cyan-400">Step: 0</span>
+            </div>
+
+            <!-- Data Canvas -->
+            <div class="mb-3">
+                <div class="text-[10px] text-slate-500 mb-1">Dataset & Regression Lines</div>
+                <canvas id="data-canvas" width="288" height="150"></canvas>
+            </div>
+
+            <!-- Loss Canvas -->
+            <div class="mb-3">
+                <div class="text-[10px] text-slate-500 mb-1">Loss Over Time (log scale)</div>
+                <canvas id="loss-canvas" width="288" height="120"></canvas>
+                <div class="flex justify-center gap-3 mt-1">
+                    <div class="flex items-center gap-1">
+                        <div class="w-2.5 h-0.5 rounded" style="background: #f43f5e;"></div>
+                        <span class="text-[8px] text-slate-500">Batch</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <div class="w-2.5 h-0.5 rounded" style="background: #34d399;"></div>
+                        <span class="text-[8px] text-slate-500">Mini-batch</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <div class="w-2.5 h-0.5 rounded" style="background: #38bdf8;"></div>
+                        <span class="text-[8px] text-slate-500">SGD</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-700/50 my-3"></div>
+
+            <!-- Loss Values -->
+            <h3 class="text-[10px] font-semibold text-slate-400 mb-2 uppercase tracking-wider">Current Loss (MSE)</h3>
+            <div class="grid grid-cols-3 gap-2 text-center mb-3">
+                <div class="bg-slate-800/50 rounded-lg p-2">
+                    <div class="text-[9px] text-slate-500 mb-0.5">Batch</div>
+                    <div id="batch-loss" class="mono text-xs" style="color: #f43f5e;">0.000</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-2">
+                    <div class="text-[9px] text-slate-500 mb-0.5">Mini-batch</div>
+                    <div id="minibatch-loss" class="mono text-xs" style="color: #34d399;">0.000</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-lg p-2">
+                    <div class="text-[9px] text-slate-500 mb-0.5">SGD</div>
+                    <div id="sgd-loss" class="mono text-xs" style="color: #38bdf8;">0.000</div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-700/50 my-3"></div>
+
+            <!-- Explanation -->
+            <h3 class="text-[10px] font-semibold text-slate-400 mb-2 uppercase tracking-wider">What's Happening</h3>
+            <p id="explanation" class="text-[11px] text-slate-300 leading-relaxed">
+                Watch how different batch sizes affect the optimization path through parameter space. Batch GD computes the exact gradient using all data, while SGD uses just one sample, creating a noisy but faster path.
+            </p>
+
+            <!-- Key Insight -->
+            <div class="bg-slate-800/50 rounded-lg p-2.5 mt-3">
+                <div class="text-[10px] text-amber-400 font-medium mb-1">💡 Key Insight</div>
+                <p id="insight" class="text-[10px] text-slate-400">
+                    The 3D surface shows the loss landscape. All optimizers seek the minimum (lowest point), but take different paths based on how much data they use per step.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Center - Formula -->
+    <div class="absolute bottom-4 pointer-events-none" style="left: 300px; right: 340px;">
+        <div class="glass-panel px-4 py-2.5 rounded-2xl pointer-events-auto mx-auto w-fit">
+            <div class="mono text-xs text-center">
+                <span class="text-slate-500">Gradient:</span>
+                <span class="text-green-400 ml-2">∇L</span>
+                <span class="text-slate-400"> = </span>
+                <span class="text-slate-400">1/</span><span class="text-amber-400">n</span>
+                <span class="text-slate-400"> Σ (</span>
+                <span class="text-cyan-400">wx + b</span>
+                <span class="text-slate-400"> - </span>
+                <span class="text-purple-400">y</span>
+                <span class="text-slate-400">) · </span>
+                <span class="text-cyan-400">[x, 1]</span>
+            </div>
+            <div class="text-[9px] text-slate-500 text-center mt-1">
+                <span class="text-amber-400">n</span> = batch size (1 for SGD, all for Batch, k for Mini-batch)
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ═══════════════════════════════════════════════════════════════
+        // CONFIGURATION
+        // ═══════════════════════════════════════════════════════════════
+
+        const CONFIG = {
+            colors: {
+                batch: 0xf43f5e,
+                minibatch: 0x34d399,
+                sgd: 0x38bdf8
+            },
+            surface: {
+                size: 10,
+                resolution: 60,
+                heightScale: 0.15
+            },
+            trail: {
+                maxPoints: 500
+            },
+            startParams: { w: -1.5, b: -2 },
+            trueParams: { w: 2, b: 1 }
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════
+
+        const state = {
+            dataSize: 100,
+            miniBatchSize: 16,
+            learningRate: 0.02,
+            speed: 5,
+            isPlaying: false,
+            step: 0,
+            view: '3d', // '3d' or '2d'
+            data: [],
+            optimizers: {
+                batch: { 
+                    w: CONFIG.startParams.w, 
+                    b: CONFIG.startParams.b, 
+                    lossHistory: [],
+                    path: [{ w: CONFIG.startParams.w, b: CONFIG.startParams.b }],
+                    pathIndex: 0
+                },
+                minibatch: { 
+                    w: CONFIG.startParams.w, 
+                    b: CONFIG.startParams.b, 
+                    lossHistory: [],
+                    path: [{ w: CONFIG.startParams.w, b: CONFIG.startParams.b }],
+                    pathIndex: 0
+                },
+                sgd: { 
+                    w: CONFIG.startParams.w, 
+                    b: CONFIG.startParams.b, 
+                    lossHistory: [],
+                    path: [{ w: CONFIG.startParams.w, b: CONFIG.startParams.b }],
+                    pathIndex: 0
+                }
+            },
+            lastUsedSamples: {
+                batch: [],
+                minibatch: [],
+                sgd: []
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // DATA GENERATION
+        // ═══════════════════════════════════════════════════════════════
+
+        function generateData() {
+            state.data = [];
+            for (let i = 0; i < state.dataSize; i++) {
+                const x = Math.random() * 6 - 3;
+                const noise = (Math.random() - 0.5) * 2.5;
+                const y = CONFIG.trueParams.w * x + CONFIG.trueParams.b + noise;
+                state.data.push({ x, y });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // LOSS & GRADIENT COMPUTATION
+        // ═══════════════════════════════════════════════════════════════
+
+        // Loss for given w, b over all data (for visualization)
+        function computeLossForSurface(w, b) {
+            let totalLoss = 0;
+            for (const point of state.data) {
+                const pred = w * point.x + b;
+                const error = pred - point.y;
+                totalLoss += error * error;
+            }
+            return totalLoss / (2 * state.data.length);
+        }
+
+        // Loss for given w, b over specific samples
+        function computeLoss(w, b, samples) {
+            if (samples.length === 0) return 0;
+            let totalLoss = 0;
+            for (const point of samples) {
+                const pred = w * point.x + b;
+                const error = pred - point.y;
+                totalLoss += error * error;
+            }
+            return totalLoss / (2 * samples.length);
+        }
+
+        function computeGradient(w, b, samples) {
+            let dw = 0, db = 0;
+            for (const point of samples) {
+                const pred = w * point.x + b;
+                const error = pred - point.y;
+                dw += error * point.x;
+                db += error;
+            }
+            return { dw: dw / samples.length, db: db / samples.length };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // GRADIENT DESCENT STEP
+        // ═══════════════════════════════════════════════════════════════
+
+        function getRandomSamples(n) {
+            const samples = [];
+            const indices = [];
+            const used = new Set();
+            while (indices.length < Math.min(n, state.data.length)) {
+                const idx = Math.floor(Math.random() * state.data.length);
+                if (!used.has(idx)) {
+                    used.add(idx);
+                    indices.push(idx);
+                    samples.push(state.data[idx]);
+                }
+            }
+            return { samples, indices };
+        }
+
+        function stepOptimizer(name, samples) {
+            const opt = state.optimizers[name];
+            const { dw, db } = computeGradient(opt.w, opt.b, samples);
+            
+            opt.w -= state.learningRate * dw;
+            opt.b -= state.learningRate * db;
+            
+            // Record path
+            if (opt.pathIndex < CONFIG.trail.maxPoints - 1) {
+                opt.pathIndex++;
+                opt.path.push({ w: opt.w, b: opt.b });
+            }
+            
+            // Record loss on FULL dataset (true loss)
+            const loss = computeLoss(opt.w, opt.b, state.data);
+            opt.lossHistory.push(loss);
+            if (opt.lossHistory.length > 300) {
+                opt.lossHistory.shift();
+            }
+        }
+
+        function stepAll() {
+            // Batch: use all data
+            state.lastUsedSamples.batch = state.data.map((_, i) => i);
+            stepOptimizer('batch', state.data);
+
+            // Mini-batch: random subset
+            const { samples: minibatchSamples, indices: minibatchIndices } = getRandomSamples(state.miniBatchSize);
+            state.lastUsedSamples.minibatch = minibatchIndices;
+            stepOptimizer('minibatch', minibatchSamples);
+
+            // SGD: single random sample
+            const { samples: sgdSamples, indices: sgdIndices } = getRandomSamples(1);
+            state.lastUsedSamples.sgd = sgdIndices;
+            stepOptimizer('sgd', sgdSamples);
+
+            state.step++;
+            updateUI();
+            updateTrails();
+            updateMarkers();
+            drawDataCanvas();
+            drawLossCanvas();
+        }
+
+        function reset() {
+            state.step = 0;
+            state.isPlaying = false;
+            document.getElementById('btn-play').textContent = '▶ Play';
+            
+            generateData();
+            
+            const initialLoss = computeLoss(CONFIG.startParams.w, CONFIG.startParams.b, state.data);
+            
+            for (const name of ['batch', 'minibatch', 'sgd']) {
+                const opt = state.optimizers[name];
+                opt.w = CONFIG.startParams.w;
+                opt.b = CONFIG.startParams.b;
+                opt.lossHistory = [initialLoss];
+                opt.path = [{ w: CONFIG.startParams.w, b: CONFIG.startParams.b }];
+                opt.pathIndex = 0;
+            }
+            
+            state.lastUsedSamples = { batch: [], minibatch: [], sgd: [] };
+            
+            createLossSurface();
+            resetTrails();
+            updateMarkers();
+            updateUI();
+            drawDataCanvas();
+            drawLossCanvas();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UI UPDATES
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateUI() {
+            document.getElementById('step-counter').textContent = `Step: ${state.step}`;
+            
+            // Loss values
+            for (const name of ['batch', 'minibatch', 'sgd']) {
+                const opt = state.optimizers[name];
+                const loss = opt.lossHistory.slice(-1)[0] || 0;
+                document.getElementById(`${name}-loss`).textContent = loss.toFixed(3);
+                document.getElementById(`${name}-w`).textContent = opt.w.toFixed(2);
+                document.getElementById(`${name}-b`).textContent = opt.b.toFixed(2);
+            }
+
+            // Noise indicator
+            const noiseLevel = Math.max(5, 100 - (state.miniBatchSize / state.dataSize) * 95);
+            document.getElementById('minibatch-noise').style.width = noiseLevel + '%';
+            document.getElementById('minibatch-samples').textContent = `${state.miniBatchSize} samples`;
+            
+            // Noise label color
+            const noiseLabel = document.getElementById('minibatch-noise-label');
+            if (noiseLevel > 70) {
+                noiseLabel.textContent = 'High';
+                noiseLabel.className = 'text-[9px] text-red-400';
+            } else if (noiseLevel > 30) {
+                noiseLabel.textContent = 'Medium';
+                noiseLabel.className = 'text-[9px] text-amber-400';
+            } else {
+                noiseLabel.textContent = 'Low';
+                noiseLabel.className = 'text-[9px] text-green-400';
+            }
+
+            // Update insight based on progress
+            const insight = document.getElementById('insight');
+            const batchLoss = state.optimizers.batch.lossHistory.slice(-1)[0] || 999;
+            const sgdLoss = state.optimizers.sgd.lossHistory.slice(-1)[0] || 999;
+            
+            if (state.step === 0) {
+                insight.textContent = 'All three methods start at the same point. Watch how their paths differ as they search for the minimum.';
+            } else if (state.step < 20) {
+                insight.textContent = 'Notice how SGD (blue) takes a much more erratic path than Batch (red). Mini-batch (green) is in between.';
+            } else if (batchLoss < 1 && sgdLoss > batchLoss * 1.5) {
+                insight.textContent = 'SGD has higher variance but can sometimes escape local minima. Batch GD follows the true gradient direction.';
+            } else {
+                insight.textContent = 'All methods converge toward the optimum, but with different noise levels. In practice, mini-batch often works best.';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DATA CANVAS (2D regression view)
+        // ═══════════════════════════════════════════════════════════════
+
+        const dataCanvas = document.getElementById('data-canvas');
+        const dataCtx = dataCanvas.getContext('2d');
+
+        function drawDataCanvas() {
+            const width = dataCanvas.width;
+            const height = dataCanvas.height;
+            const padding = 25;
+
+            dataCtx.clearRect(0, 0, width, height);
+
+            const xMin = -3.5, xMax = 3.5;
+            const yMin = -10, yMax = 12;
+
+            const scaleX = (x) => padding + ((x - xMin) / (xMax - xMin)) * (width - 2 * padding);
+            const scaleY = (y) => height - padding - ((y - yMin) / (yMax - yMin)) * (height - 2 * padding);
+
+            // Grid
+            dataCtx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+            dataCtx.lineWidth = 1;
+            for (let x = -3; x <= 3; x++) {
+                dataCtx.beginPath();
+                dataCtx.moveTo(scaleX(x), padding);
+                dataCtx.lineTo(scaleX(x), height - padding);
+                dataCtx.stroke();
+            }
+            for (let y = -8; y <= 10; y += 4) {
+                dataCtx.beginPath();
+                dataCtx.moveTo(padding, scaleY(y));
+                dataCtx.lineTo(width - padding, scaleY(y));
+                dataCtx.stroke();
+            }
+
+            // Axes labels
+            dataCtx.fillStyle = 'rgba(148, 163, 184, 0.5)';
+            dataCtx.font = '9px JetBrains Mono';
+            dataCtx.fillText('x', width - 15, height - 10);
+            dataCtx.fillText('y', 5, 15);
+
+            // Data points (highlight used samples for SGD)
+            state.data.forEach((point, idx) => {
+                const isUsedBySGD = state.lastUsedSamples.sgd.includes(idx);
+                const isUsedByMinibatch = state.lastUsedSamples.minibatch.includes(idx);
+                
+                if (isUsedBySGD) {
+                    dataCtx.fillStyle = 'rgba(56, 189, 248, 0.9)';
+                    dataCtx.beginPath();
+                    dataCtx.arc(scaleX(point.x), scaleY(point.y), 4, 0, Math.PI * 2);
+                    dataCtx.fill();
+                } else if (isUsedByMinibatch) {
+                    dataCtx.fillStyle = 'rgba(52, 211, 153, 0.6)';
+                    dataCtx.beginPath();
+                    dataCtx.arc(scaleX(point.x), scaleY(point.y), 3, 0, Math.PI * 2);
+                    dataCtx.fill();
+                } else {
+                    dataCtx.fillStyle = 'rgba(148, 163, 184, 0.3)';
+                    dataCtx.beginPath();
+                    dataCtx.arc(scaleX(point.x), scaleY(point.y), 2, 0, Math.PI * 2);
+                    dataCtx.fill();
+                }
+            });
+
+            // True line (dashed)
+            dataCtx.setLineDash([4, 4]);
+            dataCtx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+            dataCtx.lineWidth = 1;
+            dataCtx.beginPath();
+            dataCtx.moveTo(scaleX(xMin), scaleY(CONFIG.trueParams.w * xMin + CONFIG.trueParams.b));
+            dataCtx.lineTo(scaleX(xMax), scaleY(CONFIG.trueParams.w * xMax + CONFIG.trueParams.b));
+            dataCtx.stroke();
+            dataCtx.setLineDash([]);
+
+            // Regression lines
+            const drawLine = (w, b, color) => {
+                dataCtx.strokeStyle = color;
+                dataCtx.lineWidth = 2;
+                dataCtx.beginPath();
+                dataCtx.moveTo(scaleX(xMin), scaleY(w * xMin + b));
+                dataCtx.lineTo(scaleX(xMax), scaleY(w * xMax + b));
+                dataCtx.stroke();
+            };
+
+            drawLine(state.optimizers.batch.w, state.optimizers.batch.b, '#f43f5e');
+            drawLine(state.optimizers.minibatch.w, state.optimizers.minibatch.b, '#34d399');
+            drawLine(state.optimizers.sgd.w, state.optimizers.sgd.b, '#38bdf8');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // LOSS CANVAS
+        // ═══════════════════════════════════════════════════════════════
+
+        const lossCanvas = document.getElementById('loss-canvas');
+        const lossCtx = lossCanvas.getContext('2d');
+
+        function drawLossCanvas() {
+            const width = lossCanvas.width;
+            const height = lossCanvas.height;
+
+            lossCtx.clearRect(0, 0, width, height);
+
+            const allLosses = [
+                ...state.optimizers.batch.lossHistory,
+                ...state.optimizers.minibatch.lossHistory,
+                ...state.optimizers.sgd.lossHistory
+            ];
+            
+            if (allLosses.length === 0) return;
+
+            // Log scale
+            const logLosses = allLosses.map(l => Math.log10(Math.max(0.001, l)));
+            const maxLog = Math.max(...logLosses, 1);
+            const minLog = Math.min(...logLosses, -2);
+            const range = Math.max(maxLog - minLog, 0.1);
+
+            // Grid
+            lossCtx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+            lossCtx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = 10 + (i / 4) * (height - 20);
+                lossCtx.beginPath();
+                lossCtx.moveTo(0, y);
+                lossCtx.lineTo(width, y);
+                lossCtx.stroke();
+            }
+
+            // Draw curves
+            const drawCurve = (history, color) => {
+                if (history.length < 2) return;
+                
+                lossCtx.strokeStyle = color;
+                lossCtx.lineWidth = 1.5;
+                lossCtx.beginPath();
+                
+                history.forEach((loss, i) => {
+                    const logLoss = Math.log10(Math.max(0.001, loss));
+                    const x = (i / Math.max(history.length - 1, 1)) * width;
+                    const y = 10 + ((maxLog - logLoss) / range) * (height - 20);
+                    
+                    if (i === 0) lossCtx.moveTo(x, y);
+                    else lossCtx.lineTo(x, y);
+                });
+                lossCtx.stroke();
+            };
+
+            drawCurve(state.optimizers.batch.lossHistory, '#f43f5e');
+            drawCurve(state.optimizers.minibatch.lossHistory, '#34d399');
+            drawCurve(state.optimizers.sgd.lossHistory, '#38bdf8');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // THREE.JS SETUP
+        // ═══════════════════════════════════════════════════════════════
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0e1a);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(12, 10, 12);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 1, 0);
+        controls.maxPolarAngle = Math.PI / 2.1;
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+
+        // ═══════════════════════════════════════════════════════════════
+        // 3D LOSS SURFACE
+        // ═══════════════════════════════════════════════════════════════
+
+        let lossSurfaceMesh;
+
+        function createLossSurface() {
+            // Remove old surface
+            if (lossSurfaceMesh) {
+                scene.remove(lossSurfaceMesh);
+                lossSurfaceMesh.geometry.dispose();
+                lossSurfaceMesh.material.dispose();
+            }
+
+            const size = CONFIG.surface.size;
+            const res = CONFIG.surface.resolution;
+            const geometry = new THREE.PlaneGeometry(size, size, res, res);
+            
+            const positions = geometry.attributes.position.array;
+            const colors = new Float32Array(positions.length);
+
+            // Map w to x, b to z, loss to y
+            // w range: -3 to 5, b range: -4 to 4
+            const wMin = -3, wMax = 5;
+            const bMin = -4, bMax = 4;
+
+            let maxLoss = 0;
+            const losses = [];
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const localX = positions[i];
+                const localZ = positions[i + 1];
+                
+                // Map to w, b coordinates
+                const w = wMin + ((localX + size/2) / size) * (wMax - wMin);
+                const b = bMin + ((localZ + size/2) / size) * (bMax - bMin);
+                
+                const loss = computeLossForSurface(w, b);
+                losses.push(loss);
+                maxLoss = Math.max(maxLoss, loss);
+            }
+
+            // Normalize and set heights
+            for (let i = 0, j = 0; i < positions.length; i += 3, j++) {
+                const loss = losses[j];
+                const normalizedLoss = Math.sqrt(loss / maxLoss); // sqrt for better visualization
+                positions[i + 2] = normalizedLoss * 6; // Height
+
+                // Color based on loss
+                const color = new THREE.Color();
+                color.setHSL(0.6 - normalizedLoss * 0.5, 0.7, 0.3 + normalizedLoss * 0.2);
+                colors[i] = color.r;
+                colors[i + 1] = color.g;
+                colors[i + 2] = color.b;
+            }
+
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.computeVertexNormals();
+
+            // Rotate to make it horizontal
+            geometry.rotateX(-Math.PI / 2);
+
+            const material = new THREE.MeshPhongMaterial({
+                vertexColors: true,
+                side: THREE.DoubleSide,
+                flatShading: false,
+                transparent: true,
+                opacity: 0.85
+            });
+
+            lossSurfaceMesh = new THREE.Mesh(geometry, material);
+            scene.add(lossSurfaceMesh);
+
+            // Add grid below
+            const gridHelper = new THREE.GridHelper(size, 20, 0x1e3a5f, 0x1e293b);
+            gridHelper.position.y = -0.1;
+            scene.add(gridHelper);
+
+            // Optimal point marker
+            const optW = CONFIG.trueParams.w;
+            const optB = CONFIG.trueParams.b;
+            const optX = ((optW - wMin) / (wMax - wMin) - 0.5) * size;
+            const optZ = ((optB - bMin) / (bMax - bMin) - 0.5) * size;
+            const optLoss = computeLossForSurface(optW, optB);
+            const optY = Math.sqrt(optLoss / maxLoss) * 6;
+
+            const optMarker = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
+            );
+            optMarker.position.set(optX, optY + 0.1, optZ);
+            scene.add(optMarker);
+
+            // Store mapping for trails
+            lossSurfaceMesh.userData = { wMin, wMax, bMin, bMax, maxLoss, size };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // OPTIMIZER TRAILS
+        // ═══════════════════════════════════════════════════════════════
+
+        const trails = {};
+        const markers = {};
+
+        function createTrails() {
+            const colors = { batch: 0xf43f5e, minibatch: 0x34d399, sgd: 0x38bdf8 };
+            
+            for (const name of ['batch', 'minibatch', 'sgd']) {
+                // Trail line
+                const positions = new Float32Array(CONFIG.trail.maxPoints * 3);
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setDrawRange(0, 1);
+
+                const material = new THREE.LineBasicMaterial({
+                    color: colors[name],
+                    transparent: true,
+                    opacity: 0.9,
+                    linewidth: 2
+                });
+
+                trails[name] = new THREE.Line(geometry, material);
+                scene.add(trails[name]);
+
+                // Current position marker
+                const markerGeo = new THREE.SphereGeometry(0.12, 16, 16);
+                const markerMat = new THREE.MeshBasicMaterial({ 
+                    color: colors[name],
+                    emissive: colors[name],
+                    emissiveIntensity: 0.5
+                });
+                markers[name] = new THREE.Mesh(markerGeo, markerMat);
+                scene.add(markers[name]);
+            }
+        }
+
+        function resetTrails() {
+            for (const name of ['batch', 'minibatch', 'sgd']) {
+                const positions = trails[name].geometry.attributes.position.array;
+                positions.fill(0);
+                
+                const opt = state.optimizers[name];
+                const pos = paramToPosition(opt.w, opt.b);
+                positions[0] = pos.x;
+                positions[1] = pos.y;
+                positions[2] = pos.z;
+                
+                trails[name].geometry.attributes.position.needsUpdate = true;
+                trails[name].geometry.setDrawRange(0, 1);
+            }
+        }
+
+        function paramToPosition(w, b) {
+            if (!lossSurfaceMesh) return { x: 0, y: 0, z: 0 };
+            
+            const { wMin, wMax, bMin, bMax, maxLoss, size } = lossSurfaceMesh.userData;
+            
+            const x = ((w - wMin) / (wMax - wMin) - 0.5) * size;
+            const z = ((b - bMin) / (bMax - bMin) - 0.5) * size;
+            const loss = computeLossForSurface(w, b);
+            const y = Math.sqrt(Math.min(loss, maxLoss) / maxLoss) * 6 + 0.05;
+            
+            return { x, y, z };
+        }
+
+        function updateTrails() {
+            for (const name of ['batch', 'minibatch', 'sgd']) {
+                const opt = state.optimizers[name];
+                const trail = trails[name];
+                const positions = trail.geometry.attributes.position.array;
+                
+                if (opt.pathIndex < CONFIG.trail.maxPoints) {
+                    const pos = paramToPosition(opt.w, opt.b);
+                    const idx = opt.pathIndex * 3;
+                    positions[idx] = pos.x;
+                    positions[idx + 1] = pos.y;
+                    positions[idx + 2] = pos.z;
+                    
+                    trail.geometry.attributes.position.needsUpdate = true;
+                    trail.geometry.setDrawRange(0, opt.pathIndex + 1);
+                }
+            }
+        }
+
+        function updateMarkers() {
+            for (const name of ['batch', 'minibatch', 'sgd']) {
+                const opt = state.optimizers[name];
+                const pos = paramToPosition(opt.w, opt.b);
+                markers[name].position.set(pos.x, pos.y, pos.z);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VIEW SWITCHING
+        // ═══════════════════════════════════════════════════════════════
+
+        function setView(view) {
+            state.view = view;
+            
+            document.getElementById('btn-view-3d').classList.toggle('active', view === '3d');
+            document.getElementById('btn-view-2d').classList.toggle('active', view === '2d');
+            
+            if (view === '2d') {
+                camera.position.set(0, 15, 0.01);
+                camera.lookAt(0, 0, 0);
+                controls.enabled = false;
+            } else {
+                camera.position.set(12, 10, 12);
+                camera.lookAt(0, 1, 0);
+                controls.enabled = true;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // EVENT HANDLERS
+        // ═══════════════════════════════════════════════════════════════
+
+        document.getElementById('btn-reset').addEventListener('click', reset);
+        document.getElementById('btn-step').addEventListener('click', stepAll);
+
+        document.getElementById('btn-play').addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            document.getElementById('btn-play').textContent = state.isPlaying ? '⏸ Pause' : '▶ Play';
+        });
+
+        document.getElementById('btn-view-3d').addEventListener('click', () => setView('3d'));
+        document.getElementById('btn-view-2d').addEventListener('click', () => setView('2d'));
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            state.speed = parseInt(e.target.value);
+            document.getElementById('speed-value').textContent = state.speed;
+        });
+
+        document.getElementById('batch-slider').addEventListener('input', (e) => {
+            state.miniBatchSize = parseInt(e.target.value);
+            document.getElementById('batch-value').textContent = state.miniBatchSize;
+            updateUI();
+        });
+
+        document.getElementById('lr-slider').addEventListener('input', (e) => {
+            state.learningRate = parseFloat(e.target.value);
+            document.getElementById('lr-value').textContent = state.learningRate.toFixed(3);
+        });
+
+        document.getElementById('data-slider').addEventListener('input', (e) => {
+            state.dataSize = parseInt(e.target.value);
+            document.getElementById('data-value').textContent = state.dataSize;
+            document.getElementById('batch-slider').max = state.dataSize;
+            reset();
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // ANIMATION LOOP
+        // ═══════════════════════════════════════════════════════════════
+
+        let lastStepTime = 0;
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            const stepInterval = Math.max(20, 200 - state.speed * 9);
+
+            if (state.isPlaying && time - lastStepTime > stepInterval) {
+                stepAll();
+                lastStepTime = time;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        createTrails();
+        reset();
+        animate(0);
+    </script>
+</body>
+</html>

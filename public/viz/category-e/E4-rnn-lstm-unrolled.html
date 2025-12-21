@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNN/LSTM Unrolled | Neural Network Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Inter', sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-panel { z-index: 10; backdrop-filter: blur(12px); background-color: rgba(15, 23, 42, 0.9); }
+        
+        input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; height: 14px; width: 14px; border-radius: 50%;
+            background: #f97316; cursor: pointer; margin-top: -5px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #334155; border-radius: 2px;
+        }
+        
+        .gate-bar {
+            transition: all 0.3s ease;
+            border-radius: 4px;
+        }
+        
+        .cell-box {
+            transition: all 0.3s ease;
+        }
+        .cell-box.active {
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.6);
+        }
+        
+        .state-indicator {
+            transition: all 0.2s ease;
+        }
+        
+        .timestep-marker {
+            transition: all 0.3s ease;
+        }
+        .timestep-marker.active {
+            transform: scale(1.2);
+            background: linear-gradient(135deg, #f97316, #ef4444);
+        }
+        
+        @keyframes pulse-flow {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        
+        .flow-animation {
+            animation: pulse-flow 1.5s ease-in-out infinite;
+        }
+        
+        mjx-container { font-size: 0.9em !important; color: white !important; }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body class="text-white">
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <div class="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-20">
+        <div class="ui-panel p-5 rounded-xl border border-slate-700 pointer-events-auto shadow-2xl max-w-lg">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent mb-1">
+                RNN/LSTM Unrolled
+            </h1>
+            <p class="text-xs text-slate-400 mb-4">Visualize temporal unrolling and gate operations</p>
+            
+            <!-- Architecture Toggle -->
+            <div class="flex gap-2 mb-4">
+                <button onclick="app.setArchitecture('rnn')" id="arch-rnn" class="arch-btn flex-1 py-2 px-4 text-sm rounded-lg bg-orange-600 font-bold">
+                    Simple RNN
+                </button>
+                <button onclick="app.setArchitecture('lstm')" id="arch-lstm" class="arch-btn flex-1 py-2 px-4 text-sm rounded-lg bg-slate-700 hover:bg-slate-600">
+                    LSTM
+                </button>
+                <button onclick="app.setArchitecture('gru')" id="arch-gru" class="arch-btn flex-1 py-2 px-4 text-sm rounded-lg bg-slate-700 hover:bg-slate-600">
+                    GRU
+                </button>
+            </div>
+
+            <!-- Math Display -->
+            <div id="math-display" class="bg-slate-900/50 p-3 rounded-lg border border-slate-700 min-h-[50px] flex items-center justify-center text-sm">
+                $$ h_t = \tanh(W_h h_{t-1} + W_x x_t + b) $$
+            </div>
+            <p id="math-explanation" class="text-xs text-slate-400 mt-2 text-center">
+                RNN: Hidden state depends on previous state and current input
+            </p>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="ui-panel p-4 rounded-xl border border-slate-700 pointer-events-auto">
+            <h3 class="text-sm font-bold text-orange-400 mb-3">View</h3>
+            <div class="flex gap-2">
+                <button onclick="app.setView('rolled')" id="view-rolled" class="view-btn px-3 py-2 text-xs rounded-lg bg-orange-600">
+                    🔄 Rolled
+                </button>
+                <button onclick="app.setView('unrolled')" id="view-unrolled" class="view-btn px-3 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                    📐 Unrolled
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LSTM Gate Panel (Right) -->
+    <div id="gate-panel" class="absolute top-1/4 right-4 ui-panel p-4 rounded-xl border border-slate-700 pointer-events-auto z-20 w-64 hidden">
+        <h3 class="text-sm font-bold text-cyan-400 mb-4">LSTM Gates</h3>
+        
+        <!-- Forget Gate -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-slate-400">Forget Gate (f<sub>t</sub>)</span>
+                <span id="forget-val" class="text-xs text-red-400 font-mono">0.50</span>
+            </div>
+            <div class="h-4 bg-slate-800 rounded overflow-hidden">
+                <div id="forget-bar" class="gate-bar h-full bg-gradient-to-r from-red-600 to-red-400" style="width: 50%"></div>
+            </div>
+            <input type="range" id="forget-slider" min="0" max="1" step="0.01" value="0.5" class="w-full mt-1">
+        </div>
+        
+        <!-- Input Gate -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-slate-400">Input Gate (i<sub>t</sub>)</span>
+                <span id="input-val" class="text-xs text-green-400 font-mono">0.50</span>
+            </div>
+            <div class="h-4 bg-slate-800 rounded overflow-hidden">
+                <div id="input-bar" class="gate-bar h-full bg-gradient-to-r from-green-600 to-green-400" style="width: 50%"></div>
+            </div>
+            <input type="range" id="input-slider" min="0" max="1" step="0.01" value="0.5" class="w-full mt-1">
+        </div>
+        
+        <!-- Output Gate -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-slate-400">Output Gate (o<sub>t</sub>)</span>
+                <span id="output-val" class="text-xs text-blue-400 font-mono">0.50</span>
+            </div>
+            <div class="h-4 bg-slate-800 rounded overflow-hidden">
+                <div id="output-bar" class="gate-bar h-full bg-gradient-to-r from-blue-600 to-blue-400" style="width: 50%"></div>
+            </div>
+            <input type="range" id="output-slider" min="0" max="1" step="0.01" value="0.5" class="w-full mt-1">
+        </div>
+        
+        <!-- Cell State -->
+        <div class="mt-4 p-3 bg-slate-800/50 rounded-lg">
+            <p class="text-xs text-slate-400 mb-2">Cell State (C<sub>t</sub>)</p>
+            <div class="flex gap-1">
+                <div id="cell-state-vis" class="flex gap-0.5"></div>
+            </div>
+            <p class="text-xs text-amber-400 mt-2 font-mono" id="cell-state-val">[0.0, 0.0, 0.0, 0.0]</p>
+        </div>
+    </div>
+
+    <!-- Control Panel (Bottom) -->
+    <div class="absolute bottom-6 left-4 right-4 flex justify-center pointer-events-none z-20">
+        <div class="ui-panel p-5 rounded-xl border border-slate-700 pointer-events-auto shadow-2xl w-full max-w-5xl">
+            <div class="flex gap-6">
+                <!-- Sequence Input -->
+                <div class="flex-1" id="sequence-panel">
+                    <h3 class="text-sm font-bold text-purple-400 mb-3">Input Sequence</h3>
+                    <input type="text" id="input-sequence" value="hello"
+                           class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none mb-2"
+                           placeholder="Enter sequence...">
+                    <div class="flex gap-2">
+                        <button onclick="app.setPreset('hello')" class="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600">hello</button>
+                        <button onclick="app.setPreset('12345')" class="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600">12345</button>
+                        <button onclick="app.setPreset('abcde')" class="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600">abcde</button>
+                    </div>
+                </div>
+
+                <!-- Timestep Control -->
+                <div class="flex-1" id="timestep-panel">
+                    <h3 class="text-sm font-bold text-cyan-400 mb-3">Timestep</h3>
+                    <div class="flex gap-2 mb-3">
+                        <button onclick="app.prevStep()" class="px-3 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                            ◀ Prev
+                        </button>
+                        <button onclick="app.playSequence()" id="btn-play" class="px-4 py-2 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-500">
+                            ▶ Play
+                        </button>
+                        <button onclick="app.nextStep()" class="px-3 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                            Next ▶
+                        </button>
+                        <button onclick="app.resetSequence()" class="px-3 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                            ↺ Reset
+                        </button>
+                    </div>
+                    <div class="flex gap-1" id="timestep-markers"></div>
+                </div>
+
+                <!-- Animation Speed -->
+                <div class="w-48">
+                    <h3 class="text-sm font-bold text-amber-400 mb-3">Animation</h3>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs text-slate-400">Speed:</span>
+                        <input type="range" id="speed-slider" min="0.5" max="3" step="0.1" value="1" class="flex-1">
+                        <span id="speed-val" class="text-xs text-amber-400 w-8">1.0x</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="app.toggleGradientFlow()" id="btn-gradient" class="px-3 py-2 text-xs rounded-lg bg-slate-700 hover:bg-slate-600">
+                            📊 Gradients
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hidden State -->
+                <div class="w-56">
+                    <h3 class="text-sm font-bold text-green-400 mb-3">Hidden State (h<sub>t</sub>)</h3>
+                    <div id="hidden-state-display" class="bg-slate-800/50 rounded-lg p-3">
+                        <div class="flex gap-1 mb-2" id="hidden-state-bars"></div>
+                        <p class="text-xs text-green-400 font-mono" id="hidden-state-val">[0.0, 0.0, 0.0, 0.0]</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        class RNNVisualizer {
+            constructor() {
+                this.architecture = 'rnn';
+                this.viewMode = 'rolled';
+                this.sequence = 'hello';
+                this.currentStep = 0;
+                this.isPlaying = false;
+                this.animationSpeed = 1;
+                this.showGradients = false;
+                
+                // State
+                this.hiddenState = [0, 0, 0, 0];
+                this.cellState = [0, 0, 0, 0]; // For LSTM
+                this.hiddenDim = 4;
+                
+                // Gate values (for LSTM)
+                this.forgetGate = 0.5;
+                this.inputGate = 0.5;
+                this.outputGate = 0.5;
+                
+                // 3D Scene
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                
+                // Visual elements
+                this.cellMeshes = [];
+                this.connectionLines = [];
+                this.stateArrows = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.setupScene();
+                this.createVisualization();
+                this.setupEventListeners();
+                this.updateTimestepMarkers();
+                this.updateStateDisplay();
+                this.animate();
+            }
+
+            setupScene() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0f172a);
+                
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+                this.camera.position.set(0, 5, 20);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+                
+                this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                
+                // Lights
+                const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+                this.scene.add(ambient);
+                
+                const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+                directional.position.set(10, 10, 10);
+                this.scene.add(directional);
+                
+                window.addEventListener('resize', () => this.onResize());
+            }
+
+            createVisualization() {
+                this.clearVisualization();
+                
+                if (this.viewMode === 'rolled') {
+                    this.createRolledView();
+                } else {
+                    this.createUnrolledView();
+                }
+            }
+
+            clearVisualization() {
+                this.cellMeshes.forEach(mesh => {
+                    this.scene.remove(mesh);
+                    if (mesh.geometry) mesh.geometry.dispose();
+                    if (mesh.material) {
+                        if (Array.isArray(mesh.material)) {
+                            mesh.material.forEach(m => m.dispose());
+                        } else {
+                            mesh.material.dispose();
+                        }
+                    }
+                });
+                this.cellMeshes = [];
+                
+                this.connectionLines.forEach(line => {
+                    this.scene.remove(line);
+                    if (line.geometry) line.geometry.dispose();
+                    if (line.material) line.material.dispose();
+                });
+                this.connectionLines = [];
+                
+                this.stateArrows.forEach(arrow => this.scene.remove(arrow));
+                this.stateArrows = [];
+            }
+
+            createRolledView() {
+                // Single RNN cell with recurrence loop
+                const cellGroup = new THREE.Group();
+                
+                // Main cell box
+                const boxGeo = new THREE.BoxGeometry(4, 3, 2);
+                const boxMat = new THREE.MeshPhongMaterial({
+                    color: 0xf97316,
+                    transparent: true,
+                    opacity: 0.8,
+                    emissive: 0xc2410c,
+                    emissiveIntensity: 0.2
+                });
+                const box = new THREE.Mesh(boxGeo, boxMat);
+                cellGroup.add(box);
+                
+                // Wireframe
+                const wireGeo = new THREE.BoxGeometry(4.1, 3.1, 2.1);
+                const wireMat = new THREE.MeshBasicMaterial({ color: 0xfb923c, wireframe: true });
+                const wire = new THREE.Mesh(wireGeo, wireMat);
+                cellGroup.add(wire);
+                
+                // Label
+                this.addLabel(this.architecture.toUpperCase(), 0, 0, 1.5, 0xffffff, cellGroup);
+                
+                this.scene.add(cellGroup);
+                this.cellMeshes.push(cellGroup);
+                
+                // Input arrow (from below)
+                this.createArrow(0, -5, 0, 0, -2, 0, 0x22c55e, 'x_t');
+                
+                // Output arrow (to above)
+                this.createArrow(0, 2, 0, 0, 5, 0, 0x3b82f6, 'y_t');
+                
+                // Recurrence loop (curved arrow going around)
+                this.createRecurrenceLoop();
+                
+                // Hidden state label
+                this.addLabel('h_t', 4, 0, 0, 0xfbbf24);
+                
+                this.camera.position.set(0, 0, 15);
+            }
+
+            createRecurrenceLoop() {
+                // Create curved path for recurrence
+                const curve = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(2, 0, 0),
+                    new THREE.Vector3(4, 2, 0),
+                    new THREE.Vector3(4, 3, 0),
+                    new THREE.Vector3(2, 4, 0),
+                    new THREE.Vector3(-2, 4, 0),
+                    new THREE.Vector3(-4, 3, 0),
+                    new THREE.Vector3(-4, 2, 0),
+                    new THREE.Vector3(-2, 0, 0)
+                ]);
+                
+                const points = curve.getPoints(50);
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({ 
+                    color: 0xfbbf24,
+                    linewidth: 2
+                });
+                
+                const curveObject = new THREE.Line(geometry, material);
+                this.scene.add(curveObject);
+                this.connectionLines.push(curveObject);
+                
+                // Arrow head
+                const arrowDir = new THREE.Vector3(-1, -1, 0).normalize();
+                const arrowPos = new THREE.Vector3(-2, 0, 0);
+                const arrowHelper = new THREE.ArrowHelper(arrowDir, arrowPos, 0.01, 0xfbbf24, 0.5, 0.3);
+                this.scene.add(arrowHelper);
+                this.stateArrows.push(arrowHelper);
+                
+                // Label
+                this.addLabel('h_{t-1}', -4, 2, 0, 0xfbbf24);
+            }
+
+            createUnrolledView() {
+                const seqLen = this.sequence.length;
+                const spacing = 6;
+                const startX = -(seqLen - 1) * spacing / 2;
+                
+                // Create cells for each timestep
+                for (let t = 0; t < seqLen; t++) {
+                    const cellGroup = new THREE.Group();
+                    const isActive = t === this.currentStep;
+                    
+                    // Cell box
+                    const boxGeo = new THREE.BoxGeometry(3, 2.5, 1.5);
+                    const color = isActive ? 0xf97316 : 0x64748b;
+                    const boxMat = new THREE.MeshPhongMaterial({
+                        color: color,
+                        transparent: true,
+                        opacity: isActive ? 0.9 : 0.6,
+                        emissive: isActive ? 0xc2410c : 0x334155,
+                        emissiveIntensity: 0.2
+                    });
+                    const box = new THREE.Mesh(boxGeo, boxMat);
+                    cellGroup.add(box);
+                    
+                    // Wireframe
+                    const wireGeo = new THREE.BoxGeometry(3.1, 2.6, 1.6);
+                    const wireMat = new THREE.MeshBasicMaterial({ 
+                        color: isActive ? 0xfb923c : 0x94a3b8, 
+                        wireframe: true 
+                    });
+                    const wire = new THREE.Mesh(wireGeo, wireMat);
+                    cellGroup.add(wire);
+                    
+                    // Cell label
+                    this.addLabel(this.architecture.toUpperCase(), 0, 0, 1, 0xffffff, cellGroup);
+                    
+                    cellGroup.position.x = startX + t * spacing;
+                    cellGroup.userData = { timestep: t };
+                    
+                    this.scene.add(cellGroup);
+                    this.cellMeshes.push(cellGroup);
+                    
+                    // Input arrow and label
+                    const inputX = startX + t * spacing;
+                    this.createArrow(inputX, -4, 0, inputX, -1.5, 0, 0x22c55e);
+                    this.addLabel(`x_${t}="${this.sequence[t]}"`, inputX, -5, 0, 0x22c55e);
+                    
+                    // Output arrow
+                    this.createArrow(inputX, 1.5, 0, inputX, 4, 0, 0x3b82f6);
+                    this.addLabel(`h_${t}`, inputX, 5, 0, 0x3b82f6);
+                    
+                    // Hidden state connection to next cell
+                    if (t < seqLen - 1) {
+                        const nextX = startX + (t + 1) * spacing;
+                        this.createArrow(inputX + 1.7, 0, 0, nextX - 1.7, 0, 0, 0xfbbf24);
+                    }
+                }
+                
+                // Initial hidden state
+                this.addLabel('h_0', startX - 3, 0, 0, 0x94a3b8);
+                this.createArrow(startX - 2.5, 0, 0, startX - 1.7, 0, 0, 0x94a3b8);
+                
+                // Gradient flow overlay (if enabled)
+                if (this.showGradients) {
+                    this.createGradientOverlay();
+                }
+                
+                this.camera.position.set(0, 3, 20 + seqLen * 2);
+            }
+
+            createGradientOverlay() {
+                const seqLen = this.sequence.length;
+                const spacing = 6;
+                const startX = -(seqLen - 1) * spacing / 2;
+                
+                // Show gradient magnitude decreasing for RNN (vanishing gradient)
+                for (let t = seqLen - 1; t >= 0; t--) {
+                    const gradient = this.architecture === 'rnn' 
+                        ? Math.pow(0.7, seqLen - 1 - t) // Vanishing
+                        : 0.9; // LSTM maintains gradient better
+                    
+                    const x = startX + t * spacing;
+                    
+                    // Gradient magnitude bar
+                    const barGeo = new THREE.BoxGeometry(0.5, gradient * 3, 0.2);
+                    const barMat = new THREE.MeshPhongMaterial({
+                        color: gradient > 0.5 ? 0x22c55e : (gradient > 0.2 ? 0xfbbf24 : 0xef4444),
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    const bar = new THREE.Mesh(barGeo, barMat);
+                    bar.position.set(x, -7 + gradient * 1.5, 0);
+                    this.scene.add(bar);
+                    this.cellMeshes.push(bar);
+                }
+                
+                this.addLabel('Gradient Flow', 0, -9, 0, 0x94a3b8);
+            }
+
+            createArrow(x1, y1, z1, x2, y2, z2, color, label = null) {
+                const dir = new THREE.Vector3(x2 - x1, y2 - y1, z2 - z1);
+                const length = dir.length();
+                dir.normalize();
+                
+                const arrow = new THREE.ArrowHelper(
+                    dir,
+                    new THREE.Vector3(x1, y1, z1),
+                    length,
+                    color,
+                    0.4,
+                    0.25
+                );
+                
+                this.scene.add(arrow);
+                this.stateArrows.push(arrow);
+                
+                if (label) {
+                    this.addLabel(label, (x1 + x2) / 2 - 1, (y1 + y2) / 2, (z1 + z2) / 2, color);
+                }
+            }
+
+            addLabel(text, x, y, z, color, parent = null) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 48;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(text, 64, 32);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMat = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMat);
+                sprite.position.set(x, y, z);
+                sprite.scale.set(3, 1.2, 1);
+                
+                if (parent) {
+                    parent.add(sprite);
+                } else {
+                    this.scene.add(sprite);
+                    this.cellMeshes.push(sprite);
+                }
+            }
+
+            setArchitecture(arch) {
+                this.architecture = arch;
+                
+                // Update buttons
+                document.querySelectorAll('.arch-btn').forEach(btn => {
+                    btn.classList.remove('bg-orange-600');
+                    btn.classList.add('bg-slate-700');
+                });
+                document.getElementById(`arch-${arch}`).classList.add('bg-orange-600');
+                document.getElementById(`arch-${arch}`).classList.remove('bg-slate-700');
+                
+                // Show/hide gate panel
+                document.getElementById('gate-panel').classList.toggle('hidden', arch === 'rnn');
+                
+                // Update math display
+                this.updateMathDisplay();
+                
+                // Reset state
+                this.resetSequence();
+                this.createVisualization();
+            }
+
+            setView(view) {
+                this.viewMode = view;
+                
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.classList.remove('bg-orange-600');
+                    btn.classList.add('bg-slate-700');
+                });
+                document.getElementById(`view-${view}`).classList.add('bg-orange-600');
+                document.getElementById(`view-${view}`).classList.remove('bg-slate-700');
+                
+                this.createVisualization();
+            }
+
+            updateMathDisplay() {
+                let latex, explanation;
+                
+                if (this.architecture === 'rnn') {
+                    latex = 'h_t = \\tanh(W_h h_{t-1} + W_x x_t + b)';
+                    explanation = 'Simple RNN: Hidden state is a function of previous state and input';
+                } else if (this.architecture === 'lstm') {
+                    latex = `\\begin{aligned}
+                        f_t &= \\sigma(W_f [h_{t-1}, x_t]) \\\\
+                        i_t &= \\sigma(W_i [h_{t-1}, x_t]) \\\\
+                        C_t &= f_t \\odot C_{t-1} + i_t \\odot \\tilde{C}_t
+                    \\end{aligned}`;
+                    explanation = 'LSTM: Gates control information flow through cell state';
+                } else {
+                    latex = `\\begin{aligned}
+                        z_t &= \\sigma(W_z [h_{t-1}, x_t]) \\\\
+                        r_t &= \\sigma(W_r [h_{t-1}, x_t]) \\\\
+                        h_t &= (1-z_t) \\odot h_{t-1} + z_t \\odot \\tilde{h}_t
+                    \\end{aligned}`;
+                    explanation = 'GRU: Simplified gating with reset and update gates';
+                }
+                
+                const display = document.getElementById('math-display');
+                display.innerHTML = `$$ ${latex} $$`;
+                document.getElementById('math-explanation').textContent = explanation;
+                
+                if (window.MathJax) {
+                    MathJax.typesetPromise([display]);
+                }
+            }
+
+            updateTimestepMarkers() {
+                const container = document.getElementById('timestep-markers');
+                container.innerHTML = '';
+                
+                for (let t = 0; t < this.sequence.length; t++) {
+                    const marker = document.createElement('button');
+                    marker.className = `timestep-marker px-3 py-1 text-xs rounded ${t === this.currentStep ? 'active bg-orange-600' : 'bg-slate-700 hover:bg-slate-600'}`;
+                    marker.textContent = `t=${t}`;
+                    marker.onclick = () => this.goToStep(t);
+                    container.appendChild(marker);
+                }
+            }
+
+            processStep() {
+                const char = this.sequence[this.currentStep];
+                const charCode = char.charCodeAt(0) / 255; // Normalize
+                
+                if (this.architecture === 'rnn') {
+                    // Simple RNN update
+                    for (let i = 0; i < this.hiddenDim; i++) {
+                        const wx = charCode * (0.5 - Math.random() * 0.3);
+                        const wh = this.hiddenState[i] * 0.8;
+                        this.hiddenState[i] = Math.tanh(wx + wh);
+                    }
+                } else if (this.architecture === 'lstm') {
+                    // LSTM update
+                    const candidate = [];
+                    for (let i = 0; i < this.hiddenDim; i++) {
+                        candidate.push(Math.tanh(charCode + this.hiddenState[i] * 0.5));
+                    }
+                    
+                    for (let i = 0; i < this.hiddenDim; i++) {
+                        // Cell state update
+                        this.cellState[i] = this.forgetGate * this.cellState[i] + this.inputGate * candidate[i];
+                        // Hidden state update
+                        this.hiddenState[i] = this.outputGate * Math.tanh(this.cellState[i]);
+                    }
+                } else {
+                    // GRU update
+                    const updateGate = 0.5 + Math.random() * 0.3;
+                    for (let i = 0; i < this.hiddenDim; i++) {
+                        const candidate = Math.tanh(charCode + this.hiddenState[i] * 0.5);
+                        this.hiddenState[i] = (1 - updateGate) * this.hiddenState[i] + updateGate * candidate;
+                    }
+                }
+                
+                this.updateStateDisplay();
+            }
+
+            updateStateDisplay() {
+                // Hidden state bars
+                const barsContainer = document.getElementById('hidden-state-bars');
+                barsContainer.innerHTML = '';
+                
+                this.hiddenState.forEach((val, i) => {
+                    const bar = document.createElement('div');
+                    bar.className = 'w-6 bg-slate-700 rounded overflow-hidden';
+                    bar.style.height = '40px';
+                    
+                    const fill = document.createElement('div');
+                    fill.className = 'w-full bg-gradient-to-t from-green-600 to-green-400 transition-all';
+                    fill.style.height = `${Math.abs(val) * 100}%`;
+                    fill.style.marginTop = val >= 0 ? 'auto' : '0';
+                    
+                    bar.appendChild(fill);
+                    barsContainer.appendChild(bar);
+                });
+                
+                document.getElementById('hidden-state-val').textContent = 
+                    `[${this.hiddenState.map(v => v.toFixed(2)).join(', ')}]`;
+                
+                // Cell state (LSTM only)
+                if (this.architecture === 'lstm') {
+                    const cellVis = document.getElementById('cell-state-vis');
+                    cellVis.innerHTML = '';
+                    
+                    this.cellState.forEach((val, i) => {
+                        const cell = document.createElement('div');
+                        cell.className = 'w-6 h-6 rounded transition-all';
+                        const intensity = Math.abs(val);
+                        const hue = val >= 0 ? 45 : 0; // Amber or red
+                        cell.style.backgroundColor = `hsla(${hue}, 80%, ${30 + intensity * 40}%, 1)`;
+                        cellVis.appendChild(cell);
+                    });
+                    
+                    document.getElementById('cell-state-val').textContent = 
+                        `[${this.cellState.map(v => v.toFixed(2)).join(', ')}]`;
+                }
+            }
+
+            goToStep(step) {
+                // Reset and replay up to step
+                this.hiddenState = [0, 0, 0, 0];
+                this.cellState = [0, 0, 0, 0];
+                
+                for (let t = 0; t <= step; t++) {
+                    this.currentStep = t;
+                    this.processStep();
+                }
+                
+                this.updateTimestepMarkers();
+                this.createVisualization();
+            }
+
+            nextStep() {
+                if (this.currentStep < this.sequence.length - 1) {
+                    this.currentStep++;
+                    this.processStep();
+                    this.updateTimestepMarkers();
+                    this.createVisualization();
+                }
+            }
+
+            prevStep() {
+                if (this.currentStep > 0) {
+                    this.goToStep(this.currentStep - 1);
+                }
+            }
+
+            playSequence() {
+                if (this.isPlaying) {
+                    this.isPlaying = false;
+                    document.getElementById('btn-play').textContent = '▶ Play';
+                    return;
+                }
+                
+                this.isPlaying = true;
+                document.getElementById('btn-play').textContent = '⏸ Pause';
+                
+                const play = () => {
+                    if (!this.isPlaying) return;
+                    
+                    if (this.currentStep < this.sequence.length - 1) {
+                        this.nextStep();
+                        setTimeout(play, 1000 / this.animationSpeed);
+                    } else {
+                        this.isPlaying = false;
+                        document.getElementById('btn-play').textContent = '▶ Play';
+                    }
+                };
+                
+                play();
+            }
+
+            resetSequence() {
+                this.isPlaying = false;
+                this.currentStep = 0;
+                this.hiddenState = [0, 0, 0, 0];
+                this.cellState = [0, 0, 0, 0];
+                
+                document.getElementById('btn-play').textContent = '▶ Play';
+                this.updateTimestepMarkers();
+                this.updateStateDisplay();
+                this.createVisualization();
+            }
+
+            setPreset(preset) {
+                this.sequence = preset;
+                document.getElementById('input-sequence').value = preset;
+                this.resetSequence();
+            }
+
+            toggleGradientFlow() {
+                this.showGradients = !this.showGradients;
+                document.getElementById('btn-gradient').classList.toggle('bg-cyan-600', this.showGradients);
+                document.getElementById('btn-gradient').classList.toggle('bg-slate-700', !this.showGradients);
+                this.createVisualization();
+            }
+
+            setupEventListeners() {
+                document.getElementById('input-sequence').addEventListener('change', (e) => {
+                    this.sequence = e.target.value.slice(0, 10); // Limit length
+                    this.resetSequence();
+                });
+                
+                document.getElementById('speed-slider').addEventListener('input', (e) => {
+                    this.animationSpeed = parseFloat(e.target.value);
+                    document.getElementById('speed-val').textContent = `${this.animationSpeed.toFixed(1)}x`;
+                });
+                
+                // Gate sliders (LSTM)
+                document.getElementById('forget-slider').addEventListener('input', (e) => {
+                    this.forgetGate = parseFloat(e.target.value);
+                    document.getElementById('forget-val').textContent = this.forgetGate.toFixed(2);
+                    document.getElementById('forget-bar').style.width = `${this.forgetGate * 100}%`;
+                    this.processStep();
+                });
+                
+                document.getElementById('input-slider').addEventListener('input', (e) => {
+                    this.inputGate = parseFloat(e.target.value);
+                    document.getElementById('input-val').textContent = this.inputGate.toFixed(2);
+                    document.getElementById('input-bar').style.width = `${this.inputGate * 100}%`;
+                    this.processStep();
+                });
+                
+                document.getElementById('output-slider').addEventListener('input', (e) => {
+                    this.outputGate = parseFloat(e.target.value);
+                    document.getElementById('output-val').textContent = this.outputGate.toFixed(2);
+                    document.getElementById('output-bar').style.width = `${this.outputGate * 100}%`;
+                    this.processStep();
+                });
+            }
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                this.controls.update();
+                
+                // Pulse active cell
+                this.cellMeshes.forEach(mesh => {
+                    if (mesh.userData && mesh.userData.timestep === this.currentStep) {
+                        const scale = 1 + Math.sin(Date.now() * 0.003) * 0.05;
+                        mesh.scale.set(scale, scale, scale);
+                    }
+                });
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        const app = new RNNVisualizer();
+        window.app = app;
+    </script>
+</body>
+</html>
